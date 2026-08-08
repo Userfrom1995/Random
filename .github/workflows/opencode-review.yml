@@ -3,27 +3,41 @@ name: opencode-review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
 
 concurrency:
-  group: opencode-review-${{ github.event.pull_request.number }}
+  group: opencode-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/oc review'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       issues: read
     steps:
+      - name: Get PR info
+        if: github.event_name == 'issue_comment'
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          pr="${{ github.event.issue.number }}"
+          head_ref=$(gh pr view "$pr" --json headRefName --jq '.headRefName')
+          echo "head_ref=$head_ref" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository (PR head)
         uses: actions/checkout@v6
         with:
           persist-credentials: true
           token: ${{ secrets.OPENCODE_PAT }}
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref || steps.pr-info.outputs.head_ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           fetch-depth: 0
 
       - name: Configure git identity
@@ -52,7 +66,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
         run: |
-          pr="${{ github.event.pull_request.number }}"
+          pr="${{ github.event.pull_request.number || github.event.issue.number }}"
           latest_comment=$(gh api "repos/${{ github.repository }}/issues/${pr}/comments" \
             --jq '[.[] | select(.user.login == "github-actions[bot]")] | last | .body' 2>/dev/null || true)
           if [ -n "$latest_comment" ] && echo "$latest_comment" | grep -q '^/oc'; then
