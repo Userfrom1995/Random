@@ -49,7 +49,7 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.OPENCODE_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           model: opencode/nemotron-3-ultra-free
           use_github_token: true
@@ -67,11 +67,17 @@ jobs:
           GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
         run: |
           pr="${{ github.event.pull_request.number || github.event.issue.number }}"
-          latest_comment=$(gh api "repos/${{ github.repository }}/issues/${pr}/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]")] | last | .body' 2>/dev/null || true)
-          if [ -n "$latest_comment" ] && echo "$latest_comment" | grep -q '^/oc'; then
-            echo "Re-posting /oc comment with PAT"
-            gh api "repos/${{ github.repository }}/issues/${pr}/comments" -f body="$latest_comment"
-          else
+          bot_oc=$(gh api "repos/${{ github.repository }}/issues/${pr}/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("/oc")))] | last | .body' 2>/dev/null || true)
+          if [ -z "$bot_oc" ]; then
             echo "No /oc comment found from github-actions[bot]"
+            exit 0
           fi
+          existing=$(gh api "repos/${{ github.repository }}/issues/${pr}/comments" \
+            --jq '[.[] | select(.user.login != "github-actions[bot]" and (.body | startswith("/oc")))] | length' 2>/dev/null || echo "0")
+          if [ "$existing" -gt 0 ]; then
+            echo "User /oc comment already exists, skipping"
+            exit 0
+          fi
+          echo "Re-posting /oc comment with PAT"
+          gh api "repos/${{ github.repository }}/issues/${pr}/comments" -f body="$bot_oc"
