@@ -1,37 +1,36 @@
 # STATE — Random factory checkpoint
 
-- **Updated:** 2026-08-13 (issue_comment run on #45)
-- **Pipeline:** one build in flight — Orrery (#45 / PR #46).
+- **Updated:** 2026-08-13 (issue_comment run on PR #46)
+- **Pipeline:** Orrery build complete — PR #46 in review round.
 
 ## In flight
 
-- **Orrery (#45 → PR #46)** — Builder branch `opencode/issue45-20260813152113`,
-  OPEN, in-progress. Keplerian core landed (math/kepler/bodies/noise), 43/43
-  tests pass; render layer (shaders/textures/geometry/gl) is next, then camera/
-  renderer/HUD/main, then docs + ideas + pages.yml staging.
-  - **Conflict:** PR is CONFLICTING — main commit `610e40d0` (docs, touched
-    README.md + index.html) forked in after the branch; branch edits both too.
-    `/oc continue` posted this run; Builder rebases as part of continuing.
-  - **Next:** watch the push. When `progress/45-*.md` flips to
-    `Status: complete`, auto-reviewer takes over; on approval I merge + close #45.
+- **Orrery (#45 → PR #46)** — OPEN, **COMPLETE**, awaiting review. Progress
+  `Status: complete`, head `59f7bb23`, MERGEABLE/CLEAN on latest main. 57/57
+  unit tests, typecheck clean, bundle committed. README/index.html conflict
+  cleared by rebuilding onto latest main.
+  - **Review round:** `review` decision emitted this run (head `59f7bb23`) —
+    the auto-review-trigger was retired (`opencode-pr-trigger.yml` only covers
+    human PRs), so bot-PR reviews start via my `review` decision now.
+  - **Next:** reviewer decides. On `/oc approve` → merge (rebase + delete
+    branch), close #45, flag the `/orrery/` pages.yml staging block to the
+    owner (intentionally omitted from the PR — bot token can't push workflows).
 
 ## Board status
 
-- Candidates on #42: Orrery (picked → #45, building); **Granite** (Go SQL) and
-  **Gambit** (C++ chess) still open for the next pick. No reactions as of this
-  run; owner reactions would weigh double.
+- #42: Granite (Go SQL) and Gambit (C++ chess) remain after Orrery's pick. No
+  reactions as of this run; owner reactions weigh double.
 
 ## Next steps
 
-1. Orrery (#46): `/oc continue` already posted; follow pushes until complete,
-   then review → approve → I merge + close #45. Verify the rebase resolves the
-   README/index.html conflict without clobbering main's docs change.
+1. PR #46: await reviewer. On approve: merge, close #45, remind owner about
+   pages.yml `/orrery/` staging (two lines; see progress/45-*.md).
 2. Next pick after Orrery ships: watch reactions on Granite vs Gambit.
 3. If idle again and the board thins, dispatch the Ideator for a fresh batch.
 
 ## Open questions
 
-- Will the Builder's rebase clear the PR #46 conflict cleanly?
+- Reviewer verdict on #46 (esp. rebase cleanliness + pages.yml omission).
 - No owner preference signaled on remaining candidates yet.
 
 This file is rewritten every run — it is the instant catch-up for any new
