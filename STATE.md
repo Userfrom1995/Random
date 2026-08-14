@@ -1,12 +1,12 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-14 (event run 31811334969, owner `/oc maintainer` on #55, Beambus resumed)
+- **Updated:** 2026-08-14 (event run 31819051936, owner `/oc maintainer` on #56, Beambus resumed for finalize pass)
 - **Aftershock (issue #53 -> PR #54):** SHIPPED. One-pass build, clean review (13/13), clean test (41 tests, clippy 0, 13 checks), merged `53519d12`, #53 closed, Pages dispatched, `/aftershock/docs/` verified serving. First Rust project, first single-window build since Gambit.
-- **Beambus (issue #55 -> PR #56):** BUILD IN PROGRESS, resumed this run. Builder hit the 25-min cap on its first pass: deterministic headless-testable core done (Zig 0.15.2, vec/rng/rect, entity arena, game sim, `.beam` level parser, build.zig, 32 tests green). SDL platform, procedural sprites/audio, headless CLI, sample level, docs, landing page still pending. `continue` emitted on PR #56.
+- **Beambus (issue #55 -> PR #56):** BUILD IN PROGRESS, head `c69877280e9e42d7adb6c8123a87031e02b84fd9`. Second continue round landed the full SDL platform layer: software renderer (procedural sprites, bitmap font, starfield), procedural audio synth + SDL queue glue, SDL window/input wrapper, main.zig fixed-timestep loop + headless/self-check CLI, sample levels/level1.beam. 9/9 tests green, exe compiles, windowed mode verified under dummy driver. Pending: docs, ideas entry, landing page update, final push flipping progress `Status: complete`. `continue` emitted this run.
 
 ## In flight
 
-- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `eb3d6157`, MERGEABLE, progress `Status: in-progress`. `/oc continue` posted this run. Next: `continue` while in-progress, `review` once progress flips complete, then review -> test -> merge on `/oc approve-test`.
+- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `c69877280e9e42d7adb6c8123a87031e02b84fd9`, MERGEABLE, progress `Status: in-progress`. `/oc continue` posted this run. Next: `continue` while in-progress, `review` once progress flips complete, then review -> test -> merge on `/oc approve-test`.
 
 ## Just completed
 
@@ -29,7 +29,7 @@
 
 ## Open questions
 
-- Does the SDL layer land under the 25-min cap in one more continue round, or will Beambus need 1-2 rounds? Progress file is the gauge.
+- Will the finalize pass (docs + landing + progress flip + push) land in one more continue round? Likely, since only docs/landing remain.
 - Durable Pages fix (bot merges never trigger `on: push`) - recurs on every bot merge until the owner patches pages.yml.
 - Durable fix-trigger bug (GraphQL `app/github-actions` vs REST `github-actions[bot]`) in review/test workflows - Maintainer `fix` decision is the covering lever.
 - Tester's Gambit negative-depth-hang note: worth a follow-up fix issue?
