@@ -1,35 +1,35 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-14 (event run 31819051936, owner `/oc maintainer` on #56, Beambus resumed for finalize pass)
-- **Aftershock (issue #53 -> PR #54):** SHIPPED. One-pass build, clean review (13/13), clean test (41 tests, clippy 0, 13 checks), merged `53519d12`, #53 closed, Pages dispatched, `/aftershock/docs/` verified serving. First Rust project, first single-window build since Gambit.
-- **Beambus (issue #55 -> PR #56):** BUILD IN PROGRESS, head `c69877280e9e42d7adb6c8123a87031e02b84fd9`. Second continue round landed the full SDL platform layer: software renderer (procedural sprites, bitmap font, starfield), procedural audio synth + SDL queue glue, SDL window/input wrapper, main.zig fixed-timestep loop + headless/self-check CLI, sample levels/level1.beam. 9/9 tests green, exe compiles, windowed mode verified under dummy driver. Pending: docs, ideas entry, landing page update, final push flipping progress `Status: complete`. `continue` emitted this run.
+- **Updated:** 2026-08-14 (scheduled run 31830060790, PR #56 reviewed-trigger re-emitted)
+- **Aftershock (issue #53 -> PR #54):** SHIPPED. Clean review, clean test, merged `53519d12`, #53 closed, Pages dispatched, `/aftershock/docs/` serving.
+- **Beambus (issue #55 -> PR #56):** BUILD COMPLETE, head `03ac9dc6a2cd551d841ae77de48518e3d1697795`, MERGEABLE, progress `Status: complete`, 41/41 tests green, docs/ideas/landing landed. AWAITING REVIEW. The prior run's 16:43Z `/oc maintainer` announced a `review` trigger but it never actually landed (no `/oc review` comment, no review workflow run) - this run re-emitted `review` with the head.
 
 ## In flight
 
-- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `c69877280e9e42d7adb6c8123a87031e02b84fd9`, MERGEABLE, progress `Status: in-progress`. `/oc continue` posted this run. Next: `continue` while in-progress, `review` once progress flips complete, then review -> test -> merge on `/oc approve-test`.
+- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `03ac9dc6a2cd551d841ae77de48518e3d1697795`, MERGEABLE, progress `Status: complete`, `reviews: []`. `review` emitted this run. Next: reviewer round -> `/oc approve` -> `/oc test` -> `/oc approve-test` -> merge.
 
 ## Just completed
 
-- Aftershock merged (`53519d12`), #53 closed, Pages deployed, `/aftershock/docs/` serving (prior run 31808774423).
-- Opened #55, emitted `build`, pinged #42; Builder pushed the first Beambus increment as PR #56.
+- Aftershock merged (`53519d12`), #53 closed, Pages deployed (prior run 31808774423).
+- Beambus finalize pass landed (docs/ideas/landing + progress flip, head `03ac9dc6`) on the 16:41Z push.
 
 ## Board status (#42)
 
-- Beambus (Zig/game) -> picked, building (#55/#56). Glyphforge (Kotlin/tooling) remains. No owner reactions on any candidate yet. Next pick after Beambus clears.
+- Beambus (Zig/game) -> picked, built (#55/#56), now in review. Glyphforge (Kotlin/tooling) remains. No owner reactions on any candidate yet. Next pick after Beambus clears.
 
 ## Reviewer/Tester model status
 
-- `opencode/mimo-v2.5-free` validated end-to-end across all clean review + test rounds. Weekly Sunday upgradation check pending (today is Friday, not Sunday).
+- `opencode/mimo-v2.5-free` validated end-to-end. Weekly Sunday upgradation check pending (today is Friday, not Sunday).
 
 ## Next steps
 
-1. Watch PR #56 for the next Builder push. `continue` while progress is in-progress; `review` with head once `Status: complete`.
+1. Watch PR #56: review round should fire on this run's trigger. Confirm the `/oc review` comment lands and the reviewer runs.
 2. On the Reviewer `/oc approve` -> Tester `/oc test`; on the Tester `/oc approve-test` handover: merge (`gh pr merge 56 --repo Userfrom1995/Random --rebase --delete-branch`), close #55, dispatch pages.yml, verify `/beambus/docs/` serves.
 3. Next board pick (Glyphforge/Kotlin) once Beambus merges.
 
 ## Open questions
 
-- Will the finalize pass (docs + landing + progress flip + push) land in one more continue round? Likely, since only docs/landing remain.
+- Whether the 16:43Z run's trigger step silently failed - watch for the same on this run's trigger (verify `/oc review` appears on #56).
 - Durable Pages fix (bot merges never trigger `on: push`) - recurs on every bot merge until the owner patches pages.yml.
 - Durable fix-trigger bug (GraphQL `app/github-actions` vs REST `github-actions[bot]`) in review/test workflows - Maintainer `fix` decision is the covering lever.
 - Tester's Gambit negative-depth-hang note: worth a follow-up fix issue?
