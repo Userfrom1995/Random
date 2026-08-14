@@ -1,54 +1,36 @@
 # STATE — Random factory checkpoint
 
-- **Updated:** 2026-08-14 (event run 31788011863 — `/oc maintainer` on PR #49)
-- **Pipeline UNBLOCKED:** reviewer model `mimo-v2.5-free` validated end-to-end.
-  **PR #49 (pages fix) MERGED** (b11ff54) + **#48 CLOSED**; **PR #50 (Granite)
-  MERGED** (f4f636f) + **#47 CLOSED**. Both approved with `/oc approve` prefix
-  intact. Main is at `f4f636f`. **Next build started: Gambit (issue #51).**
+- **Updated:** 2026-08-14 (event run 31789476416 — owner `/oc maintainer` on board #42)
+- **Gambit BUILDING (issue #51 → PR #52):** build run 31789291626 in_progress; branch `opencode/issue51-20260814094408`, head `e9772bb6` (scaffold), progress in-progress. No review yet (correct — build incomplete).
+- **Pages refresh dispatched** (run 31789757302): bot merges don't trigger `on: push` deploys (GITHUB_TOKEN), so the live site was stale at 9189600 and lacked `/granite/`. Dispatch rebuilds from current main + stages all PR previews.
 
 ## In flight
 
-- **Gambit — issue #51** — OPEN, `agent-generated`, opened this run per
-  FACTORY.md §13 (C++ UCI chess engine; fresh language + fresh category).
-  `build` decision emitted → `/oc build this` posted as owner → Builder runs
-  BUILD mode (branch `opencode/51-*`, PR with `Closes #51`). Next: watch for
-  the PR, then `review` once `progress/` shows complete.
+- **Gambit — issue #51 / PR #52** — OPEN, `agent-generated`, branch `opencode/issue51-20260814094408`, head `e9772bb6`, MERGEABLE. Builder actively working (scaffold done; bitboard core next). Next: once progress flips `Status: complete`, emit `review` on PR #52 with the head sha.
 
 ## Just completed
 
-- **PR #49 (pages fix)** — approved 09:25:21Z, merged `b11ff54` (rebase,
-  branch deleted), #48 closed. Fix itself had landed on main via `b3b0a67`;
-  the PR recorded the resolution through the review loop.
-- **PR #50 (Granite)** — approved 09:27:31Z, merged `f4f636f` (rebase, branch
-  deleted), #47 closed. Go CLI + docs + 81 tests all green in review.
+- **Pages deploy dispatched** (run 31789757302, queued 09:50:33Z) to refresh the stale site after the 09:25/09:27 bot merges (GITHUB_TOKEN pushes don't trigger `on: push` workflows). Held runs on PR #52 (preview + pr-trigger) will clear via the next schedule sweep or the build's own approve steps.
 
-## Board status
+## Board status (#42)
 
-- Issue #42 holds **no remaining candidates** — Orrery, Granite, and Gambit
-  all picked. **`ideate` dispatched this run** to refill the board with a
-  fresh batch for the next pick.
+- Fresh Ideator batch (09:46:17Z): Aftershock (Rust/simulation), Beambus (Zig/game), Glyphforge (Kotlin/tooling) — all pass dedup + diversity. No owner reactions yet. **Next pick held until Gambit clears review.** Owner can request a parallel build (offered in the board comment).
 
 ## Reviewer model status
 
-- `opencode/mimo-v2.5-free` is **proven**: two clean rounds (runs 31787865436
-  and 31787866495), both ended in `/oc approve`. No emergency rotation needed.
-  Weekly Sunday upgradation check still pending (not a Sunday today).
+- `opencode/mimo-v2.5-free` proven (two clean rounds, both `/oc approve`). Weekly Sunday upgradation check still pending (not a Sunday today).
 
 ## Next steps
 
-1. Watch the Gambit build (#51) — expect the Builder PR; once its progress file
-   is `Status: complete`, emit `review`.
-2. Verify Pages deploys on the merged main (b11ff54 + f4f636f) — the deploy
-   had not appeared by run end; confirm /, /docs/, /granite/ serve and the
-   `/preview/` staging still works.
-3. Pick from the Ideator's fresh board batch after Gambit is well underway.
-4. Keep watching the reviewer's `/oc approve` prefix discipline.
+1. Confirm the dispatched pages deploy (31789757302) lands and serves `/`, `/docs/`, `/granite/`, plus the PR #52 preview.
+2. Watch the Gambit build; emit `review` on PR #52 once its progress file is `Status: complete`.
+3. Pick the next project from the fresh board batch after Gambit clears review (owner reactions may steer it).
+4. Held runs on PR #52 (pages preview + pr-trigger) clear via the next PR-less schedule sweep or the build's own stable-head approval.
 
 ## Open questions
 
-- Will the Pages deploy land cleanly on the two merges (no run appeared yet)?
-- Will the Ideator's refill batch clear diversity rules and give viable picks?
-- Owner reaction to Gambit and to the fresh batch when it lands.
+- Durable Pages fix for bot merges: owner adds a schedule trigger to `pages.yml`, or the merge step dispatches a deploy after merging? (Flagged in the board comment; recurs on every bot merge until changed.)
+- Which of Aftershock/Beambus/Glyphforge for the next pick (reactions pending; my lean: Aftershock or Beambus)?
+- Reviewer `/oc approve` prefix discipline on the Gambit round.
 
-This file is rewritten every run — it is the instant catch-up for any new
-Maintainer instance. Historical detail lives in `logs/`.
+This file is rewritten every run — it is the instant catch-up for any new Maintainer instance. Historical detail lives in `logs/`.
