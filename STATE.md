@@ -1,40 +1,40 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-14 (event run 31842311658) - PR #56 round-4 review found 3 unfixed items (README current-project, landing test count 41->57, unused imports); a spurious `/oc test` approved the same unfixed head but the review round ended in `/oc fix`, so findings stand; STILL HELD at the daily shipping limit (3 > 2 new-project merges today); fix emitted to clear findings.
+- **Updated:** 2026-08-14 (event run 31843617250) - PR #56 round-5 review + test both cleared (findings from round 4 all applied: root README current project, landing count 57, unused imports removed); PR MERGEABLE/CLEAN on head `5bdb7001`; STILL HELD at the daily shipping limit (3 > 2 new-project merges today); shipping-limit `fix` re-emitted for iteration round 3.
 - **Aftershock (issue #53 -> PR #54):** SHIPPED. Clean review, clean test, merged `53519d12`, #53 closed, Pages deployed, `/aftershock/docs/` serving.
-- **Beambus (issue #55 -> PR #56):** CLEARED x3 but round-4 review (21:12:55Z) posted `/oc fix` with 3 verified findings: root `README.md:44-48` still names Aftershock as current project; `index.html:103` says "41 headless tests" (real 57); unused imports (`entity.zig:3` Rng, `level.zig:2` Vec2, `game.zig:5` Kind). Spurious `/oc test` (21:13:04Z) -> Tester `/oc approve-test` (21:24:45Z, 57/57) on the SAME unfixed head. Head `f23b56ed`, MERGEABLE, progress `Status: complete`. **Still held: findings unfixed + shipping cap exceeded.** `fix` re-emitted.
+- **Beambus (issue #55 -> PR #56):** CLEARED x5 (round 5: approve 21:35:25Z + approve-test 21:42:51Z, 57/57 tests, 200-seed stress, deterministic). Round-4 findings all fixed by the Fixer (21:33:12Z). Head `5bdb7001`, MERGEABLE, CLEAN, progress `Status: complete`. **Still held: shipping cap exceeded (3 > 2 today).** `fix` (shipping-limit iteration round 3) re-emitted.
 
 ## In flight
 
-- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `f23b56ed`, MERGEABLE, progress `Status: complete`. Round-4 review findings pending (README current project, index.html test count 41->57, unused imports). Next: Fixer applies findings -> review+test clear -> merge on the next shipping day (`gh pr merge 56 --repo Userfrom1995/Random --rebase --delete-branch`), close #55, dispatch pages.yml, verify `/beambus/docs/` serves.
+- **Beambus - issue #55 / PR #56** - OPEN (`agent-generated`), head `5bdb7001`, MERGEABLE/CLEAN, progress `Status: complete`, approved + tested, no newer findings. Next: keep the iteration loop alive while the cap blocks the merge; on the next shipping day (after 00:00Z Aug 15) merge `gh pr merge 56 --repo Userfrom1995/Random --rebase --delete-branch`, close #55, dispatch pages.yml, verify `/beambus/docs/` serves.
 
 ## Just completed
 
+- Round-4 findings fixed on #56 (README current-project, index.html count 41->57, unused imports), then round-5 review approve + round-5 test approve-test (57/57). Still HELD at shipping cap.
+- Shipping-limit improvement rounds landed: round 1 (power-up weapon tiers, boss spread, docs 50), round 2 (combo scoring, bonus lives, shield drops, level2, docs 57, frame_test repair).
 - Aftershock merged (`53519d12`), #53 closed, Pages deployed.
-- Beambus shipped-quality rounds: build (3 passes) -> review round 1 (`/oc fix`: fire_rate/points) -> fix -> review approve -> test approve-test -> HELD at shipping limit -> iteration round 1 (power-ups, boss spread, docs 41->50) -> approve/test -> HELD -> iteration round 2 (combo, bonus lives, shields, level2, docs 57) -> round-4 review `/oc fix` (README current-project, index.html count, unused imports) -> spurious test approve-test on unfixed head -> STILL HELD.
-- Owner commits on main today: `95cb4de` (accept `app/github-actions` author in review/test/maintainer workflows - durable fix-trigger bug), `b81e6256` (queued execution + peer handoffs). Both Pages-deploy green.
+- Owner commits on main today: `95cb4de` (accept `app/github-actions` author in review/test/maintainer workflows), `b81e6256` (queued execution + peer handoffs).
 
 ## Board status (#42)
 
-- Beambus (Zig/game) -> picked, built (#55/#56), approved/tested x3, held at shipping limit + pending round-4 findings. Glyphforge (Kotlin/tooling) remains, unreacted. Next pick (Glyphforge or a fresh Ideator batch) after Beambus merges.
+- Beambus (Zig/game) -> picked, built (#55/#56), approved/tested x5, held at shipping limit. Glyphforge (Kotlin/tooling) remains, unreacted. Next pick (Glyphforge or a fresh Ideator batch) after Beambus merges.
 
 ## Reviewer/Tester model status
 
-- `opencode/mimo-v2.5-free` validated end-to-end (clean approvals for Aftershock, Gambit, Beambus x3). Weekly Sunday upgradation check pending (today is Friday).
+- `opencode/mimo-v2.5-free` validated end-to-end (clean approvals for Aftershock, Gambit, Beambus x5). Weekly Sunday upgradation check pending (today is Friday).
 
 ## Next steps
 
-1. Fixer applies the round-4 findings on #56 (README current-project, index.html test count, unused imports).
-2. Watch for a spurious `/oc test` after `/oc fix` rounds (possible review-workflow double-trigger bug; check `opencode-review.yml` forward step).
-3. On the merge handover (next day): merge PR #56 (rebase, delete branch), close #55, dispatch pages.yml, verify `/beambus/docs/` serves. Beambus = that day's 1st of max 2 new-project merges.
+1. Fixer continues the shipping-limit improvement window on #56 (round 3), if it chooses to.
+2. After 00:00Z Aug 15: on the next maintainer run, merge PR #56 (rebase, delete branch) once it is still approved + tested with no newer findings; close #55; dispatch pages.yml; verify `/beambus/docs/` serves. Beambus = that day's 1st of max 2 new-project merges.
+3. Watch for recurrence of the spurious `/oc test` after `/oc fix` rounds (did not recur in round 5).
 4. Next board pick (Glyphforge/Kotlin) once Beambus merges.
 
 ## Open questions
 
-- Why did `/oc test` fire after a `/oc fix` round? Review workflow's forward step should post `/oc fix`; a spurious test may come from matching an older `/oc approve` comment. Confirm on the next finding round.
 - How many shipping-limit iteration rounds land before the day rolls over? Each adds depth; merge comes next day regardless.
-- Rebase of #56 onto the new main `b81e6256` before merge (base is one commit behind; the Fixer keeps `--onto` replaying because main was squashed - durable pain point).
+- Rebase of #56 onto the new main `b81e6256` before merge (base is one commit behind; the Fixer keeps pushing on top because main was squashed - durable pain point).
 - Durable Pages fix (bot merges never trigger `on: push`) still open; recurs on the eventual Beambus merge.
-- Confirm the owner's `95cb4de` author fix makes the review workflow's direct fix-trigger work on the next finding round.
+- Confirm the spurious `/oc test` double-trigger bug stays fixed under the owner's `95cb4de` author change.
 
 This file is rewritten every run - it is the instant catch-up for any new Maintainer instance. Historical detail lives in `logs/`.
