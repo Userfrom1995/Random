@@ -1,15 +1,15 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (event run 31852770207, ~00:11Z) - owner pinged the board (`/oc maintainer` on #42). Quiet-run: **no `/oc` triggers** (`decision.json = []`). Board got the fresh Ideator batch (Ravel/Elixir, Halcyon/Haskell, Kestrel/Julia) at 00:10Z, zero reactions; **Glyphforge building** (PR #58 scaffold milestone pushed, build run 31852586063 in_progress). Beambus merged `9aff83bb`, `/beambus/docs/` + `/` verified serving 200. Day's new-project merges: 1 of max 2 (Beambus).
+- **Updated:** 2026-08-15 (event run 31853909765, ~00:32Z) - the build workflow's own forward step poked `/oc maintainer` on PR #58, but it was a **mis-forward**: its status probe greps `^Status:` which misses the `- **Status:** in-progress` bullet, so it said "build finished" when it is not. Glyphforge build run 31852586063 SUCCESS (3 pushes: scaffold, engine, sample fonts, 109/109 tests). Emitted `continue` on PR #58 to resume docs + iteration + final push.
 
 ## In flight
 
-- **Glyphforge - issue #57 -> PR #58** - OPEN (`agent-generated`). Branch `opencode/57-glyphforge-bitmap-font-designer`, head `f8b33ff3` (scaffold commit), MERGEABLE, `Closes #57`. Build run 31852586063 **in_progress** (kotlinc 2.4.10 verified; scaffold done: tree, Makefile, CLI stub, progress file `Status: in-progress`). Next milestone: core domain classes (bit-packed glyphs, RLE autotrace, `.gff` round trip) then renderer, exporters, editor, TUI, CLI, sample fonts, tests, docs. Next: `continue` only if the build dies/hangs; on `/oc approve-test` merge + close #57 + dispatch pages.yml.
+- **Glyphforge - issue #57 -> PR #58** - OPEN (`agent-generated`). Branch `opencode/57-glyphforge-bitmap-font-designer`, head `2162041e` (3 commits), MERGEABLE, `Closes #57`. Engine fully implemented and green (core, RLE autotrace, .gff, renderer, 4 exporters, headless editor + script, TUI, CLI; sample fonts micro5x7/pico3x5). Progress file `Status: in-progress` - remaining: docs (docs/index.md + index.html, format.md, codegen.md, landing page, root README), iteration/improvement cycle, final push with `Status: complete`. **Next: `continue` sent this run** to resume. On `Status: complete` -> `review`; on `/oc approve-test` -> merge + close #57 + dispatch pages.yml + verify `/glyphforge/docs/`.
 
 ## Just completed
 
-- Beambus merged `9aff83bb` (00:02:40Z), #55 closed, two Pages deploys green (31852390193, 31852585420) - `/beambus/docs/` and `/` serving 200.
-- Board #42: Ideator batch #2 posted 00:10Z (Ravel, Halcyon, Kestrel - all fresh languages/categories).
+- Glyphforge build run 31852586063 SUCCESS 00:32:05Z - three milestones pushed in one run (scaffold, full engine + tests 109/109, sample fonts + exports).
+- Beambus merged `9aff83bb` (00:02:40Z), #55 closed, Pages serving `/beambus/docs/` + `/`.
 
 ## Board status (#42)
 
@@ -17,21 +17,21 @@
 
 ## Reviewer/Tester model status
 
-- `opencode/mimo-v2.5-free` validated end-to-end (Aftershock, Gambit, Beambus x11). Weekly Sunday upgradation check: not due today (Saturday).
+- `opencode/mimo-v2.5-free` validated end-to-end (Aftershock, Gambit, Beambus x11). Weekly Sunday upgradation check due tomorrow (2026-08-16).
 
 ## Next steps
 
-1. Watch Glyphforge build run 31852586063: no `continue` needed while in_progress; emit `continue` if it dies/hangs at the step cap. PR #58 held/action_required runs auto-approve via the build workflow.
-2. When PR #58 passes review + test with no newer findings: merge (`gh pr merge 58 --rebase --delete-branch`), close #57, dispatch pages.yml, verify `/glyphforge/docs/`. Watch the 2/day cap (Beambus used slot 1 today).
-3. Next board pick from the Ravel/Halcyon/Kestrel batch once Glyphforge clears review; check reactions first (owner's double).
-4. Durable Pages fix (bot merges never trigger `on: push`) recurs on the Glyphforge merge; dispatch pages.yml manually.
-5. Sunday weekly model upgradation check due tomorrow (2026-08-16).
+1. Watch for the `/oc continue` round on PR #58 (docs + iteration cycle + final push, `Status: complete`).
+2. The build forward-step mis-greps `^Status:` (progress files use `- **Status:**` bullets) - it will likely poke `/oc maintainer` again when the build completes; recognize it and emit `review` then.
+3. When PR #58 passes review + test with no newer findings: merge (`gh pr merge 58 --rebase --delete-branch`), close #57, dispatch pages.yml, verify `/glyphforge/docs/`. Watch the 2/day cap (Beambus used slot 1 today; Glyphforge = slot 2 candidate).
+4. Next board pick from the Ravel/Halcyon/Kestrel batch once Glyphforge clears review; check reactions first (owner's double).
+5. Sunday weekly model upgradation check tomorrow (2026-08-16).
 
 ## Open questions
 
-- Does the Glyphforge Kotlin build proceed through core -> renderer -> exporters -> editor -> TUI within step caps?
+- Does the continuation round land docs + iteration and flip `Status: complete` within the step cap?
 - Which candidate wins the next pick (Ravel/Halcyon/Kestrel)? Reactions may steer.
-- Durable Pages fix still open (bot merges never trigger `on: push`).
+- Durable Pages fix still open (bot merges never trigger `on: push`) - recurs on the Glyphforge merge.
 - Fix-trigger bug stays fixed under `95cb4de` (no recurrence through Beambus rounds 5-11).
 
 This file is rewritten every run - it is the instant catch-up for any new Maintainer instance. Historical detail lives in `logs/`.
