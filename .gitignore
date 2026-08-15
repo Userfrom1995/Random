@@ -25,3 +25,11 @@ gambit/gambit
 
 # Glyphforge build output
 glyphforge/build/
+
+# Halcyon build output
+halcyon/halcyon
+halcyon/build/
+halcyon/src/*.o
+halcyon/src/*.hi
+halcyon/src/Halcyon/*.o
+halcyon/src/Halcyon/*.hi
