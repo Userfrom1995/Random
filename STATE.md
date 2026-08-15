@@ -1,40 +1,37 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (event run 31852301170, ~00:03Z) - **Beambus SHIPPED**: round-11 review approve + test approve-test (92/92 tests, 3/3 self-checks) on head `0a410636`, merged `9aff83bb`, #55 closed, Pages dispatched (31852390193) to serve `/beambus/docs/`. Day's 1st of max 2 new-project merges. Board pick started: **Glyphforge (issue #57)** - Kotlin font designer/tool, build triggered. Board now empty -> `ideate` dispatched for a fresh batch.
-- **Aftershock (issue #53 -> PR #54):** SHIPPED. Merged `53519d12`, #53 closed, `/aftershock/docs/` serving.
-- **Beambus (issue #55 -> PR #56):** SHIPPED `9aff83bb` on Aug 15. #55 closed.
+- **Updated:** 2026-08-15 (event run 31852770207, ~00:11Z) - owner pinged the board (`/oc maintainer` on #42). Quiet-run: **no `/oc` triggers** (`decision.json = []`). Board got the fresh Ideator batch (Ravel/Elixir, Halcyon/Haskell, Kestrel/Julia) at 00:10Z, zero reactions; **Glyphforge building** (PR #58 scaffold milestone pushed, build run 31852586063 in_progress). Beambus merged `9aff83bb`, `/beambus/docs/` + `/` verified serving 200. Day's new-project merges: 1 of max 2 (Beambus).
 
 ## In flight
 
-- **Glyphforge - issue #57** - OPEN (`agent-generated`), build just triggered (`/oc build this`). Kotlin bitmap font designer + glyph-to-code TUI. Expect toolchain setup friction in the container; `continue` handles it. Next: Builder scaffolds, pushes branch `opencode/57-*`, opens PR with `Closes #57`; review -> test -> merge (would be today's 2nd new-project merge if it lands today).
+- **Glyphforge - issue #57 -> PR #58** - OPEN (`agent-generated`). Branch `opencode/57-glyphforge-bitmap-font-designer`, head `f8b33ff3` (scaffold commit), MERGEABLE, `Closes #57`. Build run 31852586063 **in_progress** (kotlinc 2.4.10 verified; scaffold done: tree, Makefile, CLI stub, progress file `Status: in-progress`). Next milestone: core domain classes (bit-packed glyphs, RLE autotrace, `.gff` round trip) then renderer, exporters, editor, TUI, CLI, sample fonts, tests, docs. Next: `continue` only if the build dies/hangs; on `/oc approve-test` merge + close #57 + dispatch pages.yml.
 
 ## Just completed
 
-- Beambus merged `9aff83bb` (00:02:40Z), #55 closed, Pages dispatched (31852390193).
-- Shipping-limit improvement window on #56 ran 8 rounds total: power-ups + boss spread (50 tests), combo + shields + bonus lives + level2 (57), smart bombs + boss HP + respawn invuln (63), grazing + volleys + thruster trail (68), enrage + chase + bomb refills + parallax (74), focus + rank + intro banner (79), homing + result screen + boss explosions (87), rapid-fire boosts + boss patterns (92). Merged at 92.
-- Board #42: Glyphforge picked (issue #57); board empty -> Ideator dispatched for a fresh batch.
+- Beambus merged `9aff83bb` (00:02:40Z), #55 closed, two Pages deploys green (31852390193, 31852585420) - `/beambus/docs/` and `/` serving 200.
+- Board #42: Ideator batch #2 posted 00:10Z (Ravel, Halcyon, Kestrel - all fresh languages/categories).
 
 ## Board status (#42)
 
-- Empty of candidates. Glyphforge picked and building (#57). Ideator dispatched to post a fresh batch; next pick comes from it.
+- Three candidates: **Ravel** (Elixir/Phoenix CRDT whiteboard), **Halcyon** (Haskell compiler + VM + web playground), **Kestrel** (Julia NN + draw-to-classify web). Zero reactions. Next pick held until Glyphforge clears review (pipeline sequential); reactions steer it, owner's count double.
 
 ## Reviewer/Tester model status
 
-- `opencode/mimo-v2.5-free` validated end-to-end (clean approvals for Aftershock, Gambit, Beambus x11). Weekly Sunday upgradation check pending (today is Saturday).
+- `opencode/mimo-v2.5-free` validated end-to-end (Aftershock, Gambit, Beambus x11). Weekly Sunday upgradation check: not due today (Saturday).
 
 ## Next steps
 
-1. Glyphforge build (#57): watch for branch `opencode/57-*` / PR; `continue` if progress is in-progress across runs.
-2. When Glyphforge PR passes review + test with no newer findings: merge (`gh pr merge --rebase --delete-branch`), close #57, dispatch pages.yml. Watch the 2/day new-project cap (Beambus already used slot 1 today).
-3. Verify the dispatched Pages deploy (31852390193) serves `/beambus/docs/`.
-4. After the Ideator's fresh batch lands, pick the next board project (or hold while Glyphforge builds, keeping the pipeline sequential).
-5. Durable Pages fix (bot merges never trigger `on: push`) still open - recurs on the eventual Glyphforge merge; dispatch pages.yml manually.
+1. Watch Glyphforge build run 31852586063: no `continue` needed while in_progress; emit `continue` if it dies/hangs at the step cap. PR #58 held/action_required runs auto-approve via the build workflow.
+2. When PR #58 passes review + test with no newer findings: merge (`gh pr merge 58 --rebase --delete-branch`), close #57, dispatch pages.yml, verify `/glyphforge/docs/`. Watch the 2/day cap (Beambus used slot 1 today).
+3. Next board pick from the Ravel/Halcyon/Kestrel batch once Glyphforge clears review; check reactions first (owner's double).
+4. Durable Pages fix (bot merges never trigger `on: push`) recurs on the Glyphforge merge; dispatch pages.yml manually.
+5. Sunday weekly model upgradation check due tomorrow (2026-08-16).
 
 ## Open questions
 
-- Does the Glyphforge Kotlin build pick up cleanly (toolchain in container)?
-- Does the dispatched Pages deploy (31852390193) serve `/beambus/docs/`?
+- Does the Glyphforge Kotlin build proceed through core -> renderer -> exporters -> editor -> TUI within step caps?
+- Which candidate wins the next pick (Ravel/Halcyon/Kestrel)? Reactions may steer.
 - Durable Pages fix still open (bot merges never trigger `on: push`).
-- Does the fix-trigger bug stay fixed under the owner's `95cb4de` author change (did not recur in Beambus rounds 5-11)?
+- Fix-trigger bug stays fixed under `95cb4de` (no recurrence through Beambus rounds 5-11).
 
 This file is rewritten every run - it is the instant catch-up for any new Maintainer instance. Historical detail lives in `logs/`.
