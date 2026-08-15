@@ -1,44 +1,38 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (~15:41Z event run 31893377274, the build run's
-  forward-step handoff `/oc maintainer` on PR #61 at 15:40:19Z after the v2
-  build hit its cap mid-M15).
+- **Updated:** 2026-08-15 (~16:27Z event run 31895551607, the build run's
+  forward-step handoff `/oc maintainer` on PR #61 at 16:27:18Z after the v2
+  build completed all 16 milestones).
 
 ## In flight
 
-- **Halcyon (issue #59 -> PR #61):** **Architect v2 enhance round MID-BUILD.**
-  The v2 build run 31891529680 (BUILD mode, `/oc build this` at 15:01:05Z)
-  pushed milestone 13 (`c9b291e`, algebraic data types) and milestone 14
-  (`a959ea4`, pattern matching) - 260 selftests, 28-program corpus green. Its
-  build job then hit the step cap while investigating M15 (TCO + Optimize) and
-  the forward step pinged me (`/oc maintainer` 15:40:19Z, run 31893377274 =
-  this run). Progress file: checklist 13-14 checked, 15-16 pending. PR head
-  `a959ea4`, branch `opencode/59-halcyon-functional-language-vm`, MERGEABLE,
-  no conflicts. **THIS RUN: emitted `continue` to resume M15/M16.**
-  - **OWNER FINDING (still UNFIXED - the fix round was cancelled):** root
-    `README.md` and `index.html` on the branch still list Halcyon under
-    "Previous Ideas/Projects" while "Current Project" reads **Beambus**. The
-    `/oc fix` run (31893335078, created 15:39:26Z) that was supposed to apply
-    the placement correction was **CANCELLED at 15:40:23Z** (superseded by the
-    concurrency group once the build run concluded) and never applied. This run
-    folds the correction into the M16 root-page work: the Builder is explicitly
-    instructed to make Halcyon the Current Project entry (README.md) / "Live
-    now" card (index.html) and graduate Beambus into Previous. Verify after
-    M16; re-route a `fix` if it is still wrong.
+- **Halcyon (issue #59 -> PR #61):** **BUILD COMPLETE - all 16 milestones.**
+  The `continue` resume (31893674286) finished M15 (TCO + `Halcyon.Optimize`
+  with `--opt`) and M16 (JS mirror + self-hosted stdlib `examples/stdlib.hly`
+  + playground upgrade + root pages + polish). `make test` 322 green, `make
+  smoke` green, JS corpus-check 104 green. PR head `b1897b1` (31 commits),
+  MERGEABLE, checks green. Progress file `Status: complete`.
+  - **PLACEMENT CORRECTION VERIFIED LANDED:** `README.md` "Current Project" =
+    Halcyon, Beambus at top of "Previous Ideas"; `index.html` "Live now" card
+    = Halcyon, Beambus tops "Previous Projects". The owner's 15:36Z finding is
+    RESOLVED (commit `20f63cfb`). Verified by reading the branch directly.
+  - **Fresh review/test REQUIRED:** the build wrote `{"action":"maintainer"}`
+    (merge handoff) instead of `{"action":"review"}`, so no review auto-
+    triggered. The standing approvals (14:22Z reviewer + 14:51Z tester) are
+    stale on `f90c3e37`; the v2 work (M13-M16) needs a fresh review/test cycle
+    on `b1897b1`. **THIS RUN: emitted `review` on PR #61, head `b1897b1`.**
   - **Owner policy (binding, commit `f1fbae9`):** on cap-full with an approved
     PR, leave it open and trigger the **Architect** (`{"action":"architect","pr":N}`).
   - **Daily shipping cap Aug 15: 2/2 REACHED** (Beambus 00:02:40Z + Glyphforge
     01:43:39Z). Halcyon merge legal after 00:00Z Aug 16.
-  - **Stale approvals:** the 14:22Z reviewer + 14:51Z tester approvals were on
-    head `f90c3e37`; the head has moved (v2 milestones), so the merge needs a
-    fresh review/test cycle on the new head once the build + placement fix
-    complete.
 
 ## Just completed
 
-- Emitted `continue` on PR #61 (this run) - resuming the v2 build at M15,
-  with the root-page placement correction folded into M16.
-- The v2 build's M13/M14 landed and are green (ADTs + pattern matching).
+- Emitted `review` on PR #61 (this run) - routing the fresh head `b1897b1` to
+  the Reviewer, since the v2 build completed but wrote `{"action":"maintainer"}`
+  (no auto-review) and all prior approvals are stale.
+- The v2 build completed all 16 milestones; placement correction landed and was
+  verified.
 
 ## Board status (#42)
 
@@ -58,33 +52,26 @@
 - `opencode-review-trigger.yml` still absent on main (Maintainer `review`
   decision remains the only bot-PR review path).
 - Process gap: Reviewer landing-page checks verify link presence but not
-  section placement (Current vs Previous) - raise with the Reviewer for future
-  rounds.
-- Cancelled fix runs: the 15:39:26Z `/oc fix` (31893335078) was cancelled by
-  the concurrency group when the build run concluded - placement correction
-  folded into M16 instead.
+  section placement (Current vs Previous) - the 15:36Z owner finding. This
+  round's Reviewer should confirm the fix landed; raise if it does not.
 - Owner commit `f1fbae9` today - shipping-limit rounds route to the Architect.
 
 ## Next steps
 
-1. Watch the v2 build resume (`continue`, this run) finish M15 (TCO +
-   Optimize) and M16 (JS mirror + stdlib + docs + root pages INCLUDING the
-   placement correction).
-2. After the build completes: expect the JSON-handoff review/test cycle on the
-   new head (14:22Z/14:51Z approvals are stale). Verify the placement correction
-   actually landed (Halcyon = Current, Beambus = Previous).
-3. On `/oc approve-test` after 00:00Z Aug 16 (cap reset): merge PR #61
+1. Watch the fresh review/test cycle on `b1897b1` (Reviewer `/oc approve` ->
+   Tester `/oc test` -> `/oc approve-test`).
+2. On `/oc approve-test` after 00:00Z Aug 16 (cap reset): merge PR #61
    (`gh pr merge 61 --rebase --delete-branch`), close #59, dispatch pages.yml,
    verify `/halcyon/docs/`. That is Aug 16's 1st (of max 2) new-project merge.
-4. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's
+3. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's
    count double).
-5. Sunday weekly model upgradation check on 2026-08-16.
+4. Sunday weekly model upgradation check on 2026-08-16.
 
 ## Open questions
 
-- Does the Builder finish M15 and M16 within the step cap, or need another
-  `continue`? Milestone pushes preserve the checkpoint either way.
-- Does the folded-in placement correction land cleanly (Halcyon to Current,
-  Beambus to Previous) in M16's root-page work? If not, re-route a `fix`.
-- Auto-retry 1's instant ~0s no-op (during the exhausted retry chain) remains
-  unexplained; no recurrence since.
+- Does the Reviewer clear the v2 work (ADTs, pattern matching, TCO, optimizer,
+  JS mirror, self-hosted stdlib) on the first round, or are there findings?
+- Does the review/test cycle finish before or after 00:00Z Aug 16? Merge timing
+  depends on it, but merge is legal from the reset either way.
+- Does the Reviewer this round confirm the placement correction (Halcyon =
+  Current, Beambus = Previous)?
