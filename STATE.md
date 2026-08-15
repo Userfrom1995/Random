@@ -1,37 +1,44 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (~17:32Z issues-event run 31898418708, the owner opened
-  issue #62 "Fix README and website" - Glyphforge is listed under Previous on main
-  while Beambus still claims Current; a `build` was routed for the landing fix).
+- **Updated:** 2026-08-15 (~17:24Z event run 31898196503, the owner's
+  `/oc maintainer make sure doc is also properly done.` comment on PR #61).
 
 ## In flight
 
-- **Issue #62 (README + website landing fix, NEW):** owner finding verified on
-  main: `README.md` "Current Project" = Beambus (line 47), `index.html` "Live now"
-  card = Beambus (line 102), while Glyphforge (merged 01:43:39Z, AFTER Beambus)
-  sits as the first "Previous" entry in both. Root cause: Glyphforge's build
-  commit `65f7f9df40` only ADDED it to Previous, never promoted it. **`build`
-  routed** - Builder lands branch `opencode/62-*`, promotes Glyphforge to Current
-  (with links + "Live now" tag) and graduates Beambus into Previous (top,
-  newest-first) in BOTH `README.md` and `index.html`, PR with `Closes #62`.
-  Landing fix, NOT a new project, so NOT shipping-cap constrained. Review -> test
-  -> merge -> close #62 -> dispatch pages.yml -> verify `/` placement.
-- **Halcyon (issue #59 -> PR #61):** **V3 BUILD ACTIVE** - opencode run
-  31897133922, build job in_progress since 17:01:25Z, head still `9a90ebd` (the
-  Architect's v3 design). Builder implementing M17-21 (top-level defs + module
-  system with `--lib`, record types, type classes with dictionary passing, Char +
-  string ops, VM profiler + optimizer expansion + JS/playground/docs sync). No
-  milestone push visible yet. The owner's 17:24:04Z "/oc maintainer make sure doc
-  is also properly done." is owned by parallel maintainer run 31898196503 (and
-  opencode run 31898196561 pending) - I did NOT double-trigger PR #61 this run.
-  - Approvals on `b1897b1` (16:36Z/16:41Z) are STALE for the v3 head; fresh
-    review + test required after M17-21 land.
-  - **Daily shipping cap Aug 15: 2/2 REACHED** (Beambus + Glyphforge). Halcyon
-    merge legal after 00:00Z Aug 16.
+- **Halcyon (issue #59 -> PR #61):** **V3 ENHANCE ROUND - BUILD ACTIVE.**
+  Head `9a90ebd` (the Architect's v3 design: milestones 17-21 - top-level
+  definitions + module system with `--lib`, record types, type classes with
+  dictionary passing, Char + string ops, VM profiler + optimizer expansion +
+  JS/playground/docs sync). Build run 31897133922 (started 17:01:22Z) is
+  ACTIVELY RUNNING: Builder agent step in_progress since 17:01:24Z (60-min
+  agent cap), branch head STILL `9a90ebd` as of 17:33Z - Builder mid-M17,
+  first v3 milestone not pushed yet. Do NOT emit duplicate triggers while it
+  runs.
+  - Approvals on the old head `b1897b1` (16:36Z reviewer + 16:41Z tester) are
+    STALE for the v3 head; a fresh review + test cycle is required after
+    M17-21 land.
+  - **Daily shipping cap Aug 15: 2/2 REACHED** (Beambus 00:02:40Z + Glyphforge
+    01:43:39Z). Halcyon merge legal after 00:00Z Aug 16.
+  - Owner ask (17:24:04Z): "make sure doc is also properly done." Docs are
+    already a hard requirement of the v3 plan (every milestone end-to-end incl.
+    docs; M21 bundles docs sync). Acknowledged in comment.md with a
+    verification commitment for the review/test gates.
+
+- **Issue #62 "Fix README and website" (opened 17:28:47Z by owner):** claims
+  current project on live site + README is wrong (should be Halcyon, Beambus ->
+  Previous); second comment 17:30:57Z asks for a GitHub repo link in the
+  top-right of the website. IMPORTANT: the placement half is ALREADY fixed on
+  PR #61's branch (M16d, `20f63cfb`: Halcyon = Current Project / Live now,
+  Beambus = Previous, verified on branch). The live site shows Beambus only
+  because PR #61 is unmerged. The NEW ask is the repo-link on the landing page.
+  - A CONCURRENT maintainer run 31898418708 (17:28:49Z) owns #62; I did not
+    double-handle it. Watch that it folds the repo-link in without conflicting
+    with PR #61's landing-page changes.
 
 ## Just completed
 
-- Routed `build` on issue #62 for the root landing fix (Glyphforge promotion).
+- Nothing new this run (owner comment + #62 routing noted; no triggers emitted
+  because the v3 build is actively running).
 
 ## Board status (#42)
 
@@ -46,43 +53,46 @@
 
 ## Watch items (owner-side / wiring)
 
-- **Landing-page placement (recurring gap):** checks must verify section
-  placement (Current vs Previous), not just links/200s. Third recurrence
-  (PR #61 branch 15:36Z, Glyphforge-on-main root cause, pattern itself).
-- **Auto-retry counter pollution:** the three stale `/oc build this (auto-retry N)`
-  comments from the first build round still count, so a build run ending without a
-  push skips auto-retry and pings me. Handle by re-emitting; do not delete owner
-  comments.
+- **Auto-retry counter pollution:** the three `/oc build this (auto-retry N)`
+  comments from the first build round (12:36-13:02Z) still count, so any build
+  run that ends without a push skips auto-retry and pings me instead. Handle by
+  re-emitting `build`; do not delete owner comments.
+- Issue #62 (repo-link + placement) - placement resolved by PR #61 merge; the
+  repo link needs a fix routed (concurrent run 31898418708 owns it).
 - Durable Pages-after-bot-merge trigger still owner-side (manual dispatch per
   merge).
 - `opencode-review-trigger.yml` still absent on main (Maintainer `review`
   decision remains the only bot-PR review path).
+- Process gap (resolved for Halcyon): Reviewer landing-page checks should verify
+  section placement (Current vs Previous), not just links. Keep watching on
+  future projects.
 - Owner commit `f1fbae9` - shipping-limit rounds route to the Architect.
 
 ## Next steps
 
-1. Watch the #62 build (landing fix, Glyphforge -> Current, Beambus -> Previous);
-   `continue` as needed, then review/test, merge (not cap-bound), close #62,
-   dispatch pages.yml.
-2. Watch the Halcyon v3 build (31897133922); `continue` per the milestone-push
-   contract until M21 `Status: complete`.
-3. After M21: route the fresh head to the Reviewer then Tester (stale on
-   `b1897b1`).
-4. On the next `/oc approve-test` for PR #61 **after 00:00Z Aug 16**: merge PR #61
-   (`gh pr merge 61 --rebase --delete-branch`), close #59, dispatch pages.yml,
-   verify `/halcyon/docs/`. That is Aug 16's 1st (of max 2) new-project merge.
-5. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's count
-   double).
-6. Sunday weekly model upgradation check on 2026-08-16.
+1. Watch the active v3 build on PR #61 (M17 first). When it lands milestones,
+   `continue` as needed per the milestone-push contract. When it completes
+   (`Status: complete`), route the fresh head to the Reviewer then Tester.
+2. Watch issue #62's concurrent run (31898418708) - ensure the GitHub repo-link
+   lands on the site and that #62's placement half is recognized as already on
+   PR #61.
+3. On the next `/oc approve-test` for PR #61 **after 00:00Z Aug 16** (cap
+   reset): merge PR #61 (`gh pr merge 61 --rebase --delete-branch`), close #59
+   (+ confirm #62 placement satisfied), dispatch pages.yml, verify
+   `/halcyon/docs/` and the repo-link. That is Aug 16's 1st (of max 2) new-
+   project merge.
+4. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's
+   count double).
+5. Sunday weekly model upgradation check on 2026-08-16.
 
 ## Open questions
 
-- Does the #62 Builder land the two-file promotion/graduation cleanly, and does
-  its PR merge before or after Halcyon's (both touch the same root sections)?
-- Can the Builder land M17-21 milestone-by-milestone within the 25-min caps
-  (several `continue` rounds likely)?
-- Will the v3 round complete before or after 00:00Z Aug 16? Merge is legal from
+- When does the Builder push M17 (head still `9a90ebd` at 17:33Z)? Expect the
+  milestone-push contract to deliver shortly; watch for the retry-counter ping
+  if a run ends without pushing.
+- Does the concurrent #62 run fold the repo-link in cleanly, and does it know
+  the placement half is already on PR #61? Possible landing-page conflict if it
+  routes a separate fix.
+- Does the v3 round complete before or after 00:00Z Aug 16? Merge is legal from
   the reset regardless, but requires fresh approvals on whatever head the cycle
   ends on.
-- Did the parallel maintainer run (31898196503) handle the owner's doc-check on
-  PR #61 cleanly?
