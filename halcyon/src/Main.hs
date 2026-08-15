@@ -5,10 +5,12 @@ import System.Exit (exitWith, ExitCode (ExitSuccess, ExitFailure))
 import System.IO
 import System.Directory (doesFileExist)
 
+import Halcyon.AST (Stmt)
 import Halcyon.Errors (formatError)
 import Halcyon.Lexer (Tok, lexer)
 import Halcyon.Parser (parseProgram)
 import Halcyon.SelfTest (runSelfTests)
+import Halcyon.Type (Scheme, builtins, inferProgram, showScheme)
 
 version :: String
 version = "0.1.0"
@@ -60,6 +62,32 @@ cmdAst file = do
     Left e -> die (formatError file e)
     Right stmts -> mapM_ (putStrLn . show) stmts
 
+-- | Typecheck a parsed program; dies with the first type error.
+typecheckOrDie :: FilePath -> [Stmt] -> IO [(String, Scheme)]
+typecheckOrDie file stmts = case inferProgram builtins stmts of
+  Left e -> die (formatError file e)
+  Right pairs -> pure pairs
+
+cmdCheck :: FilePath -> IO ()
+cmdCheck file = do
+  src <- readSource file
+  toks <- lexOrDie file src
+  case parseProgram toks of
+    Left e -> die (formatError file e)
+    Right stmts -> do
+      _ <- typecheckOrDie file stmts
+      putStrLn (file ++ ": OK")
+
+cmdTypes :: FilePath -> IO ()
+cmdTypes file = do
+  src <- readSource file
+  toks <- lexOrDie file src
+  case parseProgram toks of
+    Left e -> die (formatError file e)
+    Right stmts -> do
+      pairs <- typecheckOrDie file stmts
+      mapM_ (\(n, sch) -> putStrLn (n ++ " :: " ++ showScheme sch)) pairs
+
 selftest :: IO ()
 selftest = do
   putStrLn "Halcyon self-test suite"
@@ -79,10 +107,10 @@ main = do
     ["selftest"] -> selftest
     ["parse", f] -> cmdParse f
     ["ast", f] -> cmdAst f
-    ["check", _] -> die "halcyon: type checker not yet implemented"
+    ["check", f] -> cmdCheck f
+    ["types", f] -> cmdTypes f
     ["run", _] -> die "halcyon: interpreter not yet implemented"
     ["vm", _] -> die "halcyon: VM not yet implemented"
-    ["types", _] -> die "halcyon: type checker not yet implemented"
     ["bytecode", _] -> die "halcyon: VM not yet implemented"
     ["eval", _] -> die "halcyon: interpreter not yet implemented"
     ["repl"] -> die "halcyon: REPL not yet implemented"

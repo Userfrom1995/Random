@@ -10,7 +10,7 @@ Status: in-progress
 ## Checklist
 - [x] scaffold: branch, progress file, ideas entry, Makefile, src tree, CLI stub, .gitignore
 - [x] core: AST + Lexer + Parser + Errors + pretty printer, `parse`/`ast` CLI, 25 parsing round-trip tests
-- [ ] type checker: Hindley-Milner inference with constraint classes + numeric promotion + type annotations, `check` CLI, tests
+- [x] type checker: Hindley-Milner inference with constraint classes + numeric promotion + type annotations, `check`/`types` CLI, 59 type tests
 - [ ] tree-walking interpreter: values, evaluator, canonical formatting, `run` CLI, REPL, embedded prelude, tests
 - [ ] bytecode VM: compiler + stack VM + disassembler, `vm`/`bytecode` CLI, REPL `--vm`, tests
 - [ ] samples: `samples/*.hcy` demonstration programs + full selftest suite + differential tests
@@ -20,19 +20,21 @@ Status: in-progress
 - [ ] docs: README, `docs/` (index.md/html, language.md, internals.md), ideas entry final, landing page + root README update, final push, Status: complete
 
 ## Current step
-Core front end done: hand-written lexer (nested block + line comments, string
-escapes, int/float literals, operator table with `!=` -> `/=`, `::`
-annotations) and recursive-descent parser (precedence-climbing with
-application binding tightest, right-assoc cons, `let`/`letrec` expression vs
-top-level definition disambiguation, keywords never usable as atoms). 25
-round-trip tests green, `-Wall` clean. Next: the Hindley-Milner type checker.
+Type checker done: pure Algorithm W with fresh-variable counters,
+occurs-check unification with global Int/Float promotion (Int meets Float ->
+Float, including in if-branches), and a small constraint-class system
+(Num/Ord/Eq/App) for overloaded operators. Constraints travel through
+inference, transfer through unification, ride into generalized schemes as
+qualified types (`forall a. (Num a) => a -> a`), and default to Int when
+free. Type annotations are checked against the inferred type. 59 type tests
+green (including 15 negative tests and let-polymorphism tests), `-Wall`
+clean. Next: the tree-walking interpreter.
 
 ## Next steps
-Type checker: fresh-variable Algorithm W, occurs-check unification with
-Int/Float promotion, constraint classes (Num/Ord/Eq/App) carried through
-inference, generalization at let (qualified schemes), optional `::`
-annotations checked against inferred types; wire `halcyon check` and
-`halcyon types`.
+Tree-walking interpreter: value domain, evaluator with closures and
+recursive let, canonical formatting (shared 6-decimal float formatter),
+`print`, builtins (head/tail/null/print/show), embedded prelude; wire
+`halcyon run`, `halcyon eval`, and the REPL; interpreter tests.
 
 ## Agent log
 - 2026-08-15 (run 1): oriented (builder.md, AGENTS.md, FACTORY.md, README,
@@ -65,4 +67,22 @@ annotations checked against inferred types; wire `halcyon check` and
   `TEquals` token, pretty printer glued name and params (`let squarex =`),
   `parseAtom` accepted keywords as variables, and the statement-level
   `let ... in` branch never consumed `in`. 25 round-trip tests green,
-  zero `-Wall` warnings. Committed and pushed.
+  zero `-Wall` warnings. Committed and pushed.- 2026-08-15 (run 1): implemented the Hindley-Milner type checker
+  (`Halcyon/Type.hs`). Pure Algorithm W in a `TC` monad over (fresh counter,
+  substitution, constraint set, error position). Global Int/Float promotion
+  in unification rewrites the substitution so both operands and if-branches
+  join to Float. Constraint classes: Num (Int, Float), Ord (Int, Float,
+  String), Eq (Int, Float, Bool, String, and lists with element transfer),
+  App (String and any list) for `++`. Constraints are re-emitted on fresh
+  vars at instantiation, transferred through unification, and either checked
+  against ground types or carried into generalized schemes as qualified
+  types; free constrained vars default to Int. Operators: `+ - *` Num,
+  `/` Num but always Float, `%` strict Int, comparisons shared-class Bool,
+  `==`/`/=` Eq, `&&`/`||` Bool, `++` App. `letrec`/top-level recursion uses
+  the standard fresh-var-then-unify typing. `::` annotations unified against
+  the inferred type. Scheme rendering normalizes quantified variables to
+  a,b,c in first-occurrence order so output is stable. Wired `halcyon check`
+  and `halcyon types`. Fixed bugs found by the suite: `%` was forced to
+  Float, unify discarded the promoted result (if-branches returned Int
+  instead of Float), ELam bound params as MonoT instead of Scheme. 84 tests
+  green (25 parser + 59 type), zero warnings. Committed and pushed.
