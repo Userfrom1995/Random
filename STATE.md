@@ -1,25 +1,30 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (~12:04Z event run 31883663124, triggered by the
-  owner's `/oc maintainer` after the first Architect run for Halcyon ended
-  without delivering a blueprint). Architect re-emitted on #59.
+- **Updated:** 2026-08-15 (~12:46Z schedule run 31885454854). Halcyon is in
+  the Architect->Builder flow; the Builder is on its 2nd auto-retry, actively
+  working on PR #61.
 
 ## In flight
 
-- **Halcyon (issue #59 -> Architect re-triggered):** The first Architect run
-  (31883428853) FAILED to deliver: the architect job completed but produced no
-  `opencode/59-*` branch, no blueprint PR, and no handoff decision - only an
-  orientation comment (12:00:46Z); the forward step fell back to `/oc
-  maintainer`. I re-emitted `architect` on #59 this run. The owner's
-  `caff870c` (12:03:04Z) now excludes `/oc architect` from the catch-all
-  general job, so the parallel-noise quirk is fixed. Expect: blueprint PR
-  ("Blueprint for #59. Closes #59") -> `/oc build this` -> Builder (resume
-  mode) -> review/test loop.
+- **Halcyon (issue #59 -> PR #61):** The re-emitted Architect delivered
+  cleanly (run 31883809746): blueprint `ideas/2026-08-15-halcyon-functional-
+  language-vm.md`, progress `Status: in-progress` (11-step checklist), branch
+  `opencode/59-halcyon-functional-language-vm` (head `ff4568a4`), PR #61
+  "Blueprint for #59. Closes #59.", decision `{"action":"build"}` -> `/oc
+  build this` posted on the PR. **The Builder is struggling:** first attempt
+  (run 31883951535, 12:11Z) ran the full 25-min agent step cap with NO push
+  (likely the GHC toolchain install); auto-retry 1 (run 31885036527) was an
+  instant no-op (agent step ~0s, no push); **auto-retry 2 (run 31885050733,
+  agent step running since 12:37:03Z) is IN PROGRESS now.** PR head unchanged
+  at `ff4568a4` - the Builder has not pushed any code yet across attempts.
+  Merge is legal after the 00:00Z Aug 16 cap reset regardless.
 
 ## Just completed
 
-- Owner's `caff870c` "general: Exclude architect and plan commands from
-  catch-all job" - closes the wiring quirk flagged at 11:53Z/12:00Z.
+- Architect->Builder handoff now proven: the first Architect run failed
+  silently, but the re-trigger delivered the blueprint + PR + JSON handoff on
+  the first try (owner's `caff870c` general-job exclusion held - no parallel
+  noise).
 - Daily shipping cap Aug 15: 2/2 (Beambus + Glyphforge). Cap resets 00:00Z Aug
   16; the Halcyon merge is legal then.
 
@@ -37,12 +42,18 @@
 
 - Durable Pages-after-bot-merge trigger still owner-side (manual dispatch per
   merge).
+- Builder reliability on Halcyon: two failed attempts before the current one
+  (25-min cap burn + instant no-op). If auto-retry 2 also ends with no push,
+  the build's verify step exhausts and its forward step will fall back to
+  `/oc maintainer` (auto-ping) - at that point diagnose (GHC install friction
+  vs agent reliability) rather than blindly re-triggering.
 
 ## Next steps
 
-1. Watch the re-triggered Architect on #59: expect a blueprint PR and a `/oc
-   build this` handoff. If it fails again the same way (orientation comment, no
-   push), escalate (model/owner consult) rather than blindly re-trigger.
+1. Let auto-retry 2 (run 31885050733) finish. If it pushes, watch for the
+   review loop via the JSON handoff (no manual `review` needed - the workflow
+   auto-triggers). If it fails with no push, expect the auto `/oc maintainer`
+   fallback and diagnose then.
 2. While the build is `Status: in-progress`, `continue`; on `/oc approve-test`
    merge `gh pr merge <N> --rebase --delete-branch`, close #59, dispatch
    pages.yml, verify `/halcyon/docs/`. Merge legal after 00:00Z cap reset.
@@ -52,9 +63,8 @@
 
 ## Open questions
 
-- Does the re-triggered Architect deliver the blueprint first try (now that
-  the parallel general-job noise is gone)?
-- GHC toolchain install friction on the Builder's run (expect `continue`
-  needs).
-
-This file is rewritten every run - it is the instant catch-up for any new Maintainer instance. Historical detail lives in `logs/`.
+- Will the Builder get past the GHC toolchain install and push real commits
+  this attempt, or does the Halcyon build need `continue`/a different
+  approach?
+- Two silent Builder attempts already - is this GHC-size friction or an agent
+  reliability pattern that needs escalation if it recurs?
