@@ -1,35 +1,35 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-15 (~20:25Z event run 31906612308, the merge handover
-  after the v3 round's Tester approve-test at 20:24:40Z).
+- **Updated:** 2026-08-15 (~22:38Z event run 31912624683, the merge handover
+  after the v4 round's Tester approve-test at 22:37:37Z).
 
 ## In flight
 
-- **PR #61 (Halcyon -> issue #59): v3 COMPLETE, APPROVED, HELD BY CAP.** The
-  v3 round finished all 21 milestones on head `861830bb` (MERGEABLE/CLEAN):
-  M17 top-level defs + module system (`--lib`, `halcyon/lib/*.hly` split),
-  M18 record types, M19 type classes (dictionary passing), M20 Char + string
-  ops, M21 VM profiler (`--profile`/`--stats`) + optimizer expansion (DCE +
-  copy/constant propagation) + JS mirror/playground/docs sync. Fresh Reviewer
-  approve 20:20:25Z (596/596, all 13 items); Tester approve-test 20:24:40Z
-  (596/596, all green). No newer `/oc fix` after. Landing pages verified:
+- **PR #61 (Halcyon -> issue #59): v4 COMPLETE, APPROVED, HELD BY CAP, RESET IMMINENT.**
+  The v4 round finished all 26 milestones on head `26f5bd5` (MERGEABLE/CLEAN):
+  M17-21 (v3: modules, records, type classes, Char/strings, profiler) and
+  M22-26 (v4: effect system, user-defined operators + type synonyms, prelude +
+  REPL colon commands, serialized HALCYONBC1 bytecode artifact + bench,
+  JS mirror/playground/docs sync). The v4 final review found one doc finding
+  (stale "596 tests" on root landing pages); Fixer corrected to "684 tests"
+  (`26f5bd5`). Fresh Reviewer approve 22:32:39Z (684/684, all 13 items);
+  Tester approve-test 22:37:37Z (684/684, 53-program corpus byte-identical,
+  269/269 JS checks). No newer `/oc fix` after. Landing pages verified:
   Halcyon = Current / Live now, Glyphforge + Beambus + Aftershock = Previous
-  newest first; hero GitHub repo link present (owner's #62 ask, on main via
-  merged #63).
+  newest first.
   - **Daily shipping cap Aug 15: 2/2 REACHED** (Beambus 00:02:40Z + Glyphforge
-    01:43:39Z). Halcyon merge legal after 00:00Z Aug 16.
-  - **Shipping-limit round in flight:** per the owner's playbook (`f1fbae9`)
-    the Architect is dispatched for the v4 enhancement round (third
-    consecutive Architect shipping-limit round; v2 = ADTs/pattern-matching/
-    TCO/optimizer, v3 = modules/records/classes/strings/profiler). Merge
-    stays held by the cap; the v4 head will need a fresh review/test before
-    the post-reset merge.
+    01:43:39Z). Halcyon merge legal after 00:00Z Aug 16 - **~1.4h away**.
+  - **Holding for the reset - no 5th Architect round.** Per the loop caution,
+    a standing approval exists on unmoved head `26f5bd5` and the cap resets
+    imminently; routing another round would move the head and delay the merge
+    many hours past the reset. The 00:00Z Aug 16 scheduled maintainer sweep
+    merges on the standing approval. Owner was offered the choice (comment).
 
 ## Just completed
 
-- PR #61's v3 build + fresh review/test cycle (20:17-20:24Z) - fully cleared
-  on head `861830bb`. This run routed the Architect v4 round per the
-  shipping-limit playbook.
+- PR #61's v4 build + fresh review/test cycle (22:21-22:37Z) - fully cleared
+  on head `26f5bd5` after the Fixer's stale-count correction. This run held
+  for the imminent reset instead of routing a 5th Architect round.
 - Earlier today: PR #63 (Glyphforge promotion + hero GitHub link, `Closes
   #62`) merged as `4f31a3b` 17:54Z (factory fix, no cap); #62 closed.
 
@@ -57,40 +57,35 @@
   never delete owner comments. `continue` runs are unaffected.
 - Durable Pages-after-bot-merge trigger still owner-side (manual dispatch
   per merge).
-- Process gap (keep watching): Reviewer landing-page checks should verify
-  section placement (Current vs Previous), not just links. Confirmed
-  correct on the current head this round.
+- Process gap (reviewer landing-page checks): section placement (Current vs
+  Previous) must be verified, not just links. Confirmed correct on the
+  current head this round.
 - Owner commit `f1fbae9` - shipping-limit rounds route to the Architect.
+  Applied for v2/v3/v4; deliberately paused this round because the reset is
+  ~1.4h away with a standing approval (loop caution).
 - Owner commit `767b901` - increased workflow timeouts + builder
   instructions (the milestone-push contract is in the Builder prompt).
 
 ## Next steps
 
-1. Watch the Architect v4 round on PR #61 (expect blueprint appended to
-   `ideas/2026-08-15-halcyon-functional-language-vm.md` + `/oc build this`
-   handoff -> Builder milestones on the existing branch).
-2. When the v4 build completes: route the new head to a fresh Reviewer then
-   Tester cycle (stale-retry/quirk-proofed `review` decision if the JSON
-   handoff misfires).
-3. On `/oc approve-test` for PR #61 **after 00:00Z Aug 16** (cap reset):
-   merge `gh pr merge 61 --rebase --delete-branch`, close #59, dispatch
-   pages.yml, verify `/halcyon/docs/`. Confirm landing-page placement
-   (Halcyon Current, Glyphforge + Beambus + Aftershock Previous newest
-   first) and the hero GitHub link before merging. Aug 16's 1st (of max 2)
-   new-project merge.
-4. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's
+1. **At 00:00Z Aug 16** (cap reset; next scheduled maintainer sweep `0 */6
+   * * *`): merge PR #61 on the standing approval (`gh pr merge 61 --rebase
+   --delete-branch`), close #59, dispatch pages.yml, verify `/halcyon/docs/`
+   serves. Confirm landing-page placement (Halcyon = Current, Glyphforge +
+   Beambus + Aftershock = Previous newest first) and the hero GitHub link
+   before merging. Aug 16's 1st (of max 2) new-project merge.
+2. If the owner instead requests a 5th Architect round (I offered), route
+   `architect` on PR #61 before the reset; the standing approval then goes
+   stale and needs a fresh review+test on the new head.
+3. After Halcyon merges: pick from Ravel/Kestrel (reactions steer; owner's
    count double).
-5. Sunday weekly model upgradation check on 2026-08-16.
+4. Sunday weekly model upgradation check on 2026-08-16.
 
 ## Open questions
 
-- What does the Architect design for v4 (modules/records/classes/strings/
-  profiler already landed)? Third shipping-limit round, so it needs to find
-  genuinely next-level depth to justify another full review+test cycle.
-- Will the v4 cycle land before or after 00:00Z Aug 16? Merge timing follows
-  the reset either way; merge immediately the moment an approve-test passes
-  on a post-reset head.
-- Loop caution: each Architect round grows the PR and delays the merge. The
-  playbook is owner-mandated, so keep routing Architect rounds while the cap
-  holds, but do not let the round block the merge past the reset if a
-  standing approval exists on a head that has not moved.
+- Does the 00:00Z Aug 16 scheduled run fire on time and merge PR #61 on the
+  standing approval (head `26f5bd5` must not move)? If head moves pre-reset,
+  the approval is stale and a fresh review+test cycle is required.
+- If the owner wants another Architect round, the loop resumes - but each
+  round grows the PR and delays the merge by one full review+test cycle.
+  Merge immediately the moment an approve-test passes on a post-reset head.
