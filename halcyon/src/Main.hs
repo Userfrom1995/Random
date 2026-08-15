@@ -2,6 +2,13 @@ module Main (main) where
 
 import System.Environment (getArgs)
 import System.Exit (exitWith, ExitCode (ExitSuccess, ExitFailure))
+import System.IO
+import System.Directory (doesFileExist)
+
+import Halcyon.Errors (formatError)
+import Halcyon.Lexer (Tok, lexer)
+import Halcyon.Parser (parseProgram)
+import Halcyon.SelfTest (runSelfTests)
 
 version :: String
 version = "0.1.0"
@@ -29,14 +36,40 @@ usage = unlines
 die :: String -> IO a
 die msg = putStrLn msg >> exitWith (ExitFailure 1)
 
+readSource :: FilePath -> IO String
+readSource f = do
+  exists <- doesFileExist f
+  if not exists then die ("halcyon: no such file: " ++ f) else readFile f
+
+lexOrDie :: FilePath -> String -> IO [Tok]
+lexOrDie file src = case lexer src of
+  Left e -> die (formatError file e)
+  Right toks -> pure toks
+
+cmdParse :: FilePath -> IO ()
+cmdParse file = do
+  src <- readSource file
+  toks <- lexOrDie file src
+  mapM_ putStrLn (map show toks)
+
+cmdAst :: FilePath -> IO ()
+cmdAst file = do
+  src <- readSource file
+  toks <- lexOrDie file src
+  case parseProgram toks of
+    Left e -> die (formatError file e)
+    Right stmts -> mapM_ (putStrLn . show) stmts
+
 selftest :: IO ()
 selftest = do
   putStrLn "Halcyon self-test suite"
-  putStrLn "  (suite not yet implemented)"
-  putStrLn "  0 tests, 0 failures"
+  n <- runSelfTests
+  putStrLn ("Halcyon self-test suite: " ++ (if n == 0 then "all green" else show n ++ " failures"))
+  exitWith (if n == 0 then ExitSuccess else ExitFailure 1)
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   args <- getArgs
   case args of
     [] -> putStr usage >> exitWith ExitSuccess
@@ -44,4 +77,14 @@ main = do
     ["--help"] -> putStr usage >> exitWith ExitSuccess
     ["-h"] -> putStr usage >> exitWith ExitSuccess
     ["selftest"] -> selftest
+    ["parse", f] -> cmdParse f
+    ["ast", f] -> cmdAst f
+    ["check", _] -> die "halcyon: type checker not yet implemented"
+    ["run", _] -> die "halcyon: interpreter not yet implemented"
+    ["vm", _] -> die "halcyon: VM not yet implemented"
+    ["types", _] -> die "halcyon: type checker not yet implemented"
+    ["bytecode", _] -> die "halcyon: VM not yet implemented"
+    ["eval", _] -> die "halcyon: interpreter not yet implemented"
+    ["repl"] -> die "halcyon: REPL not yet implemented"
+    ["repl", "--vm"] -> die "halcyon: REPL not yet implemented"
     cmd : _ -> die ("halcyon: unknown command '" ++ cmd ++ "'\n\n" ++ usage)
