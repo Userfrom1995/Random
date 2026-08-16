@@ -1,48 +1,51 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-16 (~08:47Z event run 31937305741; Meridian Level 3
-  Architect round routed to the Builder; Obsidian research handoff repaired
-  with an architect trigger on PR #69).
+- **Updated:** 2026-08-16 (~10:00Z event run 31940415784; Lab Health board
+  (#70) acknowledged; Meridian Level 3 built and in review; Obsidian build in
+  flight; owner's `d402f9f` fixed the forward-step target bug).
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec competitive with
   JPEG XL / WebP / conventional methods, benchmarked on Kodak.** Research
-  phase COMPLETE: Dr. Ada delivered PR #69 (branch
-  `opencode/issue68-20260816082105`, head `aa274f3c`) with
-  `obsidian/docs/research.md` (SOTA survey: MED/GAP/predictor banks, YCoCg-R,
-  context modeling, Huffman/Golomb-Rice/arithmetic/ANS, published Kodak rates
-  PNG ~4.2 / JPEG-LS ~3.7 / WebP ~3.4 / FLIF ~3.1 / JPEG XL ~3.1 / MRP ~2.6),
-  `algorithmic-spec.md` (v1 codec: container, YCoCg-R, predictor bank with
-  per-context map, gradient+activity contexts, adaptive rANS 12-bit, effort
-  levels, O(n), bit-exact fidelity), and `benchmark-methodology.md` (pinned
-  toolchain, canonical PPM ground truth, M1 beat WebP/PNG, M2 within 10% of
-  JPEG XL, M3 within ~3%). Her `architect` handoff was MISDIRECTED by the
-  forward-step target bug to PR #67; the Architect trigger on PR #69 has now
-  been emitted this run, so the design phase starts from the spec. Flow:
-  Researcher (done) -> Architect (design) -> Builder (build) -> review ->
-  test -> merge. Every iteration benchmarked on Kodak and documented. NO new
-  projects or board picks until Obsidian resolves.
+  phase COMPLETE (PR #69: `research.md`, `algorithmic-spec.md`, `benchmark-methodology.md`
+  by Dr. Mob). Architecture phase COMPLETE at 09:05Z (commit `57ce99c3`,
+  `architect:` - `obsidian/docs/architecture.md` v1 blueprint: std-only
+  `obsidian-core` codec lib + `obsidian-cli` + `obsidian-web` WASM specimen
+  page, YCoCg-R/palette transforms, 8-predictor bank, gradient+activity
+  contexts, adaptive/static 12-bit rANS, effort pipeline, 13 milestones with
+  fidelity gates). Architect wrote `{"action":"build"}`; the owner's `/oc
+  build this` at 09:40:40Z started the Builder (opencode run 31939675393,
+  build job in_progress). Flow: Researcher (done) -> Architect (done) ->
+  Builder (in progress) -> review -> test -> merge. Every iteration benchmarked
+  on Kodak and documented. NO new projects or board picks until Obsidian
+  resolves (owner's freeze).
 
 ## In flight
 
-- **PR #67 (Meridian, Rust search engine) - Level 3 Architect round done
-  (design-only); Builder routed via `/oc continue` to implement milestones
-  19-25.** Head `4a39b82a5c7053a53697154718e9d19c0ab496a7` (Architect commit
-  `4a39b82`, pushed 08:45Z), mergeable CLEAN. Level 3 blueprint: wildcard/
-  prefix search (`term*`, `term?`), fielded search (`title:`/`source:`),
-  phrase slop (`"a b"~N`), term boosting (`term^N`), pagination
-  (`--offset`/`--limit` + `total_hits`/`pages` + UI pager), `suggest`/
-  typeahead, `--threads` + `--stopwords`; index stays v2, 9296-check
-  consistency baseline holds and grows. Level 2 work remains fully approved
-  (Reviewer 05:18Z + Tester 05:22:47Z on `91d46d8`) but the head has moved, so
-  Level 3 must clear the full review + test rounds before merge. Merge held by
-  today's 2/2 cap (resets 00:00Z Aug 17) regardless.
-- **PR #69 (Obsidian research/spec) - awaiting the Architect design round.**
-  Zero comments so far; the Researcher's `/oc architect` was misdirected to
-  PR #67 by the forward-step target bug (confirmed in run log:
-  `pull/67#issuecomment-5306531116`). Architect trigger emitted this run.
-  4 held PR-preview/trigger runs on this head; approve via the held-run sweep.
+- **PR #67 (Meridian, Rust search engine) - Level 3 BUILT, in REVIEW.** The
+  Builder completed milestones 19-25 in four commits (head `6abe1f2`,
+  mergeState CLEAN): wildcard/prefix search, fielded search, phrase slop, term
+  boosting, pagination + UI pager, search-as-you-type (`suggest` + typeahead),
+  `--threads` + `--stopwords`. Verification: 126 Rust tests (up from 90),
+  clippy 0, 21,226/21,226 JS-Rust consistency (up from 9,296), 40/40 UI,
+  verify-index OK on v2, threads 1 vs 8 byte-identical. The owner's `/oc
+  review` at 10:00:35Z -> review workflow 31940543601 in_progress. Level 3
+  must clear the full review + test rounds (fresh, since the head moved past
+  the Tester's approve-test on `91d46d8`) before merge. Merge additionally
+  held by today's 2/2 cap (resets 00:00Z Aug 17) regardless.
+- **PR #69 (Obsidian research/spec/architecture) - Builder actively building
+  the codec.** Head `57ce99c3`. No action needed from the Maintainer; the
+  forward-step target bug that previously dropped handoffs is FIXED in
+  `d402f9f`.
+
+## Lab Health & Audit Logs (#70)
+
+- Opened 09:57:44Z by the owner, label `lab-health`. Tracking board: health
+  summaries posted here, anomalies -> bug issues tagging the Maintainer, linked
+  here. No Auditor agent in the roster; the Maintainer posts the summary each
+  run (first one posted this run). If the owner wants a dedicated Auditor
+  worker, stand it up via a reviewed PR.
 
 ## Board status (#42)
 
@@ -51,43 +54,50 @@
   CRDT whiteboard). Zero owner reactions across the board's life. No ideate
   (frozen anyway; board not thin).
 
+## Owner-side wiring status (mostly resolved in d402f9f)
+
+- **Forward-step target-selection bug: FIXED.** The researcher/architect/
+  builder forward steps in opencode.yml now compute target as the open PR whose
+  `headRefName` starts with `opencode/issue${issue}-`, so `/oc` triggers land
+  on the correct PR (was: picked the `last` opencode/* PR, which grabbed #67
+  instead of #69 at 08:47Z).
+- **Architect forward step now posts `/oc build this`** when the architect
+  writes `{"action":"build"}` (previously only `build` was handled in the
+  architect path; `continue` fell through to `/oc maintainer`).
+- **Builder forward step handles `continue`** (mid-build handoffs auto-resume).
+- Researcher renamed Dr. Ada -> Dr. Mob; maintainer escalation wiring added;
+  AGENTS.md updated. Pages re-deployed on the new main (run 31939480969).
+- Still owner-side: durable pages-after-bot-merge trigger (manual dispatch per
+  merge).
+
 ## Reviewer/Tester model status
 
 - `opencode/mimo-v2.5-free` (reviewer + tester), `deepseek-v4-flash-free`
   (build/fixer/maintainer/ideate/research/architect) unchanged after the
-  2026-08-16 Sunday check. Researcher integrated by the owner (`b1116ff2`).
-
-## Watch items (owner-side / wiring)
-
-- **Forward-step target-selection bug bit again:** the Researcher's forward
-  step posts to the `last` opencode/* PR in `gh pr list`, which picked #67
-  instead of #69. Architect's `continue` handoff also still falls through to
-  `/oc maintainer` (only `build` is handled). Both are owner-side wiring fixes.
-- Architect forward step only handles `{"action":"build"}` - a `continue`
-  decision falls through to `/oc maintainer`; Architect should write `build`.
-- Auto-retry counter pollution: stale `/oc build this (auto-retry N)` comments
-  still count - re-emit, never delete owner comments.
-- Durable Pages-after-bot-merge trigger still owner-side (manual dispatch per
-  merge; maintainer.yml re-dispatches if main advanced).
+  2026-08-16 Sunday check. Next Sunday (2026-08-23): weekly model upgradation.
 
 ## Next steps
 
-1. **PR #67**: Builder implements milestones 19-25 (`/oc continue` emitted);
-   then Reviewer -> Tester; merge at a cap-open run (`gh pr merge 67 --rebase
-   --delete-branch`), close #66, dispatch pages.yml, verify `/meridian/`
-   serves. Do not re-review Level 2's old approval - Level 3 changes the head.
-2. **Obsidian (#68)**: Architect design round on PR #69 (`/oc architect`
-   emitted) -> Builder (`build`) -> review -> test -> merge. Shepherd with
-   `continue` while in-progress.
-3. No board picks until Obsidian resolves (owner's freeze).
-4. Next Sunday (2026-08-23): weekly model upgradation check.
+1. **PR #67**: Reviewer (in progress) -> Tester on head `6abe1f2`; then merge
+   at a cap-open run (`gh pr merge 67 --rebase --delete-branch`), close #66,
+   dispatch pages.yml, verify `/meridian/` serves. Do not re-review the old
+   Level 2 approval - Level 3 changes the head.
+2. **Obsidian (#68)**: Builder implements (effort 0 end-to-end first, then
+   higher efforts); shepherd with `continue` while in-progress; then review ->
+   test -> merge per the pipeline. Never merge until fully approved and the cap
+   allows.
+3. Post the lab health summary on #70 each run (audit log). Offer Auditor
+   worker if the owner wants one.
+4. No board picks until Obsidian resolves (owner's freeze).
+5. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the Architect's Obsidian round land from the research spec and hand
-  `build` to the Builder, or does the forward step drop the handoff again?
-- Does the Builder implement Meridian Level 3 cleanly (wildcard/fields/slop/
-  boost/pagination/suggest/stopwords, JS mirror parity, 9296 baseline grows)?
+- Does the Reviewer pass PR #67's Level 3 (head `6abe1f2`), then the Tester?
+  Expected yes - the Builder re-verified the full matrix (21,226/21,226).
+- Does the Obsidian Builder land the codec core cleanly? How many `continue`
+  steps? Does its `review` handoff auto-fire now that the target bug is fixed?
+- Does the owner want a dedicated Auditor agent (I offered on #70)?
 - When Obsidian produces a competitive lossless result, does the owner call it
   done or keep iterating? "Proven unviable" = documented research conclusion.
 - Obsidian's PR is a new-project PR - subject to the 2/day merge cap when it
