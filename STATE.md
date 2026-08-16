@@ -1,58 +1,57 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-16 (~16:05Z event run 31957537085, owner "/oc
-  maintainer" on issue #72 at 16:04:20Z). **Issue #72 is OWNER-BLOCKED**: the
-  build-verify fix was fully written twice (run 31953184148 + auto-retry
-  31954533349) but the bot's `github.token` cannot push `.github/workflows/*.yml`
-  (no `workflows: write`); the auto-retry's verify then FALSE-POSITIVED on PR
-  #67's merge (self-confirming the bug #72 exists to fix). Patch + options
-  handed to the owner. Obsidian continue failed again on billing (run
-  31956999986); maintainer run 31957278010 (in progress) owns the #69 tag.
-  main at `c44736f`.
+- **Updated:** 2026-08-16 (~18:38Z event run 31965100782, owner "/oc
+  maintainer, please use the factory engineer for this." on #72 at
+  18:36:38Z). **Owner directed the Factory Engineer path for #72.** The
+  Factory Engineer (CTO) was integrated by the owner at 18:33Z (commit
+  `2761885`, `factory.yml` + `.github/agents/factoryengineer.md`), and the
+  PAT-backed `factory.yml` push step can land `.github/workflows/*.yml`
+  changes - resolving the `workflows: write` blocker that killed #72's two
+  build attempts. This run dispatches `factory` on #72 (fixes #72 + #73 in
+  the round) and `factory` on PR #69 (Mode 2 model switch for the Obsidian
+  billing stall, per the owner's #74 auto-switch policy).
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec competitive with
-  JPEG XL / WebP / conventional methods, benchmarked on Kodak.** Research +
-  architecture COMPLETE (PR #69 docs). Builder STILL STALLED on billing:
-  continue run 31956999986 (15:53Z) failed - verify "No push detected" after
-  4 attempts -> "Manual intervention required"; PR #69 head `2377f3cc` (docs
-  + Cargo scaffold only, no codec source). Maintainer run 31957278010 (owner
-  /oc maintainer on #69, 15:59:20Z) is IN PROGRESS and should tag the owner
-  about billing per the #74 policy ("if it happens again, tag me"). Flow:
-  Builder (retrying/tagged) -> review -> test -> merge (cap resets to 0/2 at
-  00:00Z Aug 17; legal tomorrow).
+  JPEG XL / WebP / conventional methods, benchmarked on Kodak.** PR #69 open,
+  head `2377f3cc` (research/spec/architecture docs + Cargo workspace scaffold
+  only, NO codec source). Billing `CreditsError` has failed 5+ continue
+  attempts. **This run dispatches `factory` on PR #69** (Mode 2): the CTO
+  edits the `opencode.yml` build model to a free fallback (hy3-free /
+  nemotron-3-ultra-free / nemotron-3.5-lightning-free / laguna-s-2.1-free)
+  directly on main via the PAT step. On its `{"action":"maintainer"}`
+  handoff, re-trigger the Obsidian `continue` so the Builder re-implements
+  effort 0 and pushes.
 
 ## In flight
 
-- **Issue #72 (infra fix) - OWNER-BLOCKED, no PR.** The fix (per-PR
-  `headRefOid` baseline+verify + force-with-lease guidance) was built in run
-  31953184148 but its push was rejected (`github.token` lacks `workflows:
-  write`); the Clean working tree step wiped it. Auto-retry run 31954533349
-  hit the same wall and its verify false-positived on PR #67's merge - the
-  exact bug #72 fixes. **Blocked until the owner either (A) grants the bot
-  `workflows: write` or (B) applies the opencode.yml patch directly** (all
-  workflow changes on main are owner-pushed: eced6db/d0f6adc/81d84dd/45b1885).
-  On `/oc approve-test` (if a PR ever opens): merge, close #72, dispatch
-  pages.yml, then `build` on #73.
-- **Issue #73 (opencode-review crash on non-PR) - QUEUED behind #72.** Never
-  dispatched concurrently with another opencode build.
-- **Issue #74 (billing) - CLOSED by the owner 15:04Z** ("try the suggested
-  fixes, and if it happens again, tag me on the issue or PR where it
-  occurs"). Standing auto-switch policy is OWNER-DEPENDENT: the bot lacks
-  `workflows: write`, so the owner must edit workflow files or grant the
-  permission.
-- **PR #69 (Obsidian) - OPEN, billing-stalled** at head `2377f3cc`, MERGEABLE,
-  no codec source, no review/test. Continue 31956999986 failed (billing).
-  Maintainer run 31957278010 handling #69; watch for its tag/continue.
-- **PR #67 (Meridian) - MERGED `c44736f`, #66 closed, pages deployed**
-  (31956858812/31956999681 success). `/meridian/` live. No further action.
+- **Issue #72 (infra fix) - FACTORY DISPATCHED this run.** Owner ordered the
+  Factory Engineer path. `factory` on #72: the CTO opens an infra PR (`Closes
+  #72`) that (1) scopes the build baseline/verify to the target PR head (fix
+  path lines 555-556 pattern), (2) adds force-with-lease guidance to the
+  BUILD/FIX prompts + builder.md/fixer.md, and (3) fixes #73 (opencode-review
+  crash on non-PR) so the factory review forward (which posts /oc review on
+  the issue number) works. PR branch pattern `opencode/factory-72-*`; pushed
+  by the PAT step; `{"action":"review"}` -> reviewer, then test, then merge
+  (`gh pr merge <N> --rebase --delete-branch`), close #72, dispatch pages.yml.
+- **Issue #73 (opencode-review crash on non-PR) - FOLDED INTO the #72
+  factory round** (not a separate dispatch; the factory review handoff needs
+  it). No separate trigger.
+- **PR #69 (Obsidian) - model-switch FACTORY DISPATCHED this run** (Mode 2,
+  direct main edit, PAT-pushed). Watch for the CTO's `{"action":"maintainer"}`
+  handoff, then re-trigger Obsidian `continue`. Do NOT run the two factory
+  dispatches concurrently with any opencode build.
+- **PR #67 (Meridian) - MERGED `c44736f` earlier, #66 closed, pages
+  deployed.** No further action.
+- **Issue #74 (billing) - CLOSED by the owner.** Standing auto-switch policy
+  active; the factory Mode 2 path finally makes it executable.
 
 ## Lab Health & Audit Logs (#70)
 
-- The Auditor owns the daily health summary on #70 (ran 11:30Z; found the
-  build-verify false positive -> #72/#73/#74; #74 closed by owner). Watch
-  #72 (owner-blocked) and #73 (queued) as the actionable infra threads.
+- The Auditor owns the daily health summary on #70 (ran 11:30Z/12:33Z, found
+  the build-verify false positive -> #72/#73/#74). This run acts on the
+  reopened #72/#73 via the factory path the owner just integrated.
 
 ## Board status (#42)
 
@@ -62,33 +61,31 @@
 ## Reviewer/Tester model status
 
 - `opencode/mimo-v2.5-free` (reviewer + tester), `deepseek-v4-flash-free`
-  (build/fixer/maintainer/ideate/research/architect) unchanged. Billing gate
-  (#74) keeps degrading the build agent; the auto-switch to a free fallback
-  (hy3-free / nemotron-3-ultra-free / nemotron-3.5-lightning-free /
-  laguna-s-2.1-free; all live on the zen endpoint) is blocked by the bot's
-  missing `workflows: write` permission (tried, rejected). Next Sunday
-  (2026-08-23): weekly model upgradation.
+  (build/fixer/maintainer/ideate/research/architect) unchanged. The
+  Factory Engineer runs on `mimo-v2.5-free`. The billing gate (#74) keeps
+  degrading the build agent; the auto-switch to a free fallback is now
+  possible via the factory Mode 2 PAT path (this run's PR #69 dispatch).
 
 ## Next steps
 
-1. **#72: WAIT for the owner** (grant `workflows: write` OR apply the
-   opencode.yml patch; patch is in the #72 comment). After owner action,
-   re-dispatch `/oc build`; shepherd review -> test -> merge; then dispatch
-   #73.
-2. **Obsidian: verify maintainer run 31957278010** tagged the owner about
-   billing (per 15:04Z policy). If it did not, tag on PR #69. No more blind
-   billing retries until the workspace has payment or an owner-side model
-   switch.
-3. **#73**: dispatch `build` only after #72 merges (never concurrent).
+1. **#72: shepherd the factory PR** (`opencode/factory-72-*`): on
+   `{"action":"review"}` the reviewer runs; on `/oc approve-test` merge,
+   close #72 (+ #73 if linked), dispatch pages.yml.
+2. **PR #69: on the CTO's `{"action":"maintainer"}` handoff**, re-trigger
+   the Obsidian `continue` (model now free-tier fallback). Shepherd -> review
+   -> test -> merge per the pipeline.
+3. **#73**: covered inside the #72 factory round; verify the review workflow
+   handles non-PR gracefully once the factory PR review runs.
 4. **#70**: Auditor owns the daily health summary; watch for anomalies.
 5. No board picks until Obsidian resolves (owner's freeze).
 6. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the owner grant `workflows: write` (A) or apply the opencode.yml patch
-  directly (B)? Either unblocks #72.
-- Did maintainer run 31957278010 post the Obsidian billing tag / continue?
-- Does Obsidian get a payment method or an owner-side model switch, or does it
-  keep degrading on CreditsError?
-- Does /meridian/ serve correctly after the deploy?
+- Does the factory PR for #72 open cleanly (PAT push of `opencode/factory-72-*`)
+  and survive the extra-hard lab review?
+- Does the Mode 2 model switch on PR #69's factory dispatch land on main, and
+  does the free fallback model clear the billing CreditsError for the next
+  Obsidian continue?
+- Did the schedule maintainer run 31965038788 (18:35-18:37Z) also post any
+  triggers that double up with this run's factory dispatches?
