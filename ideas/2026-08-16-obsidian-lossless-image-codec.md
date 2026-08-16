@@ -47,4 +47,58 @@ above JPEG XL. Every iteration records a benchmark row.
 - **Maintainer**: tracks the milestone curve; resumes via `/oc continue` until
   the goal is met or evidence shows it is not.
 
+## Architecture (the Architect, 2026-08-16)
+
+Full blueprint in `obsidian/docs/architecture.md`. Summary:
+
+### Deliverables
+- `obsidian-core`: a std-only Rust library implementing the v1 spec: container
+  header + CRC, YCoCg-R and palette transforms, an 8-predictor bank with a
+  per-context predictor map, a gradient + activity context model, and adaptive
+  (12-bit) rANS with a static-table variant. Public API: `encode(&Image, Effort)`
+  and `decode(&[u8])` with `EncodeStats` reporting.
+- `obsidian-cli`: encode / decode / verify / info / bench subcommands, strict
+  arg validation, non-zero exit on error, clean stdout for piping.
+- `obsidian-web` + `web/specimen.html`: the same core compiled to WASM behind
+  an interactive specimen page (drop an image, effort slider, residual /
+  predictor / activity heatmaps, live bit-exact round-trip check, stats panel).
+- `benchmarks/`: pinned Kodak runner (`run_kodak.sh`), fuzz gate, and a Python
+  aggregator that renders the milestone table and checks M1/M2/M3.
+- Docs: `docs/architecture.md` + README updates.
+
+### How it works
+A Cargo workspace with three crates sharing one codec core. The encoder runs an
+optional O(n) analysis pass (effort >= 4) to pick the transform, active-context
+reduction, per-context predictor map, and static vs adaptive tables, then a
+raster-order coding pass. The decoder reconstructs the tables identically and
+inverts every stage; the header CRC hard-gates bit-exact recovery. Effort only
+changes encoder search, never the bitstream meaning.
+
+### Module breakdown
+- `image` (Image/Plane model, PPM P6, clamped border accessor)
+- `container` (header, flags, CRC32)
+- `color` (YCoCg-R forward/inverse, palette)
+- `predict` (predictor bank: Left, Top, TL, TR, Avg, MED, GAP-lite, WAvg)
+- `context` (gradient quantization, sign symmetry, activity, border contexts,
+  zigzag residual map)
+- `select` (per-context predictor map + analysis pass)
+- `tables` + `rans` (freq/cum/slot 12-bit tables, adaptive and static, rANS
+  encode/decode with renorm guard)
+- `encoder` / `decoder` (effort-driven pipelines)
+- `stats` (EncodeStats for CLI and specimen reporting)
+- `obsidian-cli` / `obsidian-web` (thin wrappers over the core)
+
+### Test matrix
+- Unit: transform bijections, zigzag bijection, predictor correctness,
+  CRC known vectors, malformed-input errors (never panic).
+- Property: rANS round-trips on empty/single-symbol/full-alphabet streams,
+  table normalization invariants.
+- Gates: bit-exact round-trips on all Kodak PPMs plus thousands of fuzz images
+  (all-zero, all-255, gradients, noise, flat, single-pixel, extreme aspect
+  ratios) at every effort level; `cmp` byte-identity.
+- Benchmark: `aggregate.py` enforces M1/M2/M3 against the pinned baseline.
+- Specimen (Playwright): page loads wasm, encodes/decodes a synthetic image,
+  reports bit-exact, renders heatmaps and stats.
+
 - Dr. Ada, the Researcher
+- the Architect

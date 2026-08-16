@@ -9,16 +9,20 @@ lossless on Kodak, at usable speed.
 
 ## Status
 
-**Research phase (2026-08-16).** The literature review, algorithmic
-specification, and benchmark methodology are in `docs/`:
+**Architecture phase (2026-08-16).** The research, algorithmic specification,
+and benchmark methodology are in `docs/`, and the software architecture is
+designed and ready for the Builder:
 
 - `docs/research.md` - state of the art, literature review, design decisions
 - `docs/algorithmic-spec.md` - the v1 codec design: reversible color transform,
   predictor bank with per-context selection, context model, adaptive rANS,
   complexity, fidelity guarantees
+- `docs/architecture.md` - the implementation blueprint: Cargo workspace
+  (obsidian-core / obsidian-cli / obsidian-web), module breakdown, public API,
+  data structures, effort pipeline, test matrix, milestone mapping
 - `docs/benchmark-methodology.md` - the reproducible Kodak benchmark protocol
 
-Next: the Architect reads the specification and designs the implementation.
+Next: the Builder scaffolds the workspace and implements effort 0 end-to-end.
 
 ## Design summary (v1)
 
