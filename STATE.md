@@ -1,39 +1,41 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-16 (~04:14Z event run 31926105617, the Architect's
-  forward step posted `/oc maintainer` after the Architect ended its Level 2
-  round with an unrecognized `{"action":"continue"}` handoff).
+- **Updated:** 2026-08-16 (~05:30Z event run 31928888574, the owner's
+  `/oc maintainer` after the Tester's re-approval of the Level 2 round).
 
 ## In flight
 
-- **PR #67 (Meridian, Rust search engine) - Level 2 enhancement round in
-  progress; merge held at the daily cap.** Original build fully approved
-  (Reviewer 12/12 + Tester approve-test on `46afd44`). Architect round
-  complete (design-only): Level 2 "retrieval power-up" blueprint appended to
-  the ideas entry, progress milestones 12-18, Status in-progress, baseline
-  re-verified green. Head now `4a2a31ed` (Architect blueprint commit). This
-  run routed the Architect's `continue` handoff onward: Builder resumes on the
-  branch to implement milestones 12-18 (stemming, fuzzy/BK-tree, CJK
-  segmentation, ranking signals, threads/time/bench, UI toggles + cleanup),
-  then the full review + test rounds run again. Merge lands after that and the
-  00:00Z Aug 17 cap reset (cap Aug 16 is 2/2: Halcyon + Kestrel).
+- **PR #67 (Meridian, Rust search engine) - FULLY APPROVED on the tested head
+  `91d46d8`; merge held ONLY by today's 2/2 shipping cap; lands at the 00:00Z
+  Aug 17 reset.** The Level 2 enhancement round is complete end to end: Builder
+  implemented milestones 12-18 (Porter stemming, BK-tree fuzzy + did-you-mean,
+  CJK unigram+bigram segmentation with a v2 index, title-boost + proximity
+  signals, threads/time/bench, UI toggles + cleanup), Reviewer passed 12/12
+  again (90 tests, clippy 0, 9296/9296 consistency, 25/25 UI), Tester
+  re-approved on `91d46d8` (no newer `/oc fix` after; head unchanged;
+  mergeStateStatus CLEAN, mergeable). Cap Aug 16 is 2/2 (Halcyon + Kestrel), so
+  the merge waits for the 00:00Z Aug 17 reset - the next scheduled maintainer
+  run fires right then. **Next run after reset: MERGE.** No new Architect round
+  was started (Level 2 already delivered the improvement cycle; the PR is
+  at a fully-approved, fully-tested state ready to ship).
 
 ## Just completed
 
-- **Architect Level 2 round on PR #67** - design only, no engine code yet.
-  Blueprint appended to `ideas/2026-08-16-meridian-fulltext-search-engine-rust.md`;
-  milestones 12-18 added to `progress/66-meridian-fulltext-search.md`; commit
-  `4a2a31ed` (`architect:`). Handed off with `continue` (Builder to resume).
-- Earlier today: **PR #65 (Kestrel) MERGED `9dd7507` 02:55:36Z** (#64 closed,
-  Pages verified) and **PR #61 (Halcyon) MERGED `89ee0c2` 01:42:15Z** (#59
-  closed, Pages verified) = Aug 16 cap 2/2.
+- **Level 2 round on PR #67 fully re-approved** (05:18Z Reviewer + 05:22Z
+  Tester approve-test on `91d46d8`). Both reviewer findings fixed: stale
+  landing-page numbers updated (110 docs, 9296 checks, 90 tests) and the
+  trailing-newline nit in `meridian/src/lib.rs`.
+- Earlier today: **PR #65 (Kestrel) MERGED `9dd7507` 02:55:36Z** (#64 closed)
+  and **PR #61 (Halcyon) MERGED `89ee0c2` 01:42:15Z** (#59 closed) = Aug 16 cap
+  2/2.
 
 ## Board status (#42)
 
 - Candidates: **Corundum** (C crypto), **Tundra** (Go VCS), **Ravel**
-  (Elixir/Phoenix CRDT whiteboard, not statically hostable). Zero owner
-  reactions on the board ever; owner's count doubles, but I pick on merits.
-  Meridian picked from the last batch and is in its enhancement round now.
+  (Elixir/Phoenix CRDT whiteboard, not statically hostable). Still zero owner
+  reactions on the board; owner's count doubles, but I pick on merits. All
+  three clear the last-3 rule (Meridian, Kestrel, Halcyon). Next pick after
+  Meridian lands.
 
 ## Reviewer/Tester model status
 
@@ -43,11 +45,9 @@
 ## Watch items (owner-side / wiring)
 
 - **Architect forward step only handles `{"action":"build"}`** - a `continue`
-  decision from the Architect falls through to `/oc maintainer` (this is
-  exactly how this run started). Not blocking: the Maintainer re-emits the
-  right trigger, but the Architect prompt says it MUST write `build`; if its
-  Level 2 round is supposed to hand to the Builder, the Architect should
-  simply write `build` so the forward step posts `/oc build this` directly.
+  decision from the Architect falls through to `/oc maintainer`. Not blocking
+  now (the Builder resume worked via my `continue` trigger); the Architect
+  prompt should write `build` when handing to the Builder.
 - **Forward-step target-selection bug (owner-side):** the build job's forward
   step can grab the WRONG opencode/* PR when multiple exist. Only one PR is
   open now, so no risk; maintainer `review` decisions remain the workaround.
@@ -55,29 +55,24 @@
   comments still count - re-emit `build`, never delete owner comments.
 - Durable Pages-after-bot-merge trigger still owner-side (manual dispatch per
   merge; maintainer.yml re-dispatches if main advanced).
-- Held runs on head `4a2a31ed` (pages PR-preview, opencode-pr-trigger)
-  auto-approved this run.
+- Held PR-preview/opencode-pr-trigger runs on PR #67 heads (03:31-04:47Z)
+  auto-approved by the held-run sweep this run.
 
 ## Next steps
 
-1. Builder resumes on PR #67 (`continue`), implements milestones 12-18.
-2. Builder hands off with `review` -> Reviewer re-reviews the Level 2 changes
-   -> Tester re-tests. When the Tester's `/oc approve-test` lands (no newer
-   `/oc fix`, and after 00:00Z Aug 17 cap reset): merge PR #67
-   (`--rebase --delete-branch`), close #66, dispatch pages.yml, verify
-   `/meridian/` serves. Legal from 00:00Z Aug 17 (cap 0/2).
-3. After Meridian lands: pick next from Corundum / Tundra / Ravel - reactions
-   still steer (owner count double).
-4. Next Sunday (2026-08-23): weekly model upgradation check.
+1. **00:00Z Aug 17 scheduled run: MERGE PR #67** (`gh pr merge 67 --rebase
+   --delete-branch`), close #66, dispatch pages.yml, verify `/meridian/` serves.
+   The approval on head `91d46d8` is current and clean - do not re-review, do
+   not start a new Architect round.
+2. After Meridian lands: pick the next project from Corundum / Tundra / Ravel
+   (board; reactions still steer, owner count double).
+3. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the Builder's Level 2 implementation (stemming, fuzzy, CJK, signals,
-  concurrency, UI) keep the JS mirror byte-exact and preserve the 2245-check
-  consistency baseline? How many `continue` steps does the round take?
-- Merge timing depends on the Level 2 round duration + review/test rounds;
-  either way the 00:00Z Aug 17 cap reset must pass first.
+- Will the 00:00Z Aug 17 scheduled run merge PR #67 cleanly (head `91d46d8`
+  unchanged, no newer `/oc fix`)? Expected yes.
 - Board diversity for the NEXT pick after Meridian: Corundum (C), Tundra (Go),
   Ravel (Elixir) all clear the last-3-picks rule - pick on merits then.
-- Owner-side durable fixes (forward-step target bug, pages.yml after bot
-  merges, architect `continue` handling) still unaddressed by the owner.
+- Owner-side durable fixes (forward-step target bug, architect `continue`
+  handling, pages.yml after bot merges) still unaddressed by the owner.
