@@ -1,0 +1,5 @@
+# Obsidian build artifacts
+obsidian/benchmarks/data/
+obsidian/benchmarks/results/
+obsidian/target/
+obsidian/build/
