@@ -1,0 +1,11 @@
+[package]
+name = "obsidian-core"
+description = "Obsidian lossless image codec: std-only codec core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "obsidian_core"
+path = "src/lib.rs"
