@@ -1,9 +1,11 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-16 (~10:45Z event run 31942470591; PR #67 fully
-  re-approved on tested head `9328368`, held at today's 2/2 cap until 00:00Z
-  Aug 17; Obsidian build push rejected, handled by concurrent maintainer run
-  31941979511).
+- **Updated:** 2026-08-16 (~11:09Z dispatch run 31943543172; Obsidian build
+  handoff re-triggered via `continue` on PR #69 after the Builder push was
+  rejected and the handoff run 31941979511 ended without posting; Auditor
+  agent integrated by the owner in `cd9ea58` and triggered for a validation
+  run on #70; PR #67 still fully re-approved and held at today's 2/2 cap
+  until 00:00Z Aug 17).
 
 ## Priority project (the fundamental goal)
 
@@ -15,15 +17,18 @@
   `obsidian-core` codec lib + `obsidian-cli` + `obsidian-web` WASM specimen
   page, YCoCg-R/palette transforms, 8-predictor bank, gradient+activity
   contexts, adaptive/static 12-bit rANS, effort pipeline, 13 milestones with
-  fidelity gates). Architect wrote `{"action":"build"}`; the owner's `/oc
-  build this` at 09:40:40Z started the Builder (opencode run 31939675393),
-  but the Builder's push was REJECTED (non-fast-forward, ~10:33Z) - the
-  build round did not land on the branch. A concurrent maintainer run
-  (31941979511, triggered by `/oc maintainer` at 10:33:25Z) is in_progress
-  handling that handoff. Flow: Researcher (done) -> Architect (done) ->
-  Builder (retry/rebase in flight) -> review -> test -> merge. Every iteration
-  benchmarked on Kodak and documented. NO new projects or board picks until
-  Obsidian resolves (owner's freeze).
+  fidelity gates). **BUILD stalled then re-triggered:** the owner's `/oc build
+  this` at 09:40:40Z started the Builder (opencode run 31939675393), but its
+  push was REJECTED at 10:33:24Z (non-fast-forward - it rebased onto the new
+  main `d402f9f`); the clean-tree step wiped its work and verify falsely saw
+  "pushed". Branch `opencode/issue68-20260816082105` is still at `57ce99c3`
+  (architect only). The handoff maintainer run 31941979511 ended 10:58Z
+  without posting a trigger. This run posted `/oc continue` on PR #69 to
+  resume the Builder (re-implement effort 0 end-to-end from the progress
+  file). Flow: Researcher (done) -> Architect (done) -> Builder (resuming) ->
+  review -> test -> merge. Every iteration benchmarked on Kodak and
+  documented. NO new projects or board picks until Obsidian resolves (owner's
+  freeze).
 
 ## In flight
 
@@ -37,19 +42,22 @@
   Kestrel 02:55Z). Legal from 00:00Z Aug 17; the scheduled run right after the
   reset merges it. DO NOT re-review; DO NOT start a new Architect round
   (Level 2 + Level 3 enhancement cycles already delivered).
-- **PR #69 (Obsidian research/spec/architecture) - Builder push rejected.**
-  Head `57ce99c3` (architect blueprint). The Obsidian build round failed to
-  push (non-fast-forward); concurrent maintainer run 31941979511 is handling
-  the rebuild/rebase handoff. Resume with `continue` when building; review ->
-  test -> merge per the pipeline.
+- **PR #69 (Obsidian research/spec/architecture) - Builder resuming.** Head
+  `57ce99c3` (architect blueprint). Builder push rejected at 10:33:24Z
+  (non-fast-forward; local work lost to the clean-tree step). The handoff
+  maintainer run 31941979511 did not post a trigger; this run's `/oc
+  continue` resumes the build. Review -> test -> merge per the pipeline once
+  the Builder lands.
 
 ## Lab Health & Audit Logs (#70)
 
 - Opened 09:57:44Z by the owner, label `lab-health`. First summary posted at
-  10:10Z. Tracking board: health summaries posted here, anomalies -> bug
-  issues tagging the Maintainer, linked here. No Auditor agent in the roster;
-  the Maintainer posts the summary each run. If the owner wants a dedicated
-  Auditor worker, stand it up via a reviewed PR.
+  10:10Z. **The owner integrated a dedicated Auditor agent** at 10:59:56Z
+  (commit `cd9ea58`: auditor.md, auditor.yml daily 00:00Z + `/oc auditor`
+  trigger, REGISTRY entry, maintainer.md `auditor` action). This run posted
+  `/oc auditor` on #70 to validate the new wiring with an immediate health
+  check. The Auditor now owns the daily summary; the Maintainer watches the
+  board for anomalies.
 
 ## Board status (#42)
 
@@ -58,22 +66,16 @@
   CRDT whiteboard). Zero owner reactions across the board's life. No ideate
   (frozen anyway; board not thin).
 
-## Owner-side wiring status (mostly resolved in d402f9f)
+## Owner-side wiring status
 
-- **Forward-step target-selection bug: FIXED.** The researcher/architect/
-  builder forward steps in opencode.yml now compute target as the open PR whose
-  `headRefName` starts with `opencode/issue${issue}-`, so `/oc` triggers land
-  on the correct PR (was: picked the `last` opencode/* PR, which grabbed #67
-  instead of #69 at 08:47Z).
-- **Architect forward step now posts `/oc build this`** when the architect
-  writes `{"action":"build"}` (previously only `build` was handled in the
-  architect path; `continue` fell through to `/oc maintainer`).
-- **Builder forward step handles `continue`** (mid-build handoffs auto-resume).
-- Researcher renamed Dr. Ada -> Dr. Mob; maintainer escalation wiring added;
-  AGENTS.md updated. Pages re-deployed on the new main (run 31939480969).
+- Forward-step target-selection bug: FIXED (`d402f9f`) - researcher/architect/
+  builder forward steps compute target as the open PR whose `headRefName`
+  starts with `opencode/issue${issue}-`; architect forward step posts `/oc
+  build this` on `{"action":"build"}`; builder forward step handles
+  `continue`. Pages re-deployed on new main heads.
 - Still owner-side: durable pages-after-bot-merge trigger (manual dispatch per
-  merge). Obsidian build push rejection may also need owner/Builder-side
-  handling (rebase before push).
+  merge). The Obsidian push rejection showed the Builder must rebase onto the
+  current main before pushing (workflow-level note).
 
 ## Reviewer/Tester model status
 
@@ -87,25 +89,27 @@
    --rebase --delete-branch`), close #66, dispatch pages.yml, verify
    `/meridian/` serves. Standing approval on `9328368` is current - no
    re-review, no new Architect round.
-2. **Obsidian (#68)**: let the concurrent maintainer run 31941979511 handle
-   the rejected-push handoff; then Builder implements (effort 0 end-to-end
-   first, then higher efforts); shepherd with `continue` while in-progress;
-   then review -> test -> merge per the pipeline. Never merge until fully
-   approved and the cap allows.
-3. Post the lab health summary on #70 each run (audit log). Offer Auditor
-   worker if the owner wants one.
+2. **Obsidian (#68)**: the `/oc continue` on PR #69 (posted this run) resumes
+   the Builder. Shepherd with `continue` while in-progress (13 milestones,
+   effort 0 end-to-end first); then review -> test -> merge per the pipeline.
+   Never merge until fully approved and the cap allows.
+3. **#70**: the Auditor agent (owner's `cd9ea58`) owns the daily health
+   summary now; validate via the `/oc auditor` posted this run and watch the
+   board for anomalies (Auditor opens bug issues + tags `/oc maintainer`).
 4. No board picks until Obsidian resolves (owner's freeze).
 5. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
+- Does the Builder's resumed Obsidian round push cleanly (rebase onto
+  `d402f9f`/`cd9ea58` before push) and land the codec core? How many
+  `continue` steps? Does its `review` handoff auto-fire now that the target
+  bug is fixed?
+- Does the Auditor's first run post a clean health summary on #70 (validating
+  the owner's new wiring)?
 - Does the 00:00Z Aug 17 scheduled run merge PR #67 promptly and cleanly (head
   `9328368` unchanged, no newer `/oc fix`)? Expected yes - standing approval
   is current and the cap resets then.
-- Obsidian: does the Builder rebase and land the codec core after the rejected
-  push? How many `continue` steps? Does its `review` handoff auto-fire now
-  that the target bug is fixed?
-- Does the owner want a dedicated Auditor agent (I offered on #70)?
 - When Obsidian produces a competitive lossless result, does the owner call it
   done or keep iterating? "Proven unviable" = documented research conclusion.
 - Obsidian's PR is a new-project PR - subject to the 2/day merge cap when it
