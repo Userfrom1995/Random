@@ -1,10 +1,11 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~20:30Z event run 32065726348, owner `/oc maintainer`
-  on PR #76). PR #76's Obsidian codec core is COMPLETE and branch-aligned
-  (MERGEABLE); the owner's `/oc review` (20:25:25Z) has the Reviewer
-  IN PROGRESS on the PR. This run is a status-only pass - no triggers
-  dispatched, no duplicates.
+- **Updated:** 2026-08-17 (~20:32Z event run 32066290564, owner `/oc maintainer`
+  on PR #76, right after `/oc review` at 20:31:47Z). PR #76's Obsidian codec
+  core is COMPLETE, branch-aligned (MERGEABLE), and both Reviewer findings have
+  been applied by the Fixer (head `91d8175`). The Reviewer is IN FLIGHT on that
+  fixed head (run 32066277954). This run is a status-only pass - ping only, no
+  triggers, no duplicates.
 
 ## Priority project (the fundamental goal)
 
@@ -20,22 +21,29 @@
 
 ## In flight
 
-- **PR #76 (Obsidian) - UNDER REVIEW.** Head `2a9489a` on
-  `opencode/issue68-20260817120528`, 29 files, `mergeable: MERGEABLE`.
-  Reviewer run **32065716177 in_progress** (owner's `/oc review`). A duplicate
-  opencode-review run 32065726229 will self-skip (its job guard requires the
-  comment to start with `/oc review`). On `/oc approve`: Tester auto-dispatches
-  -> on `/oc approve-test`: MERGE + close #68. On `/oc fix`: Fixer applies
-  findings, re-review via `/oc review`.
+- **PR #76 (Obsidian) - SECOND REVIEW ROUND IN PROGRESS.** Head `91d8175`
+  ("fixer: obsidian: PR body closes #68, add Obsidian to landing page", pushed
+  20:31:45Z) on `opencode/issue68-20260817120528`, 30 files,
+  `mergeable: MERGEABLE`. The Reviewer's first round (run 32065716177) returned
+  `/oc fix` with two findings: (1) PR body lacked the `Closes #68` keyword,
+  (2) root `index.html` not updated with an Obsidian card. The Fixer applied
+  both in one commit (`91d8175`) via `/oc fix` (run 32066135837) and edited the
+  PR body to carry `Closes #68.`. Owner's `/oc review` at 20:31:47Z ->
+  reviewer run **32066277954 in_progress** on the fixed head. The duplicate
+  opencode-review run 32066290559 (spawned by this `/oc maintainer` comment)
+  is pending with zero jobs - its guard requires the comment to start with
+  `/oc review`, so it self-skips. On `/oc approve`: Tester auto-dispatches ->
+  on `/oc approve-test`: MERGE + close #68. On `/oc fix`: Fixer again.
 
 ## Issues
 
-- **#68 (Obsidian)** - OPEN, priority project, under review on PR #76.
+- **#68 (Obsidian)** - OPEN, priority project, second review round on PR #76.
 - **#70 (Lab Health)** - Auditor owns the daily summary on its schedule.
 - **#42 (Brainstorm board)** - frozen until Obsidian resolves.
 - Billing/infra issues (#72/#73/#74/#75) closed; the build-verify baseline
-  false positive (#72 BUILD-job gap) recurred at 19:12Z - queued for a factory
-  round once PR #76 lands and no opencode workflow is in flight.
+  false positive (#72 BUILD-job gap, recurred 19:12Z) is still queued for a
+  factory round once PR #76 lands and no opencode workflow is in flight (a
+  review is in flight right now - factory must wait).
 
 ## Reviewer/Tester/model status
 
@@ -49,9 +57,9 @@
 
 ## Next steps
 
-1. **Watch the reviewer on PR #76** (run 32065716177). On `/oc approve` ->
-   test -> `/oc approve-test` -> merge + close #68. On `/oc fix` -> Fixer ->
-   re-review.
+1. **Watch the reviewer on PR #76** (run 32066277954, reviewing `91d8175`).
+   On `/oc approve` -> test -> `/oc approve-test` -> merge + close #68. On
+   `/oc fix` -> Fixer -> re-review.
 2. After PR #76 lands: **route `factory`** for the build-verify baseline false
    positive (capture baseline on the branch, not main) - safe once no opencode
    workflow is in flight.
@@ -61,7 +69,6 @@
 
 ## Open questions
 
-- Reviewer: approve or fix? If fix, what does it flag (the benchmark harness
-  is checklist 10, deliberately scoped next)?
+- Reviewer round 2: approve or another fix round?
 - Does the Tester's dynamic round-trip + benchmark verification pass?
 - Will the owner merge Obsidian today (new-project cap 0/2 so far)?
