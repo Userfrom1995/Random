@@ -1,28 +1,32 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~18:48Z schedule run 32056592991). PR #76's Obsidian
-  build is ACTIVE: the owner issued `/oc continue` at 18:40:55Z and the opencode
-  build run 32056096450 is in progress right now. This run made NO triggers to
-  avoid double-dispatching. The only open work is watching that build finish.
+- **Updated:** 2026-08-17 (~19:10Z event run 32058743360, owner `/oc maintainer`
+  on PR #76). PR #76's Obsidian build is one step from green: the Builder's
+  continue (run 32056096450) COMPLETED and pushed head `16658d50` with the
+  rANS rewrite passing static tests; only adaptive-lockstep remains (fix
+  diagnosed). This run re-dispatched `/oc continue`.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec (Kodak-benchmarked,
   vs JPEG XL / WebP).** OPEN, still the priority project. Research + spec +
-  architecture are committed on PR #76; the Builder is mid-debug on the rANS
-  core (commit `24bf6d4e` "Debugging rANS; will rewrite rans.rs" at 13:56:40Z):
-  adaptive lockstep + roundtrip tests fail with "rANS stream exhausted"; the
-  Builder fetched the Townsend rANS reference to settle renormalization and is
-  rewriting `rans.rs` right now in run 32056096450.
+  architecture committed on PR #76; Builder mid-build on the rANS core. Status:
+  `static_roundtrip`, `normalize_exact_sum`, `encoder_invariant_window` pass;
+  adaptive-lockstep (rans.rs:501) fails because encoder/decoder update tables
+  on reverse vs forward streams - fix is to apply `adapt()` after `put()`/`get()`
+  on both sides. The Builder knows the exact change.
 
 ## In flight
 
-- **PR #76 (Obsidian) - BUILD RUNNING (owner's /oc continue, run 32056096450,
-  in_progress).** Head `24bf6d4e`, 54 files / +3940 lines. `mergeable:
-  CONFLICTING` because main advanced to `86f1328` (owner's agent-timeout fix)
-  after the branch was cut - expect a rebase/conflict pass once the Builder
-  pushes. On push: auto-reviewer -> shepherd review -> test -> merge
-  (new-project PR, cap 0/2 today, merge legal on approval).
+- **PR #76 (Obsidian) - BUILD RESUMING (`continue` dispatched this run).** Head
+  `16658d50`, 64 files changed. `mergeable: CONFLICTING` (no common ancestor
+  with main after the squash + main's `86f1328`; rebase/alignment needed before
+  review). RED FLAG: `obsidian/target/debug/` build artifacts were committed to
+  the branch - need `git rm -r --cached target` + `.gitignore` clean-up. Progress
+  file `68-obsidian-lossless-image-codec.md` NOT updated by the Builder yet
+  (still "Ready for the Builder", 0/15 build milestones checked).
+  On green push + rebase: dispatch `review` -> test -> merge (new-project PR,
+  cap 0/2 today, merge legal on approval).
 
 ## Issues
 
@@ -38,26 +42,26 @@
   opencode/deepseek-v4-flash-free`, `small_model: opencode/mimo-v2.5-free`.
   Workflows pin per-job models (build/maintainer/auditor/ideate on
   deepseek-v4-flash-free; reviewer/test/factory on mimo-v2.5-free). Owner's
-  `86f1328` raised all agent steps to 60m (jobs 75m), closing the silent-stall
-  class of failures. No CreditsError expected.
+  `86f1328` raised all agent steps to 60m (jobs 75m). No CreditsError expected.
+- **Reviewer dispatch:** opencode-review.yml triggers ONLY on `/oc review`
+  comments - the Maintainer dispatches review via decision.json, it is not
+  automatic on push.
 
 ## Next steps
 
-1. **Watch run 32056096450 to completion** (in_progress now). On its push, PR
-   #76 head moves; the auto-reviewer fires. Shepherd review -> test -> merge.
-   If the build FAILS (timeout/billing/cancel-before-start), route `factory`
-   per the fallback policy instead of blindly re-dispatching.
-2. After the Builder pushes, watch for the conflict pass: the branch needs to
-   align with main's `86f1328` workflow changes before the Reviewer approves.
+1. **Watch the `continue` on PR #76** to completion. The Builder should land
+   green effort 0 (adaptive lockstep + roundtrips + fuzz), update the progress
+   file, remove `target/` artifacts, and ideally align the branch with main.
+2. Once effort 0 is green and the branch is aligned, dispatch `review` on PR #76.
+   On `/oc approve` -> test -> merge (new-project cap 0/2 today, merge legal).
 3. **#70**: Auditor owns the daily health summary; watch for anomalies.
 4. No board picks until Obsidian resolves (owner's freeze).
 5. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the rANS rewrite land a green effort 0 end-to-end (property tests +
-  roundtrips + fuzz) this push?
-- Who handles the rebase onto main (`86f1328` changed workflows post-branch)?
+- Does the Builder land green effort 0 this continue, and does it clean the
+  committed `target/` tree + update the progress file?
+- Who rebases the branch onto main (no common ancestor) - the Builder in the
+  continue, or the Fixer after the Reviewer flags the conflict?
 - Will the owner merge Obsidian today (new-project cap 0/2 so far)?
-- Progress file `68-obsidian-lossless-image-codec.md` still shows 15 unchecked
-  milestones - confirm the Builder updates it on the next push.
