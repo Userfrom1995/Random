@@ -1,73 +1,62 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~11:47Z event run 32026655048, triggered by the
-  Auditor's issue #75). The owner has taken over the unblock: commit `ae5160b`
-  squashed the entire repo into one commit and pinned `opencode.json` with
-  `model: opencode/deepseek-v4-flash-free` + `small_model: opencode/mimo-v2.5-free`
-  (the real root-cause fix for the CreditsError - the action's small/title run
-  no longer resolves to the paid default). PR #69 was closed unmerged; issue
-  #75 was closed by the owner as resolved. **This run re-dispatches the
-  Obsidian continue (issue #68)** so the Builder rebuilds the branch on the new
-  main and resumes the codec.
+- **Updated:** 2026-08-17 (~13:10Z event run 32032824329, triggered by the
+  owner's second `/oc maintainer` ping on PR #76). The Obsidian research +
+  spec + architecture phases are complete on PR #76, but the Builder has never
+  run: the `/oc build this` opencode run (32029914699) was cancelled before any
+  job started, and my two prior maintainer runs (12:32 event, 12:52 schedule)
+  both wrote empty decision lists and posted no trigger. **This run re-dispatches
+  the build on PR #76.**
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec (Kodak-benchmarked,
-  vs JPEG XL / WebP).** OPEN, still the priority project. The codec source
-  exists on remote branch `opencode/issue68-20260816082105` at head `05a9f4ab`
-  (encoder.rs, decoder.rs, rans.rs, etc. - Builder was mid-fix on failing
-  tests when PR #69 was closed). The owner's squash rewrote main's history, so
-  this branch is now unrelated to main; the builder prompt on main carries the
-  explicit rebuild guidance (checkout -B onto origin/main + cherry-pick own
-  commits when merge-base fails). **This run: /oc continue dispatched on #68.**
+  vs JPEG XL / WebP).** OPEN, still the priority project. Research (SOTA
+  survey), algorithmic spec, benchmark methodology, and the Architect's
+  blueprint are all committed on PR #76 head `b25f87a`
+  (`opencode/issue68-20260817120528`). The codec source from the earlier
+  branch (`opencode/issue68-20260816082105` @ `05a9f4ab`) was orphaned by the
+  owner's squash; the new branch is unrelated-history and the builder prompt
+  carries the rebuild guidance. **This run: build dispatched on PR #76.**
 
 ## In flight
 
-- **Issue #68 (Obsidian) - CONTINUE DISPATCHED this run.** Builder should
-  fetch the existing branch, rebuild onto new main, resume effort, push a fresh
-  PR. Watch for a push and a new PR past the closed #69. On push: auto-reviewer
-  runs -> shepherd review -> test -> merge (new-project PR, cap 0/2 today,
-  merge legal on approval).
-- **PR #69 - CLOSED unmerged by the owner** (11:43Z). Head/branch preserved;
-  no lost work.
+- **PR #76 (Obsidian) - BUILD DISPATCHED this run.** Research/spec/architect
+  done; Builder should scaffold the Cargo workspace, implement rANS + effort 0
+  end-to-end, and push per the 15-step checklist in the progress file. Watch
+  for a `builder:` commit push. On push: auto-reviewer -> shepherd review ->
+  test -> merge (new-project PR, cap 0/2 today, merge legal on approval).
 
 ## Issues
 
-- **#75 (audit: Obsidian billing-blocked) - CLOSED by the owner** as resolved
-  via the `opencode.json` small_model pin (no payment method needed). Nothing
-  further to action.
-- **#74 (billing CreditsError) - closed by the owner** previously; root cause
-  now fixed at config layer.
-- **#72/#73 (build-verify / review crash) - fixed by the owner's `ae5160b`
-  rewrite** (build baseline capture, unrelated-histories guidance, non-PR
-  guard). Closed.
-- **#70 (Lab Health)**: Auditor owns the daily summary on its schedule.
-- **#42 (Brainstorm board)**: frozen until Obsidian resolves.
+- **#68 (Obsidian)** - OPEN, priority project, being built on PR #76.
+- **#70 (Lab Health)** - Auditor owns the daily summary on its schedule.
+- **#42 (Brainstorm board)** - frozen until Obsidian resolves.
+- All billing/infra issues (#72/#73/#74/#75) closed; owner's `ae5160b` + pin
+  fixed the model resolution at config layer.
 
 ## Reviewer/Tester/model status
 
-- **Model config (owner's pin, supersedes my earlier workflow switch):**
-  opencode.json `model: deepseek-v4-flash-free`, `small_model: mimo-v2.5-free`.
-  Workflows still pin per-job models (build/fix/general/maintainer/auditor/
-  ideate on deepseek-v4-flash-free; reviewer/test/factory on mimo-v2.5-free).
-  The small/title resolution to paid gpt-5.4-nano is eliminated - no more
-  CreditsError class of failures expected.
+- **Model config (owner's pin):** opencode.json `model:
+  opencode/deepseek-v4-flash-free`, `small_model: opencode/mimo-v2.5-free`.
+  Workflows pin per-job models (build/maintainer/auditor/ideate on
+  deepseek-v4-flash-free; reviewer/test/factory on mimo-v2.5-free). No
+  CreditsError class expected.
 
 ## Next steps
 
-1. **Watch issue #68**: the continue build should rebuild the branch on the new
-   main, resume the codec, and push a fresh PR. Shepherd review -> test ->
-   merge (cap 0/2 today).
-2. If the continue still cannot produce source, check run logs for any new
-   model-resolution errors before re-triggering (the pin should have fixed the
-   class).
+1. **Watch PR #76**: the dispatched build should scaffold + implement and push.
+   Shepherd review -> test -> merge (cap 0/2 today).
+2. If the opencode build run cancels a SECOND time before any job starts,
+   dispatch `factory` to investigate the concurrency/approval race instead of
+   re-dispatching blindly.
 3. **#70**: Auditor owns the daily health summary; watch for anomalies.
 4. No board picks until Obsidian resolves (owner's freeze).
 5. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the Builder's continue find the unrelated-history branch and rebuild it
-  cleanly onto the squashed main?
-- Does the Obsidian codec (mid-fix, failing tests) land on a fresh PR and pass
-  review/test this time?
+- Does the build run survive this time (the prior one cancelled with zero
+  jobs before starting)?
+- Does the Builder land the Cargo scaffold + rANS + effort 0 on PR #76 and
+  pass review/test this time?
