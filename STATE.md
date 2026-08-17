@@ -1,10 +1,10 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~19:10Z event run 32058743360, owner `/oc maintainer`
+- **Updated:** 2026-08-17 (~19:15Z event run 32059328470, owner `/oc maintainer`
   on PR #76). PR #76's Obsidian build is one step from green: the Builder's
-  continue (run 32056096450) COMPLETED and pushed head `16658d50` with the
-  rANS rewrite passing static tests; only adaptive-lockstep remains (fix
-  diagnosed). This run re-dispatched `/oc continue`.
+  latest continue (run 32059047889) was RECON-ONLY (oriented, ran cargo test,
+  made no code changes, pushed nothing - head still `16658d50`). This run
+  re-dispatched `/oc continue` to land the diagnosed adaptive-lockstep fix.
 
 ## Priority project (the fundamental goal)
 
@@ -12,21 +12,24 @@
   vs JPEG XL / WebP).** OPEN, still the priority project. Research + spec +
   architecture committed on PR #76; Builder mid-build on the rANS core. Status:
   `static_roundtrip`, `normalize_exact_sum`, `encoder_invariant_window` pass;
-  adaptive-lockstep (rans.rs:501) fails because encoder/decoder update tables
-  on reverse vs forward streams - fix is to apply `adapt()` after `put()`/`get()`
-  on both sides. The Builder knows the exact change.
+  3 failures remain - `adaptive_roundtrip_lockstep` + `renorm_pressure`
+  (rans.rs:501, adaptive-lockstep table divergence; fix = apply `adapt()` after
+  `put()`/`get()` on both sides) and `static_tables_model_size_guard`
+  (encoder.rs). The Builder knows the exact changes.
 
 ## In flight
 
 - **PR #76 (Obsidian) - BUILD RESUMING (`continue` dispatched this run).** Head
   `16658d50`, 64 files changed. `mergeable: CONFLICTING` (no common ancestor
   with main after the squash + main's `86f1328`; rebase/alignment needed before
-  review). RED FLAG: `obsidian/target/debug/` build artifacts were committed to
-  the branch - need `git rm -r --cached target` + `.gitignore` clean-up. Progress
-  file `68-obsidian-lossless-image-codec.md` NOT updated by the Builder yet
-  (still "Ready for the Builder", 0/15 build milestones checked).
-  On green push + rebase: dispatch `review` -> test -> merge (new-project PR,
-  cap 0/2 today, merge legal on approval).
+  review). RED FLAGS: (1) `obsidian/target/debug/` build artifacts committed to
+  the branch - need `git rm -r --cached target` + `.gitignore`; (2) progress
+  file `68-obsidian-lossless-image-codec.md` still un-updated by the Builder;
+  (3) the build-verify baseline captures main's SHA on comment-triggered runs,
+  so recon-only sessions false-positive "pushed" and skip the auto-retry (log
+  this for a factory round once the build lands). On a real green push + rebase:
+  dispatch `review` -> test -> merge (new-project PR, cap 0/2 today, merge legal
+  on approval).
 
 ## Issues
 
@@ -50,18 +53,22 @@
 ## Next steps
 
 1. **Watch the `continue` on PR #76** to completion. The Builder should land
-   green effort 0 (adaptive lockstep + roundtrips + fuzz), update the progress
-   file, remove `target/` artifacts, and ideally align the branch with main.
+   green effort 0 (adaptive lockstep + model-size guard + roundtrips + fuzz),
+   update the progress file, remove `target/` artifacts, and ideally align the
+   branch with main.
 2. Once effort 0 is green and the branch is aligned, dispatch `review` on PR #76.
    On `/oc approve` -> test -> merge (new-project cap 0/2 today, merge legal).
-3. **#70**: Auditor owns the daily health summary; watch for anomalies.
-4. No board picks until Obsidian resolves (owner's freeze).
-5. Next Sunday (2026-08-23): weekly model upgradation check.
+3. **Route `factory`** for the build-verify baseline false positive (capture
+   baseline on the branch, not main) as soon as NO opencode build is in flight.
+4. **#70**: Auditor owns the daily health summary; watch for anomalies.
+5. No board picks until Obsidian resolves (owner's freeze).
+6. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the Builder land green effort 0 this continue, and does it clean the
-  committed `target/` tree + update the progress file?
+- Does the Builder land green effort 0 on this resume, or recon-only a second
+  consecutive time (-> route a factory/model round instead of blind re-dispatch)?
+- Does the Builder clean the committed `target/` tree + update the progress file?
 - Who rebases the branch onto main (no common ancestor) - the Builder in the
   continue, or the Fixer after the Reviewer flags the conflict?
 - Will the owner merge Obsidian today (new-project cap 0/2 so far)?
