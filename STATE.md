@@ -1,31 +1,28 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~13:10Z event run 32032824329, triggered by the
-  owner's second `/oc maintainer` ping on PR #76). The Obsidian research +
-  spec + architecture phases are complete on PR #76, but the Builder has never
-  run: the `/oc build this` opencode run (32029914699) was cancelled before any
-  job started, and my two prior maintainer runs (12:32 event, 12:52 schedule)
-  both wrote empty decision lists and posted no trigger. **This run re-dispatches
-  the build on PR #76.**
+- **Updated:** 2026-08-17 (~18:48Z schedule run 32056592991). PR #76's Obsidian
+  build is ACTIVE: the owner issued `/oc continue` at 18:40:55Z and the opencode
+  build run 32056096450 is in progress right now. This run made NO triggers to
+  avoid double-dispatching. The only open work is watching that build finish.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec (Kodak-benchmarked,
-  vs JPEG XL / WebP).** OPEN, still the priority project. Research (SOTA
-  survey), algorithmic spec, benchmark methodology, and the Architect's
-  blueprint are all committed on PR #76 head `b25f87a`
-  (`opencode/issue68-20260817120528`). The codec source from the earlier
-  branch (`opencode/issue68-20260816082105` @ `05a9f4ab`) was orphaned by the
-  owner's squash; the new branch is unrelated-history and the builder prompt
-  carries the rebuild guidance. **This run: build dispatched on PR #76.**
+  vs JPEG XL / WebP).** OPEN, still the priority project. Research + spec +
+  architecture are committed on PR #76; the Builder is mid-debug on the rANS
+  core (commit `24bf6d4e` "Debugging rANS; will rewrite rans.rs" at 13:56:40Z):
+  adaptive lockstep + roundtrip tests fail with "rANS stream exhausted"; the
+  Builder fetched the Townsend rANS reference to settle renormalization and is
+  rewriting `rans.rs` right now in run 32056096450.
 
 ## In flight
 
-- **PR #76 (Obsidian) - BUILD DISPATCHED this run.** Research/spec/architect
-  done; Builder should scaffold the Cargo workspace, implement rANS + effort 0
-  end-to-end, and push per the 15-step checklist in the progress file. Watch
-  for a `builder:` commit push. On push: auto-reviewer -> shepherd review ->
-  test -> merge (new-project PR, cap 0/2 today, merge legal on approval).
+- **PR #76 (Obsidian) - BUILD RUNNING (owner's /oc continue, run 32056096450,
+  in_progress).** Head `24bf6d4e`, 54 files / +3940 lines. `mergeable:
+  CONFLICTING` because main advanced to `86f1328` (owner's agent-timeout fix)
+  after the branch was cut - expect a rebase/conflict pass once the Builder
+  pushes. On push: auto-reviewer -> shepherd review -> test -> merge
+  (new-project PR, cap 0/2 today, merge legal on approval).
 
 ## Issues
 
@@ -33,30 +30,34 @@
 - **#70 (Lab Health)** - Auditor owns the daily summary on its schedule.
 - **#42 (Brainstorm board)** - frozen until Obsidian resolves.
 - All billing/infra issues (#72/#73/#74/#75) closed; owner's `ae5160b` + pin
-  fixed the model resolution at config layer.
+  fixed model resolution, `86f1328` fixed the silent-stall timeout.
 
 ## Reviewer/Tester/model status
 
 - **Model config (owner's pin):** opencode.json `model:
   opencode/deepseek-v4-flash-free`, `small_model: opencode/mimo-v2.5-free`.
   Workflows pin per-job models (build/maintainer/auditor/ideate on
-  deepseek-v4-flash-free; reviewer/test/factory on mimo-v2.5-free). No
-  CreditsError class expected.
+  deepseek-v4-flash-free; reviewer/test/factory on mimo-v2.5-free). Owner's
+  `86f1328` raised all agent steps to 60m (jobs 75m), closing the silent-stall
+  class of failures. No CreditsError expected.
 
 ## Next steps
 
-1. **Watch PR #76**: the dispatched build should scaffold + implement and push.
-   Shepherd review -> test -> merge (cap 0/2 today).
-2. If the opencode build run cancels a SECOND time before any job starts,
-   dispatch `factory` to investigate the concurrency/approval race instead of
-   re-dispatching blindly.
+1. **Watch run 32056096450 to completion** (in_progress now). On its push, PR
+   #76 head moves; the auto-reviewer fires. Shepherd review -> test -> merge.
+   If the build FAILS (timeout/billing/cancel-before-start), route `factory`
+   per the fallback policy instead of blindly re-dispatching.
+2. After the Builder pushes, watch for the conflict pass: the branch needs to
+   align with main's `86f1328` workflow changes before the Reviewer approves.
 3. **#70**: Auditor owns the daily health summary; watch for anomalies.
 4. No board picks until Obsidian resolves (owner's freeze).
 5. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the build run survive this time (the prior one cancelled with zero
-  jobs before starting)?
-- Does the Builder land the Cargo scaffold + rANS + effort 0 on PR #76 and
-  pass review/test this time?
+- Does the rANS rewrite land a green effort 0 end-to-end (property tests +
+  roundtrips + fuzz) this push?
+- Who handles the rebase onto main (`86f1328` changed workflows post-branch)?
+- Will the owner merge Obsidian today (new-project cap 0/2 so far)?
+- Progress file `68-obsidian-lossless-image-codec.md` still shows 15 unchecked
+  milestones - confirm the Builder updates it on the next push.
