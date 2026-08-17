@@ -1,91 +1,71 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-16 (~18:38Z event run 31965100782, owner "/oc
-  maintainer, please use the factory engineer for this." on #72 at
-  18:36:38Z). **Owner directed the Factory Engineer path for #72.** The
-  Factory Engineer (CTO) was integrated by the owner at 18:33Z (commit
-  `2761885`, `factory.yml` + `.github/agents/factoryengineer.md`), and the
-  PAT-backed `factory.yml` push step can land `.github/workflows/*.yml`
-  changes - resolving the `workflows: write` blocker that killed #72's two
-  build attempts. This run dispatches `factory` on #72 (fixes #72 + #73 in
-  the round) and `factory` on PR #69 (Mode 2 model switch for the Obsidian
-  billing stall, per the owner's #74 auto-switch policy).
+- **Updated:** 2026-08-17 (~08:45Z event run 32011787697, PR #69 /oc
+  maintainer forward from the failed 08:30Z build). This run **landed the
+  model switch on main** (all remaining `deepseek-v4-flash-free` pins ->
+  `opencode/mimo-v2.5-free`), **re-dispatched the Obsidian continue**, and
+  **closed #73**. The Obsidian billing stall's root cause (small/title model
+  resolving to PAID `gpt-5.4-nano` at session start against a workspace with
+  no payment method) is addressed by moving every lab job to the empirically
+  proven free model `mimo-v2.5-free`.
 
 ## Priority project (the fundamental goal)
 
-- **Issue #68 Obsidian - lossless image-compression codec competitive with
-  JPEG XL / WebP / conventional methods, benchmarked on Kodak.** PR #69 open,
-  head `2377f3cc` (research/spec/architecture docs + Cargo workspace scaffold
-  only, NO codec source). Billing `CreditsError` has failed 5+ continue
-  attempts. **This run dispatches `factory` on PR #69** (Mode 2): the CTO
-  edits the `opencode.yml` build model to a free fallback (hy3-free /
-  nemotron-3-ultra-free / nemotron-3.5-lightning-free / laguna-s-2.1-free)
-  directly on main via the PAT step. On its `{"action":"maintainer"}`
-  handoff, re-trigger the Obsidian `continue` so the Builder re-implements
-  effort 0 and pushes.
+- **Issue #68 Obsidian - lossless image-compression codec (Kodak-benchmarked,
+  vs JPEG XL / WebP).** PR #69 open, head `2377f3cc` (research/spec/
+  architecture docs + empty Cargo scaffold, NO codec source). Billing
+  `CreditsError` blocked every build since ~15:18Z Aug 16. **This run: model
+  switched to mimo-v2.5-free on main and the continue trigger is dispatched
+  on PR #69** - the Builder resumes effort 0 with the new model and pushes.
 
 ## In flight
 
-- **Issue #72 (infra fix) - FACTORY DISPATCHED this run.** Owner ordered the
-  Factory Engineer path. `factory` on #72: the CTO opens an infra PR (`Closes
-  #72`) that (1) scopes the build baseline/verify to the target PR head (fix
-  path lines 555-556 pattern), (2) adds force-with-lease guidance to the
-  BUILD/FIX prompts + builder.md/fixer.md, and (3) fixes #73 (opencode-review
-  crash on non-PR) so the factory review forward (which posts /oc review on
-  the issue number) works. PR branch pattern `opencode/factory-72-*`; pushed
-  by the PAT step; `{"action":"review"}` -> reviewer, then test, then merge
-  (`gh pr merge <N> --rebase --delete-branch`), close #72, dispatch pages.yml.
-- **Issue #73 (opencode-review crash on non-PR) - FOLDED INTO the #72
-  factory round** (not a separate dispatch; the factory review handoff needs
-  it). No separate trigger.
-- **PR #69 (Obsidian) - model-switch FACTORY DISPATCHED this run** (Mode 2,
-  direct main edit, PAT-pushed). Watch for the CTO's `{"action":"maintainer"}`
-  handoff, then re-trigger Obsidian `continue`. Do NOT run the two factory
-  dispatches concurrently with any opencode build.
-- **PR #67 (Meridian) - MERGED `c44736f` earlier, #66 closed, pages
-  deployed.** No further action.
-- **Issue #74 (billing) - CLOSED by the owner.** Standing auto-switch policy
-  active; the factory Mode 2 path finally makes it executable.
+- **PR #69 (Obsidian) - CONTINUE DISPATCHED this run** (post-model-switch).
+  Watch the branch `opencode/issue68-20260816082105` for a push past
+  `2377f3cc`. On push: auto-reviewer runs -> shepherd review -> test ->
+  merge (new-project PR, cap 0/2 today, merge legal on approval).
+- **Issue #73 (opencode-review crash on non-PR) - CLOSED this run.** Fix
+  verified on main (`3ea8390`: opencode-review.yml line 13 now guards
+  `issue.pull_request != null`).
+- **Issue #72 (build-verify false positive) - OPEN, half-fixed.** The FIX
+  job got a baseline head capture (line 508), but the BUILD job verify (line
+  330) still compares local HEAD vs remote branch SHA and false-positives on
+  an unchanged head. Not a silent stall (no-decision builds still forward
+  /oc maintainer), but the auto-retry is skipped. Needs a factory round
+  (after Obsidian moves) or the owner's patch.
+- **Issue #75 (audit: Obsidian billing-blocked) - OPEN, actioned this run.**
+  Model switch landed + continue dispatched. Close once the build verifiably
+  pushes codec source.
+- **Issue #70 (Lab Health)**: Auditor owns the daily summary on its schedule.
+- **Issue #68** (Obsidian project), **#42** (Brainstorm board, frozen until
+  Obsidian resolves).
 
-## Lab Health & Audit Logs (#70)
+## Reviewer/Tester/model status
 
-- The Auditor owns the daily health summary on #70 (ran 11:30Z/12:33Z, found
-  the build-verify false positive -> #72/#73/#74). This run acts on the
-  reopened #72/#73 via the factory path the owner just integrated.
-
-## Board status (#42)
-
-- **FROZEN by the owner's directive** - no picks until Obsidian resolves.
-  Candidates parked: Corundum, Tundra, Ravel. No ideate (frozen).
-
-## Reviewer/Tester model status
-
-- `opencode/mimo-v2.5-free` (reviewer + tester), `deepseek-v4-flash-free`
-  (build/fixer/maintainer/ideate/research/architect) unchanged. The
-  Factory Engineer runs on `mimo-v2.5-free`. The billing gate (#74) keeps
-  degrading the build agent; the auto-switch to a free fallback is now
-  possible via the factory Mode 2 PAT path (this run's PR #69 dispatch).
+- **All workflows now on `opencode/mimo-v2.5-free`**: reviewer/test/factory
+  already were; opencode.yml (5 jobs), maintainer.yml, auditor.yml, ideate.yml
+  switched this run and landed on main via the maintainer PAT workflow-push
+  step. No `deepseek-v4-flash-free` pins remain.
 
 ## Next steps
 
-1. **#72: shepherd the factory PR** (`opencode/factory-72-*`): on
-   `{"action":"review"}` the reviewer runs; on `/oc approve-test` merge,
-   close #72 (+ #73 if linked), dispatch pages.yml.
-2. **PR #69: on the CTO's `{"action":"maintainer"}` handoff**, re-trigger
-   the Obsidian `continue` (model now free-tier fallback). Shepherd -> review
-   -> test -> merge per the pipeline.
-3. **#73**: covered inside the #72 factory round; verify the review workflow
-   handles non-PR gracefully once the factory PR review runs.
+1. **Watch PR #69**: the continue build should push real codec source. If it
+   pushes: shepherd review -> test -> merge (cap 0/2 today). If it STILL only
+   orients: the small-model billing error is model-independent -> tag the
+   owner (add a payment method or harden the action input), stop blind
+   re-triggers.
+2. **#72**: route the remaining BUILD-job verify gap to a factory round once
+   no opencode build is in flight.
+3. **#75**: close once the Obsidian build verifiably pushes.
 4. **#70**: Auditor owns the daily health summary; watch for anomalies.
 5. No board picks until Obsidian resolves (owner's freeze).
 6. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
-- Does the factory PR for #72 open cleanly (PAT push of `opencode/factory-72-*`)
-  and survive the extra-hard lab review?
-- Does the Mode 2 model switch on PR #69's factory dispatch land on main, and
-  does the free fallback model clear the billing CreditsError for the next
-  Obsidian continue?
-- Did the schedule maintainer run 31965038788 (18:35-18:37Z) also post any
-  triggers that double up with this run's factory dispatches?
+- Does the Obsidian continue push real codec source on `mimo-v2.5-free`, or
+  does the paid-default small-model CreditsError follow the new model too?
+- Who closes #72's BUILD-job verify gap - a factory round or the owner's
+  patch?
+- Does the owner add a payment method to the opencode.ai workspace to end the
+  recurring CreditsError class of failures permanently?
