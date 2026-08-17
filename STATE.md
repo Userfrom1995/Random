@@ -1,20 +1,18 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~21:02Z event run 32069006691, owner `/oc maintainer`
-  on PR #76, right after `/oc review` at 21:02:15Z). PR #76's Obsidian codec
-  core is COMPLETE, branch-aligned (MERGEABLE/CLEAN), and the Tester's OOM
-  finding has been applied by the Fixer (head `83dd66b`). The Reviewer is IN
-  FLIGHT on that fixed head (run 32068992405). This run is a status-only pass -
-  ping only, no triggers, no duplicates. The owner's Kodak directive (lossless
-  + performance on Kodak, iterate until Obsidian beats the other codecs) is
-  acknowledged and logged.
+- **Updated:** 2026-08-17 (~21:46Z event run 32072846704, owner `/oc maintainer`
+  on PR #76 at 21:46:43Z, right after `/oc review` at 21:46:35Z). PR #76's
+  Obsidian codec core is COMPLETE, branch-aligned (MERGEABLE), and the Tester's
+  fuzz-gate CRC finding has been applied by the Fixer (head `11265bd`). The
+  Reviewer is IN FLIGHT on that fixed head (run 32072837302). This run is a
+  status-only pass - ping only, no triggers, no duplicates.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 Obsidian - lossless image-compression codec (Kodak-benchmarked,
   vs JPEG XL / WebP).** OPEN, still the priority project. PR #76 carries the
   research + spec + architecture + the COMPLETE codec core (checklist 1-9):
-  45 lib tests green (after the Fixer's decoder fix), bit-exact round trips at
+  46 lib tests green (after the Fixer's TR-clamp fix), bit-exact round trips at
   efforts 0-7 over fuzz images, corrupt/truncated streams rejected, adaptive
   rANS lockstep fixed (forward dry-run + `put_fc`), causal predictor borders,
   effort-0 single global context per plane, measured model-size guard, `target/`
@@ -24,25 +22,28 @@
 
 ## In flight
 
-- **PR #76 (Obsidian) - REVIEW ROUND 3 IN PROGRESS.** Head `83dd66b`
-  ("fixer: decoder: guard inflated dimensions and fix palette alphabet sizes",
-  pushed 21:02:14Z) on `opencode/issue68-20260817120528`, 30 files,
+- **PR #76 (Obsidian) - REVIEW ROUND 4 IN PROGRESS.** Head `11265bd`
+  ("fixer: predict: clamp TR column to width-1 for border rows", pushed
+  21:46:34Z) on `opencode/issue68-20260817120528`, 30 files,
   `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`. Timeline: Reviewer round 1
   (run 32065716177) -> `/oc fix` (Closes #68 keyword + index.html card) ->
   Fixer `91d8175` -> Reviewer round 2 `/oc approve` (run 32066277954) -> Tester
   round 1 (run 32066640199) -> `/oc fix` (OOM on corrupted header width) ->
   Fixer `83dd66b` (dimension caps 2^20/2^25 + palette alphabet-sizes latent
-  bug; rebutted the ratio bound with measured evidence) -> owner's `/oc review`
-  at 21:02:15Z -> reviewer run **32068992405 in_progress** on the fixed head.
-  The duplicate opencode-review run 32069005608 (spawned by this `/oc
-  maintainer` comment) is pending with zero jobs - its guard requires the
-  comment to start with `/oc review`, so it self-skips. On `/oc approve`:
-  Tester auto-dispatches -> on `/oc approve-test`: MERGE + close #68. On
-  `/oc fix`: Fixer again.
+  bug) -> Reviewer round 3 `/oc approve` (run 32068992405) -> Tester round 2
+  (runs 32071018522, owner `/oc test` x2) -> `/oc fix` (fuzz gate CRC mismatch
+  for `selftest --fuzz >= 103`) -> Fixer `11265bd` (TR column clamp in
+  `neighbors()`, predict.rs:133; 46 tests green, `--fuzz 103` and `--fuzz 500`
+  bit-exact) -> owner's `/oc review` at 21:46:35Z -> reviewer run **32072837302
+  in_progress** on the fixed head. The duplicate opencode-review run
+  32072846667 (spawned by this `/oc maintainer` comment) is pending with zero
+  jobs - its guard requires the comment to start with `/oc review`, so it
+  self-skips. On `/oc approve`: Tester auto-dispatches -> on `/oc approve-test`:
+  MERGE + close #68. On `/oc fix`: Fixer again.
 
 ## Issues
 
-- **#68 (Obsidian)** - OPEN, priority project, third review round on PR #76.
+- **#68 (Obsidian)** - OPEN, priority project, fourth review round on PR #76.
 - **#70 (Lab Health)** - Auditor owns the daily summary on its schedule.
 - **#42 (Brainstorm board)** - frozen until Obsidian resolves.
 - Billing/infra issues (#72/#73/#74/#75) closed; the build-verify baseline
@@ -62,7 +63,7 @@
 
 ## Next steps
 
-1. **Watch the reviewer on PR #76** (run 32068992405, reviewing `83dd66b`).
+1. **Watch the reviewer on PR #76** (run 32072837302, reviewing `11265bd`).
    On `/oc approve` -> test -> `/oc approve-test` -> merge + close #68. On
    `/oc fix` -> Fixer -> re-review.
 2. **Kodak directive (owner, 20:42:32Z)**: ensure the Tester's next round
@@ -78,7 +79,7 @@
 
 ## Open questions
 
-- Reviewer round 3: approve or another fix round?
-- Does the Tester's next round pass on head `83dd66b`, covering losslessness
+- Reviewer round 4: approve or another fix round?
+- Does the Tester's next round pass on head `11265bd`, covering losslessness
   AND Kodak performance per the owner's directive?
 - Will the owner merge Obsidian today (new-project cap 0/2 so far)?
