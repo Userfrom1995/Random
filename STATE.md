@@ -1,12 +1,12 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~06:44Z, event run on PR #82, run 32108169866, owner `/oc maintainer`). M0 is COMPLETE and pushed; routing the Reviewer now. All three standing owner directives on PR #82 remain enforced.
+- **Updated:** 2026-08-18 (~07:00Z, scheduled maintainer run 32108730597). PR #82 Reviewer is in progress (run 32108392514); no new trigger posted (avoid duplicate). Standing directives on #82 enforced.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
 - **Obsidian is the fundamental goal.** Keep iterating until it beats JPEG XL, WebP, and PNG (lossless) on the Kodak dataset. Issue #68 stays OPEN until the target is met. Do NOT close it. Incremental improvement PRs may merge as the loop runs; only the *project* is "done" when the codecs are beaten.
 - **Never delete PR branches after merge.** Drop `--delete-branch` from every `gh pr merge`. (PR #78's branch is already gone and cannot be recovered.)
-- **Website + README must track the active project.** Obsidian is now in README.md (Current Project) and promoted to Current on index.html (meta description fixed). Verify on every Obsidian merge.
+- **Website + README must track the active project.** Obsidian is in README.md (Current Project) and promoted to Current on index.html (meta description fixed). Verify on every Obsidian merge.
 
 ## Priority project (the fundamental goal)
 
@@ -17,12 +17,12 @@
 
 ## In flight
 
-- **Review (M0, #68 / PR #82):** this run (32108169866) routes the Reviewer via `/oc review` on head `1998197`. The automatic reviewer did NOT trigger on the Builder's push (only opencode-pr-trigger + pages runs fired), so the explicit trigger is required. Reviewer -> Tester -> (if approved) merge M0 as incremental, no `--delete-branch`, without closing #68.
+- **Review (M0, #68 / PR #82):** the **Reviewer is IN PROGRESS** (opencode-review run `32108392514`, started 2026-08-18T06:46:45Z, "Run opencode reviewer" step active). Triggered by the owner's `/oc review (head 1998197...)` comment - NOT by this maintainer run. No duplicate `/oc review` posted. Expected path: Reviewer -> (approve) -> Tester (`/oc test`) -> (approve-test) -> Mae merges M0 incremental (no `--delete-branch`, #68 stays open).
 
 ## Issues
 
 - **#68 (Obsidian umbrella)** - REOPENED; active fundamental goal, stays open until codecs beaten.
-- **#70 (Lab Health)** - Auditor owns the daily summary on schedule.
+- **#70 (Lab Health)** - Auditor owns the daily summary on schedule (last update 2026-08-17).
 - **#42 (Brainstorm board)** - frozen until Obsidian resolves (owner directive).
 - **#71** - DELETED. Root cause fixed on main.
 - **#72 / #73** - CLOSED; fixes landed via PR #81.
@@ -34,12 +34,14 @@
 
 ## Next steps
 
-1. **Reviewer on PR #82** (this run, head `1998197`) -> audit GR implementation. Then Tester (`/oc test`) -> report real Kodak mean bpp -> merge M0 as incremental (no `--delete-branch`, #68 stays open).
-2. **Loop M1/M2/M3** after M0 merges: M1 = per-context predictor selection + GR to beat WebP 9.61; M2/M3 = capped escaped rANS / squeeze to approach JPEG XL 8.71.
-3. **Factory PR to harden maintainer.md** - remove `--delete-branch` so PR branches are preserved after merge (owner directive). Track and merge.
+1. **Wait for Reviewer (run 32108392514)** on PR #82 -> audit GR implementation. If it requests changes (`/oc fix`), the workflow routes the Fixer; if it approves (`/oc approve`), the Tester runs automatically.
+2. **Tester** reports real Kodak mean bpp -> on `/oc approve-test`, Mae merges M0 as incremental (no `--delete-branch`, #68 stays open).
+3. **Loop M1/M2/M3:** M1 = per-context predictor selection + GR to beat WebP 9.61; M2/M3 = capped escaped rANS / squeeze to approach JPEG XL 8.71.
+4. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command so the branch-preservation directive is durable (owner directive). Deferred: not blocking; enforced by Mae on every merge today. Dispatch Factory when pipeline is quiet.
 
 ## Open questions
 
 - M0 GR entropy: does it stop the container expansion on real Kodak data? (Synthetic says yes; real Kodak row pending env data/toolchain.)
+- Will the Reviewer approve M0 as-is, or request changes (e.g., the EMA-vs-bias-counter substitution the Builder made)?
 - M1 (per-context predictor selection + GR) must get under WebP 9.61; M2/M3 must approach JPEG XL 8.71. Will the staged plan hold?
 - Will the durable branch-preservation rule (maintainer.md update via Factory PR) land cleanly and stop future `--delete-branch` merges?
