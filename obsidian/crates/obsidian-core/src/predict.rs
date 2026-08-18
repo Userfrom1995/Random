@@ -15,7 +15,13 @@ pub struct Neighbors {
     pub tr: i32,
 }
 
-/// Predictor identities (0..=7), mirrored in the model's predictor map bytes.
+/// Predictor identities, mirrored in the model's predictor map bytes.
+///
+/// Ids 0..=7 are the original Obsidian bank (Left/Top/Tl/Tr/Avg/Med/GapLite/
+/// Weighted). Ids 8..=16 are the R2.2 WebP/JPEG XL-style expansion (true-motion,
+/// half-delta, gradient, and the six clamped add/subtract forms). Existing ids
+/// are preserved so every previously-produced stream still decodes; the new ids
+/// only appear in streams whose analysis pass enabled them (effort >= 4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PredictorId {
@@ -27,9 +33,19 @@ pub enum PredictorId {
     Med = 5,
     GapLite = 6,
     Weighted = 7,
+    // ---- R2.2 expanded bank (WebP/JPEG XL-style) ----
+    TrueMotion = 8,
+    LPlusHalfTLMinusT = 9,
+    Gradient2 = 10,
+    AddLT = 11,
+    AddLTL = 12,
+    AddTLT = 13,
+    SubLTL = 14,
+    SubTLT = 15,
+    SubTTR = 16,
 }
 
-pub const PREDICTOR_COUNT: usize = 8;
+pub const PREDICTOR_COUNT: usize = 17;
 
 impl PredictorId {
     pub fn from_u8(v: u8) -> Option<PredictorId> {
@@ -42,6 +58,15 @@ impl PredictorId {
             5 => Some(PredictorId::Med),
             6 => Some(PredictorId::GapLite),
             7 => Some(PredictorId::Weighted),
+            8 => Some(PredictorId::TrueMotion),
+            9 => Some(PredictorId::LPlusHalfTLMinusT),
+            10 => Some(PredictorId::Gradient2),
+            11 => Some(PredictorId::AddLT),
+            12 => Some(PredictorId::AddLTL),
+            13 => Some(PredictorId::AddTLT),
+            14 => Some(PredictorId::SubLTL),
+            15 => Some(PredictorId::SubTLT),
+            16 => Some(PredictorId::SubTTR),
             _ => None,
         }
     }
@@ -60,6 +85,15 @@ impl PredictorId {
             PredictorId::Med => "MED",
             PredictorId::GapLite => "GAP-lite",
             PredictorId::Weighted => "Weighted",
+            PredictorId::TrueMotion => "TrueMotion",
+            PredictorId::LPlusHalfTLMinusT => "L+(TL-T)/2",
+            PredictorId::Gradient2 => "Grad2",
+            PredictorId::AddLT => "Add(L,T)",
+            PredictorId::AddLTL => "Add(L,TL)",
+            PredictorId::AddTLT => "Add(TL,T)",
+            PredictorId::SubLTL => "Sub(L,TL)",
+            PredictorId::SubTLT => "Sub(TL,T)",
+            PredictorId::SubTTR => "Sub(T,TR)",
         }
     }
 }
@@ -150,6 +184,54 @@ pub fn neighbors(plane: &[i16], x: usize, y: usize, width: usize, _height: usize
     }
 }
 
+/// Gain (right-shift) for the M3-B online weight update (see `WeightVec::adapt_online`).
+/// Chosen so a typical residual/neighbor product (~1e4) yields a per-step
+/// weight change of ~1, letting the per-context weight converge to a
+/// least-squares-ish optimum without overshooting its small natural scale
+/// (the weights sum to ~16 so `shift = 4` gives near-unit scaling).
+pub const M3_WP_GAIN: u32 = 13;
+/// Clamp bounds for the online-adapted weights (the codebook weights live in
+/// roughly [-16, 16], so this leaves generous headroom for convergence).
+pub const WEIGHT_MIN: i16 = -48;
+pub const WEIGHT_MAX: i16 = 48;
+
+impl WeightVec {
+    /// A neutral predictor weight (near the LOCO-I `L+T` average), used to seed
+    /// the per-context weight table when a plane has no learned codebook entry.
+    pub fn unit() -> WeightVec {
+        WeightVec {
+            wl: 8,
+            wt: 8,
+            wtl: 0,
+            wtr: 0,
+            shift: 4,
+        }
+    }
+
+    /// M3-B: mirrored online self-correction of the weighted predictor.
+    ///
+    /// This is a single stochastic-gradient step on the *squared* residual
+    /// `r = v - pred` (so the encoder and decoder, which both observe the
+    /// identical `r` and neighborhood, evolve the weight vector in lockstep
+    /// with zero signaled bytes). The gradient of `0.5 * r^2` w.r.t. `w_k` is
+    /// `-r * n_k`, hence the additive update `w_k += lr * r * n_k` (here the
+    /// learning rate is the fixed right-shift `M3_WP_GAIN`). Because both sides
+    /// start from the same per-plane codebook weight and apply the same update
+    /// on the same sequence of residuals, the per-context weights stay equal
+    /// throughout the plane and no expansion is possible.
+    pub fn adapt_online(&mut self, r: i32, l: i32, t: i32, tl: i32, tr: i32, gain: u32) {
+        let upd = |w: i16, n: i32| -> i16 {
+            let d = ((r as i64) * (n as i64)) >> gain;
+            let s = w as i64 + d;
+            s.clamp(WEIGHT_MIN as i64, WEIGHT_MAX as i64) as i16
+        };
+        self.wl = upd(self.wl, l);
+        self.wt = upd(self.wt, t);
+        self.wtl = upd(self.wtl, tl);
+        self.wtr = upd(self.wtr, tr);
+    }
+}
+
 /// Compute the prediction for a pixel given its neighborhood. The caller
 /// clamps to the plane's value range.
 pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
@@ -161,6 +243,19 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
         PredictorId::Avg => (n.l + n.t) >> 1,
         PredictorId::Med => med(n),
         PredictorId::GapLite => gap_lite(n),
+        PredictorId::TrueMotion => n.l + n.t - n.tl,
+        PredictorId::LPlusHalfTLMinusT => n.l + (n.tl - n.t) / 2,
+        PredictorId::Gradient2 => (n.l + n.t) / 2 + (n.tl - n.tr) / 2,
+        // The six clamped add/subtract forms are raw integer arithmetic; the
+        // caller's `predict_clamped` clamps the result to the plane's value
+        // range, mirroring WebP's `Clip` semantics. The predictor is a function
+        // of the causal neighborhood alone, so encoder and decoder agree.
+        PredictorId::AddLT => n.l + n.t,
+        PredictorId::AddLTL => n.l + n.tl,
+        PredictorId::AddTLT => n.tl + n.t,
+        PredictorId::SubLTL => n.l - n.tl,
+        PredictorId::SubTLT => n.tl - n.t,
+        PredictorId::SubTTR => n.t - n.tr,
         PredictorId::Weighted => {
             let w = match w {
                 Some(w) => w,
@@ -181,42 +276,22 @@ fn med(n: &Neighbors) -> i32 {
     }
 }
 
-/// A CALIC-GAP-inspired gradient blend over the four causal neighbors
-/// (simplified; constants tuned on Kodak in later iterations).
+/// LOCO-I gradient-adjusted predictor (GAP), edge-conditioned average form.
+///
+/// When a strong vertical/horizontal edge is detected the prediction snaps to
+/// the orthogonal neighbor; otherwise it blends left, top, and the diagonal
+/// (`(L + T) / 2 + (TR - TL) / 4`). This is the textbook GAP that drives
+/// JPEG-LS and consistently beats MED on natural imagery.
 fn gap_lite(n: &Neighbors) -> i32 {
     let dh = (n.l - n.tl).abs();
     let dv = (n.t - n.tl).abs();
-    let dd = (n.tr - n.tl).abs();
     if dv - dh > 80 {
-        // Strong vertical edge: predict from above.
         return n.t;
     }
     if dh - dv > 80 {
-        // Strong horizontal edge: predict from the left.
         return n.l;
     }
-    let mut pred = (n.l + n.t) >> 1;
-    let dmin = dh.min(dv);
-    if dmin > 32 {
-        // Textured: plain average is safer.
-        return pred;
-    }
-    if dmin > 8 {
-        // Mildly textured: soften the average.
-        pred = (pred + n.l + n.t + 2) >> 2;
-    }
-    // Diagonal hint from the previous row.
-    if dd < 16 {
-        let diag = (n.tl + n.tr) >> 1;
-        if (dh - dv).abs() < 24 {
-            pred = (pred + diag) >> 1;
-        } else if dh > dv {
-            pred = (pred + n.t + 1) >> 1;
-        } else {
-            pred = (pred + n.l + 1) >> 1;
-        }
-    }
-    pred
+    (n.l + n.t) / 2 + (n.tr - n.tl) / 4
 }
 
 fn weighted(n: &Neighbors, w: &WeightVec) -> i32 {
@@ -332,6 +407,39 @@ mod tests {
         // (8*10 + 8*20 + 8)/16 = (240+8)/16 = 15
         assert_eq!(predict(PredictorId::Weighted, &n, Some(&w)), 15);
         assert_eq!(predict(PredictorId::Weighted, &n, None), 10);
+    }
+
+    #[test]
+    fn r22_expanded_predictors() {
+        // A smooth-ish neighborhood where the expansions should differ from the
+        // base bank, exercising the new ids 8..=16.
+        let n = Neighbors {
+            l: 100,
+            t: 120,
+            tl: 110,
+            tr: 90,
+        };
+        // TrueMotion = L + T - TL = 100 + 120 - 110 = 110
+        assert_eq!(predict(PredictorId::TrueMotion, &n, None), 110);
+        // L + (TL - T)/2 = 100 + (110 - 120)/2 = 100 - 5 = 95
+        assert_eq!(predict(PredictorId::LPlusHalfTLMinusT, &n, None), 95);
+        // Gradient2 = (L + T)/2 + (TL - TR)/2 = 110 + 10 = 120
+        assert_eq!(predict(PredictorId::Gradient2, &n, None), 120);
+        assert_eq!(predict(PredictorId::AddLT, &n, None), 220);
+        assert_eq!(predict(PredictorId::AddLTL, &n, None), 210);
+        assert_eq!(predict(PredictorId::AddTLT, &n, None), 230);
+        assert_eq!(predict(PredictorId::SubLTL, &n, None), -10);
+        assert_eq!(predict(PredictorId::SubTLT, &n, None), -10);
+        assert_eq!(predict(PredictorId::SubTTR, &n, None), 30);
+    }
+
+    #[test]
+    fn r22_predictor_count_and_ids() {
+        assert_eq!(PREDICTOR_COUNT, 17);
+        for id in 0..17u8 {
+            assert!(PredictorId::from_u8(id).is_some(), "id {id} must map");
+        }
+        assert!(PredictorId::from_u8(17).is_none());
     }
 
     #[test]

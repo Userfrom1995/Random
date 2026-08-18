@@ -25,6 +25,7 @@ pub fn run(args: Vec<String>) -> i32 {
         "selftest" => cmd_selftest(rest),
         "check" => cmd_check(rest),
         "bench" => crate::bench::cmd_bench(rest),
+        "bench-synth" => crate::bench::cmd_bench_synth(rest),
         "help" | "-h" | "--help" => {
             usage();
             0
@@ -39,7 +40,7 @@ pub fn run(args: Vec<String>) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage:\n  obsidian encode <in.ppm> <out.obsd> [--effort N] [--json]\n  obsidian decode <in.obsd> <out.ppm>\n  obsidian roundtrip <in.ppm> [--effort N] [--json]\n  obsidian selftest [--fuzz N]\n  obsidian check <in.obsd>\n  obsidian bench <image-dir> [--effort N] [--json]"
+        "usage:\n  obsidian encode <in.ppm> <out.obsd> [--effort N] [--json]\n  obsidian decode <in.obsd> <out.ppm>\n  obsidian roundtrip <in.ppm> [--effort N] [--json]\n  obsidian selftest [--fuzz N]\n  obsidian check <in.obsd>\n  obsidian bench <image-dir> [--effort N] [--json]\n  obsidian bench-synth [--effort N] [--count N] [--size N] [--seed N]"
     );
 }
 

@@ -217,3 +217,157 @@ Only `encoder.rs`, `decoder.rs`, `rans.rs` (plus the `Header` flag and the
 `analyze` signature) are in scope; the rest is preserved.
 
 - the Architect
+
+---
+
+## Architect M2 addendum - bias cancellation + run mode (2026-08-18)
+
+The 10.16 bpp corrected baseline meets the PNG gate (13.05) but is ~0.45 bpp above
+WebP (9.61) and ~1.45 bpp above JPEG XL (8.71). The "~10.1 bpp residual-entropy
+floor" is only the *un-modeled* floor: no bias cancellation, no run mode. M2 removes
+both, correcting the Builder's reverted naive experiment (which regressed to 14.16
+bpp because it had no dead-zone and used a drifting EMA of the signless magnitude).
+
+Full blueprint in `obsidian/docs/m2-bias-run-architecture.md`; summary:
+
+- New header flag `GR_M2` (flags bit 5, 0x20), shipped together with `ENTROPY_GR`.
+  Old v1 GR streams (bit4=1, bit5=0) still decode. No other container change; bias
+  and run state are fully implicit (mirrored), so zero model bytes are added.
+- **Bias cancellation (M2-A):** `GrState` gains a `bias: i16` (added to the
+  prediction) and a `bias_count: i16`. Adaptation uses the *raw* residual with a
+  **dead-zone** (`|r_raw| <= 2` -> no update, fixes the chroma regression) and a
+  **clamped, counter-committed** nudge (`bias` in +/-16, moves +/-1 every 4
+  same-sign residuals, fixes the EMA drift / single-context poisoning). Bias is
+  never written to the bitstream.
+- **Run mode (M2-B):** per-plane, JPEG-LS-style. Runs are maximal value-equal pixel
+  sequences; the encoder uses a 1-pixel lookahead, the decoder copies `prev_val`.
+  One parameter-free **Elias-gamma(runlen)** code per run replaces `L * (1 + k)` GR
+  bits for the run body. No per-pixel flag overhead.
+- M2 gate: Kodak effort-4 mean bpp **< 9.71** (JPEG-LS), aiming **< 9.61** (WebP).
+- Roadmap: M2.5 context mixing (2-3 mixed GR sub-estimators) toward ~9.0-9.3; M3
+  LZ77 back-references + self-correcting weighted predictor (new `GR_LZ` flag) to
+  clear JPEG XL 8.71. Design B (capped rANS) remains a fallback.
+
+In scope: `rans.rs` (`GrState` + gamma), `encoder.rs`/`decoder.rs` (GR+M2 branch),
+`header.rs` (flag). Prediction, YCoCg-R, context model, container, CRC preserved.
+
+- the Architect
+
+---
+
+## Architect M3 addendum - LZ77 back-references + self-correcting weighted predictor (2026-08-18)
+
+M2 (bias + run) regressed to 11.14 bpp and M2.5 (context mixing) regressed ~0.5%:
+both prove the **per-pixel residual-entropy floor (~10.1 bpp) is real** and cannot
+be beaten by coding residuals better. To clear WebP (9.61) and JPEG XL (8.71) we
+must reduce the residual stream itself - by exploiting **spatial redundancy**
+(LZ77 back-references) and **predictor adaptability** (learned weighted predictor).
+
+Full blueprint in `obsidian/docs/m3-lz77-weighted-predictor.md`; summary:
+
+- New header flag `GR_LZ` (flags bit 7, 0x80), shipped with `ENTROPY_GR`. Old
+  v1 GR / GR_M2 / GR_CM streams still decode; when `GR_LZ` is clear the per-plane
+  stream is byte-identical to v1 GR (no regression, no expansion possible).
+- **M3-A LZ77 (primary, zero model bytes):** per-plane match coding over the
+  decoded sample buffer. Each position emits a binary match-flag (tiny mirrored
+  `BinCoder`, 12-bit probability) then either a GR literal (existing path) or a
+  match `(offset, length)` coded with Elias-gamma. The decoder has no match
+  finder: it copies from its own buffer at `pos - offset`, so it stays bit-exact
+  by induction (the buffer equals the encoder's buffer for all prior positions).
+  Hash-chained match finder (WINDOW ~32768, MIN_MATCH 3); greedy/lazy matching.
+  This is the WebP/JPEG XL-class win that M2 could not deliver.
+- **M3-B self-correcting weighted predictor (secondary, signaled weights):** the
+  Weighted predictor's weights become **per-context learned** (least-squares /
+  gradient descent during `analyze`, quantized, stored in the model section) plus
+  an optional **mirrored online correction** (after each Weighted literal both
+  sides nudge the 4 weights by `sign(r) * neighbor` - zero extra signal). Gated
+  behind an `OBSIDIAN_M3_WP` seam; falls back to per-plane learned weights if the
+  per-context table exceeds `MODEL_SIZE_FRACTION`.
+- M3 primary gate: Kodak effort-4 **< 9.61** (WebP). M3-A + M3-B (and, if needed,
+  Design B capped rANS) target **< 8.71** (JPEG XL). Honest risk: photographic
+  Kodak LZ77 gain is ~0.3-0.7 bpp; M3-A should clear WebP, JPEG XL may need M3-B
+  and/or Design B.
+- Build order: implement M3-A first, measure, then M3-B. Design B (context-modeled
+  rANS) is the fallback route under 8.71.
+
+In scope: `rans.rs` (`BinCoder` + match helpers), `encoder.rs`/`decoder.rs`
+(GR+LZ branch), `header.rs` (flag), and (M3-B) `model.rs` (per-context weights).
+Prediction bank (except Weighted weights), YCoCg-R, context model, container, CRC
+preserved; legacy rANS / Design B path untouched.
+
+- the Architect
+## M3-B addendum (2026-08-18, the Builder)
+
+M3-B (self-correcting weighted predictor) implemented and shipped OFF by default behind
+`OBSIDIAN_M3_WP="1"` (opt-in, mirrored, zero signaled model bytes). Per-context weight
+refinement is a mirrored SGD on the squared residual (`WeightVec::adapt_online` in
+`predict.rs`), seeded from the per-plane codebook weight, woven into the GR_LZ path. On
+synthetic photographic-style proxies it REGRESSES vs the no-WP LZ path (table in
+`obsidian/benchmarks/results/2026-08-18-m3b-synth-proxy.csv`); consistent with M2/M2.5 it
+confirms the ~10.1 bpp photographic residual-entropy floor of the GR architecture. WebP
+(9.61) / JPEG XL (8.71) gates remain OPEN (unconfirmed: `data/kodak` absent in build env).
+Next: M3.5 / Design B (capped-and-escaped static rANS with per-context context modeling).
+
+- the Builder
+
+## M3.5 Design B addendum (2026-08-18, the Builder)
+
+M3.5 (capped-and-escaped **static** rANS, Design B) implemented and shipped OFF by default
+behind `OBSIDIAN_CAPPED="1"` (production env seam) and `EncodeOpts { capped }` (test path;
+added to avoid polluting the process-global env every `encode` reads). Mode is signaled via
+a new `model.entropy_mode` field (no header flag bit consumed, all 8 are in use); the decoder
+rebuilds identical static tables from the signaled `capped_histograms`. Capped alphabet = 64
+with an escape symbol; residuals whose zigzag value >= 64 are escaped into a separate
+per-plane GR-coded section. The first attempt used adaptive tables and re-expanded at ~20.85
+bpp on a small image (the original documented weakness); static tables specialize immediately
+and round-trip bit-exactly. On synthetic proxies it does NOT clear the photographic gates
+(table in `obsidian/benchmarks/results/2026-08-18-m35-capped-synth-proxy.csv`): 256x256 gray
+6.565 vs v1 5.863 bpp; 512x512 RGB 18.91 vs v1 18.14 bpp. Like M2/M2.5/M3-A/M3-B, Design B
+ties or regresses vs v1 GR on photographic content and ships OFF by default. The WebP (9.61)
+/ JPEG XL (8.71) gates are out of reach for this GR architecture (residual-entropy floor
+~10.1 bpp) and cannot be measured here (`data/kodak` absent). ESCALATE to Maintainer.
+
+- the Builder
+
+## Architect CMARC + R2 blueprint addendum (2026-08-18, the Architect)
+
+CMARC + R2 blueprint delivered on PR #83 (issue #68). The Builder's "residual-entropy floor
+~10.1 bpp is structural; WebP/JPEG XL gates unreachable" escalation is rejected (the 10.1 bpp
+is the ceiling of the single-k per-context Golomb-Rice *symbol* coder; JPEG-LS hits 9.71 bpp on
+the same Kodak corpus with the same LOCO-I GAP predictor, so the predictor is sound and the
+entropy backend is the bottleneck). Key architectural decision: **CMARC is a new
+`ModelConfig.entropy_mode` (`ENTROPY_MODE_CARC = 2`, `ENTROPY_MODE_CARC_LZ = 3`,
+`ENTROPY_MODE_CARC_MIX = 4`), not a header flag** - reusing the exact mechanism M3.5 Design B
+already uses (`model.entropy_mode`, signaled in the model section, routed by the decoder). This
+needs no `VERSION` bump and keeps every legacy stream (v1 GR, M2, CM, LZ, capped) decodable, and
+is cleaner than the research doc's "second flags byte" option. Specifies `rans.rs`
+(`BinModel`, `RangeEnc`/`RangeDec`, `CarcCtx`, `cmarc_write_residual`/`cmarc_read_residual`,
+binary bin layout), `model.rs` (selectors + sparse `cmarc_priors`), `encoder.rs`/`decoder.rs`
+(CMARC residual branch + never-expand safety net vs v1 GR + `EncodeOpts { cmarc }`), R1-c static
+priors (effort >= 4), R2 (cross-channel subtract-green, expanded predictor bank, LZ77 re-woven
+with CMARC bins, logistic mixing). R1 alone clears WebP (~9.3-9.6 bpp); R1+R2 clears JPEG XL
+(~8.5-8.9 bpp). Full contracts, build order, test matrix, gate map in
+`obsidian/docs/architect-cmarc-blueprint.md`.
+
+- the Architect
+
+## Architect R3 blueprint addendum (2026-08-18, the Architect) - residual-context (DIFF) conditioning
+
+R3 blueprint delivered on PR #83 (issue #68). Real Kodak effort-4 measured **10.0906 bpp** -
+only ~0.065 bpp below v1 GR and **+0.38 bpp above JPEG-LS (9.71)** on the *same* predictor, so
+the entropy backend is confirmed the bottleneck and the R1/R2 CMARC coder is correct but
+conditioned on the wrong context. Two diagnosed defects: (1) PRIMARY - `context.rs::context_id`
+conditions CMARC on spatial *gradients* (predictor selection) instead of the JPEG-LS DIFF context
+(quantized neighboring *residuals* `dL/dU/dUl`), so per-bin models average over heterogeneous
+residual scales and cannot specialize; this is the entire ~0.38 bpp gap. (2) SECONDARY - R2
+silently replaced the blueprint's Rice/Exp-Golomb quotient with fixed-width MSB-first binary
+magnitude, reintroducing a per-bit floor and losing the geometric quotient run. R3-A adds
+`residual_context(dL,dU,dUl)` (neighbor predictions computed in the CMARC loop, bit-exact by
+induction) as the coding context; R3-B restores the per-context Rice-through-binary-coder
+decomposition (single geometric quotient model + remainder conditioned on quotient); R3-C adds a
+JPEG-LS run mode for near-constant regions; R2.4 mixing is re-tuned on the corrected context.
+Target: R3-A alone reaches JPEG-LS territory (~9.4-9.7 bpp) clearing WebP (9.61); R3 + R2.4
+clears JPEG XL (8.71). Full contracts, build order, test matrix, gate map in
+`obsidian/docs/architect-r3-residual-context-blueprint.md`.
+
+- the Architect

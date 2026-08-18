@@ -12,7 +12,7 @@ use crate::context::{zigzag, Alphabet, ContextModel, ContextParams};
 use crate::error::CodecError;
 use crate::image::Channels;
 use crate::predict::{default_weight_codebook, neighbors, predict_clamped, PredictorId, WeightVec};
-use crate::rans::RansTable;
+use crate::rans::{RansTable, CAPPED_SYMBOLS, CAPPED_ALPHABET};
 use std::io::{Read, Write};
 
 /// Per-plane model: a predictor map over all contexts plus the chosen weight
@@ -24,9 +24,37 @@ pub struct PlaneModel {
     pub weight_index: u8,
 }
 
+/// Entropy backend selector signaled in the model section. The 8-bit header
+/// `flags` byte is exhausted (channels/transform/palette + ENTROPY_GR, GR_M2,
+/// GR_CM, GR_LZ), so the fine-grained entropy mode lives here instead of as a
+/// header flag. The decoder reads it and routes the per-plane residual pass.
+pub const ENTROPY_MODE_GR: u8 = 0;
+/// M3.5 Design B: per-context adaptive rANS over a capped residual alphabet with
+/// an escape-to-Golomb-Rice fallback for large residuals (capped-and-escaped
+/// static/adaptive rANS, `obsidian/docs/entropy-architecture.md` section 7).
+pub const ENTROPY_MODE_CAPPED: u8 = 1;
+/// R1 CMARC: context-modeled adaptive binary range coder (the WebP/JPEG XL
+/// backend). Replaces the single-k GR *symbol* coder with a per-`(cid, bin)`
+/// binary range coder so the cost is `H(p) + epsilon` rather than `H(p) + O(1)`.
+/// Signaled via `entropy_mode` (not a header flag), so every legacy stream
+/// decodes unchanged. See `obsidian/docs/architect-cmarc-blueprint.md`.
+pub const ENTROPY_MODE_CARC: u8 = 2;
+/// R1 + R2.3: CMARC literals with an LZ77 match layer (match flag/length coded
+/// by CMARC bins). Planned (R2); reserved here so streams decode.
+pub const ENTROPY_MODE_CARC_LZ: u8 = 3;
+/// R1 + R2.1/2.2 + R2.4: CMARC + cross-channel + expanded predictor bank +
+/// logistic mixing. Planned (R2); reserved here so streams decode.
+pub const ENTROPY_MODE_CARC_MIX: u8 = 4;
+
 /// The complete signaled model.
 pub struct ModelConfig {
     pub transform: TransformChoice,
+    /// R2.1 cross-channel subtract-green decorrelation (`R'=R-G, G'=G, B'=B-G`)
+    /// applied to the first three planes before `transform`. Signaled in the
+    /// model section (zero extra header bit); the decoder applies the inverse
+    /// after the inverse color transform. Mirrored: both sides read it from the
+    /// model, so no cross-process env must be set.
+    pub cross_channel: bool,
     pub palette: Option<Palette>,
     pub context: ContextParams,
     pub context_count: usize,
@@ -34,6 +62,19 @@ pub struct ModelConfig {
     pub weight_codebook: Vec<WeightVec>,
     /// Static per-context histograms, `[plane][context]`, when effort >= 6.
     pub static_histograms: Option<Vec<Vec<Option<Vec<(u32, u32)>>>>>,
+    /// Selected entropy backend (see `ENTROPY_MODE_*` constants). 0 = Golomb-Rice.
+    pub entropy_mode: u8,
+    /// Per-context histograms over the capped residual alphabet (`CAPPED_SYMBOLS`)
+    /// for the M3.5 Design B capped-and-escaped rANS backend. Built from the same
+    /// analysis residuals as the coding pass and signaled in the model section so
+    /// the decoder rebuilds identical static tables; `None` when Design B is off.
+    pub capped_histograms: Option<Vec<Vec<Option<Vec<(u32, u32)>>>>>,
+    /// R1-c static per-`(cid, bin)` Laplace priors for the CMARC binary coder.
+    /// Sparse `[plane][cid]` -> list of `(bin, n1, n0)` count pairs (only
+    /// contexts/bins with counts present). Signaled in the model section so the
+    /// decoder seeds its `BinModel`s from `BinModel::from_counts`; `None` when the
+    /// CMARC priors are off (the coder still works from the uniform prior).
+    pub cmarc_priors: Option<Vec<Vec<Option<Vec<(u32, u32, u32)>>>>>,
 }
 
 impl ModelConfig {
@@ -77,6 +118,21 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         PredictorId::Med,
         PredictorId::GapLite,
         PredictorId::Weighted,
+        // R2.2 expanded WebP/JPEG XL-style bank (effort >= 4): true-motion,
+        // half-delta, gradient, and the six clamped add/subtract forms. The
+        // per-context analysis pass picks among all candidates by summed residual
+        // cost, so the best predictor per context is encoded in the model map at
+        // zero per-symbol cost (and, once selected, already partitions the CMARC
+        // residual distribution per spatial context).
+        PredictorId::TrueMotion,
+        PredictorId::LPlusHalfTLMinusT,
+        PredictorId::Gradient2,
+        PredictorId::AddLT,
+        PredictorId::AddLTL,
+        PredictorId::AddTLT,
+        PredictorId::SubLTL,
+        PredictorId::SubTLT,
+        PredictorId::SubTTR,
     ]
 }
 
@@ -116,12 +172,16 @@ pub fn analyze(
     let cm = ContextModel::new(*context);
     let mut model = ModelConfig {
         transform: TransformChoice::None,
+        cross_channel: false,
         palette: None,
         context: *context,
         context_count,
         planes: Vec::new(),
         weight_codebook: weight_codebook.to_vec(),
         static_histograms: None,
+        entropy_mode: ENTROPY_MODE_GR,
+        capped_histograms: None,
+        cmarc_priors: None,
     };
 
     let predictors = predictors_for(effort);
@@ -252,13 +312,69 @@ pub fn default_model(
         .collect();
     ModelConfig {
         transform: TransformChoice::None,
+        cross_channel: false,
         palette: None,
         context: *context,
         context_count,
         planes,
         weight_codebook: weight_codebook.to_vec(),
         static_histograms: None,
+        entropy_mode: ENTROPY_MODE_GR,
+        capped_histograms: None,
+        cmarc_priors: None,
     }
+}
+
+/// Build per-context histograms over the capped residual alphabet (`CAPPED_SYMBOLS`)
+/// for the M3.5 Design B capped-and-escaped rANS backend. Uses the same per-context
+/// predictor selection and `zigzag` mapping as the coding pass, so the resulting
+/// static tables exactly match what the encoder/decoder will see. Symbols are
+/// `min(zigzag(r), CAPPED_ALPHABET)`; residuals larger than the cap take the escape
+/// symbol and are coded by the fallback Golomb-Rice stream, so they are not counted
+/// here.
+pub fn build_capped_histograms(
+    planes: &[Vec<i16>],
+    ranges: &[PlaneRange],
+    width: usize,
+    height: usize,
+    model: &ModelConfig,
+) -> Vec<Vec<Option<Vec<(u32, u32)>>>> {
+    let cm = ContextModel::new(model.context);
+    let mut per_plane: Vec<Vec<Option<Vec<(u32, u32)>>>> = Vec::with_capacity(planes.len());
+    for (pi, plane) in planes.iter().enumerate() {
+        let range = ranges[pi];
+        let mut hist: Vec<Vec<u64>> = vec![vec![0u64; CAPPED_SYMBOLS]; model.context_count];
+        let wv = model.weight_for(pi);
+        let area = width * height;
+        for i in 0..area {
+            let x = i % width;
+            let y = i / width;
+            let nb = neighbors(plane, x, y, width, height);
+            let cid = cm.context_id(&nb, x, y) % model.context_count;
+            let p = model.predictor(pi, cid);
+            let pred = predict_clamped(p, &nb, wv.as_ref(), range);
+            let r = plane[i] as i32 - pred;
+            let z = zigzag(r) as usize;
+            let sym = z.min(CAPPED_ALPHABET);
+            hist[cid][sym] += 1;
+        }
+        let mut contexts: Vec<Option<Vec<(u32, u32)>>> = Vec::with_capacity(model.context_count);
+        for h in hist {
+            let mut sparse: Vec<(u32, u32)> = Vec::new();
+            for (s, &c) in h.iter().enumerate() {
+                if c > 0 {
+                    sparse.push((s as u32, c as u32));
+                }
+            }
+            if sparse.is_empty() {
+                contexts.push(None);
+            } else {
+                contexts.push(Some(sparse));
+            }
+        }
+        per_plane.push(contexts);
+    }
+    per_plane
 }
 
 /// Serialize the model to `w`.
@@ -310,6 +426,67 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
             }
         }
     }
+    match &m.capped_histograms {
+        None => w.write_all(&[0])?,
+        Some(per_plane) => {
+            w.write_all(&[1])?;
+            for plane_ctx in per_plane {
+                let non_empty: Vec<usize> = plane_ctx
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| o.is_some())
+                    .map(|(i, _)| i)
+                    .collect();
+                w.write_all(&(non_empty.len() as u16).to_le_bytes())?;
+                for cid in non_empty {
+                    w.write_all(&(cid as u16).to_le_bytes())?;
+                    let pairs = plane_ctx[cid].as_ref().unwrap();
+                    w.write_all(&(pairs.len() as u16).to_le_bytes())?;
+                    for &(sym, f) in pairs {
+                        w.write_all(&(sym as u16).to_le_bytes())?;
+                        w.write_all(&(f as u16).to_le_bytes())?;
+                    }
+                }
+            }
+        }
+    }
+    // Entropy backend selector (M3.5 Design B). Appended last so older readers
+    // that stop earlier still parse the model body; all writers in this build
+    // emit it, so the decoder always reads it back.
+    w.write_all(&[m.entropy_mode])?;
+    // R1 CMARC per-`(cid, bin)` static priors. Appended after `entropy_mode` so
+    // legacy readers (and readers that stop at the backend selector) still parse
+    // the model body; the decoder seeds `BinModel`s from these counts. `None`
+    // when CMARC priors are off.
+    match &m.cmarc_priors {
+        None => w.write_all(&[0])?,
+        Some(per_plane) => {
+            w.write_all(&[1])?;
+            for plane_ctx in per_plane {
+                let non_empty: Vec<usize> = plane_ctx
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, o)| o.is_some())
+                    .map(|(i, _)| i)
+                    .collect();
+                w.write_all(&(non_empty.len() as u16).to_le_bytes())?;
+                for cid in non_empty {
+                    w.write_all(&(cid as u16).to_le_bytes())?;
+                    let pairs = plane_ctx[cid].as_ref().unwrap();
+                    w.write_all(&(pairs.len() as u16).to_le_bytes())?;
+                    for &(bin, n1, n0) in pairs {
+                        w.write_all(&(bin as u16).to_le_bytes())?;
+                        w.write_all(&(n1 as u16).to_le_bytes())?;
+                        w.write_all(&(n0 as u16).to_le_bytes())?;
+                    }
+                }
+            }
+        }
+    }
+    // R2.1 cross-channel subtract-green flag. Appended last so legacy readers
+    // that stop earlier still parse the model body; the decoder applies the
+    // inverse after the inverse color transform when this flag is set.
+    w.write_all(&[if m.cross_channel { 1 } else { 0 }])?;
     Ok(())
 }
 
@@ -429,14 +606,118 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         return Err(CodecError::InvalidStream("bad static-tables flag".into()));
     };
 
+    let mut ch = [0u8; 1];
+    r.read_exact(&mut ch)?;
+    let capped_histograms = if ch[0] == 1 {
+        let mut per_plane: Vec<Vec<Option<Vec<(u32, u32)>>>> = Vec::new();
+        for _ in 0..plane_count {
+            let mut nc = [0u8; 2];
+            r.read_exact(&mut nc)?;
+            let non_empty = u16::from_le_bytes(nc) as usize;
+            if non_empty > context_count {
+                return Err(CodecError::InvalidStream("too many capped contexts".into()));
+            }
+            let mut contexts: Vec<Option<Vec<(u32, u32)>>> = vec![None; context_count];
+            for _ in 0..non_empty {
+                let mut cid = [0u8; 2];
+                r.read_exact(&mut cid)?;
+                let cid = u16::from_le_bytes(cid) as usize;
+                if cid >= context_count {
+                    return Err(CodecError::InvalidStream("bad context id".into()));
+                }
+                let mut sc = [0u8; 2];
+                r.read_exact(&mut sc)?;
+                let symbol_count = u16::from_le_bytes(sc) as usize;
+                if symbol_count == 0 || symbol_count > 2048 {
+                    return Err(CodecError::InvalidStream("bad symbol count".into()));
+                }
+                let mut pairs = Vec::with_capacity(symbol_count);
+                for _ in 0..symbol_count {
+                    let mut p = [0u8; 4];
+                    r.read_exact(&mut p)?;
+                    let sym = u16::from_le_bytes([p[0], p[1]]) as u32;
+                    let f = u16::from_le_bytes([p[2], p[3]]) as u32;
+                    pairs.push((sym, f));
+                }
+                contexts[cid] = Some(pairs);
+            }
+            per_plane.push(contexts);
+        }
+        Some(per_plane)
+    } else if ch[0] == 0 {
+        None
+    } else {
+        return Err(CodecError::InvalidStream("bad capped-tables flag".into()));
+    };
+
+    let mut em = [0u8; 1];
+    r.read_exact(&mut em)?;
+    let entropy_mode = em[0];
+
+    // R1 CMARC per-`(cid, bin)` static priors, appended after `entropy_mode`.
+    let mut cp = [0u8; 1];
+    r.read_exact(&mut cp)?;
+    let cmarc_priors = if cp[0] == 1 {
+        let mut per_plane: Vec<Vec<Option<Vec<(u32, u32, u32)>>>> = Vec::new();
+        for _ in 0..plane_count {
+            let mut nc = [0u8; 2];
+            r.read_exact(&mut nc)?;
+            let non_empty = u16::from_le_bytes(nc) as usize;
+            if non_empty > context_count {
+                return Err(CodecError::InvalidStream("too many cmarc contexts".into()));
+            }
+            let mut contexts: Vec<Option<Vec<(u32, u32, u32)>>> = vec![None; context_count];
+            for _ in 0..non_empty {
+                let mut cid = [0u8; 2];
+                r.read_exact(&mut cid)?;
+                let cid = u16::from_le_bytes(cid) as usize;
+                if cid >= context_count {
+                    return Err(CodecError::InvalidStream("bad cmarc context id".into()));
+                }
+                let mut sc = [0u8; 2];
+                r.read_exact(&mut sc)?;
+                let pair_count = u16::from_le_bytes(sc) as usize;
+                if pair_count == 0 || pair_count > 8192 {
+                    return Err(CodecError::InvalidStream("bad cmarc pair count".into()));
+                }
+                let mut pairs = Vec::with_capacity(pair_count);
+                for _ in 0..pair_count {
+                    let mut p = [0u8; 6];
+                    r.read_exact(&mut p)?;
+                    let bin = u16::from_le_bytes([p[0], p[1]]) as u32;
+                    let n1 = u16::from_le_bytes([p[2], p[3]]) as u32;
+                    let n0 = u16::from_le_bytes([p[4], p[5]]) as u32;
+                    pairs.push((bin, n1, n0));
+                }
+                contexts[cid] = Some(pairs);
+            }
+            per_plane.push(contexts);
+        }
+        Some(per_plane)
+    } else if cp[0] == 0 {
+        None
+    } else {
+        return Err(CodecError::InvalidStream("bad cmarc-priors flag".into()));
+    };
+
+    // R2.1 cross-channel subtract-green flag, appended last so legacy readers
+    // (and readers that stop earlier) still parse the model body.
+    let mut xc = [0u8; 1];
+    r.read_exact(&mut xc)?;
+    let cross_channel = xc[0] != 0;
+
     Ok(ModelConfig {
         transform,
+        cross_channel,
         palette,
         context,
         context_count,
         planes,
         weight_codebook: default_weight_codebook(),
         static_histograms,
+        entropy_mode,
+        capped_histograms,
+        cmarc_priors,
     })
 }
 
@@ -474,9 +755,40 @@ pub fn default_context_params() -> ContextParams {
 }
 
 /// The per-plane value ranges for a channel layout and transform choice.
-pub fn plane_ranges(channels: Channels, transform: TransformChoice, palette_max: Option<u32>) -> Vec<PlaneRange> {
+///
+/// `cross_channel` is true when subtract-green was applied to the first three
+/// planes (`R'=R-G, G'=G, B'=B-G`) before any color transform. With it the
+/// plane ranges widen: a bare subtract-green keeps green in `[0,255]` but
+/// pushes the two chroma deltas to `[-255,255]`; a subtract-green followed by
+/// YCoCg-R stays within `[-1023,1023]` (conservative, exact-bounding). Both
+/// encoder and decoder compute these identically from `(channels, transform,
+/// cross_channel)`, so the declared ranges are always an upper bound on the
+/// real plane values and the predictor clamping stays correct.
+pub fn plane_ranges(
+    channels: Channels,
+    transform: TransformChoice,
+    palette_max: Option<u32>,
+    cross_channel: bool,
+) -> Vec<PlaneRange> {
     if let Some(mx) = palette_max {
         return vec![PlaneRange::index(mx)];
+    }
+    if cross_channel {
+        // Subtract-green widens the chroma-delto planes; we return conservatively
+        // bounding ranges so clamping/residual sizing is always correct.
+        let mut ranges = vec![
+            PlaneRange { min: -1023, max: 1023 },
+            PlaneRange { min: -1023, max: 1023 },
+            PlaneRange { min: -1023, max: 1023 },
+        ];
+        if transform == TransformChoice::None {
+            // Subtract-green only: green is preserved in [0,255].
+            ranges[1] = PlaneRange::U8;
+        }
+        if channels == Channels::Rgba {
+            ranges.push(PlaneRange::U8);
+        }
+        return ranges;
     }
     match channels {
         Channels::Gray => vec![PlaneRange::U8],
@@ -530,6 +842,46 @@ mod tests {
         assert_eq!(back.transform, model.transform);
         assert_eq!(back.planes, model.planes);
         assert_eq!(back.context_count, model.context_count);
+    }
+
+    #[test]
+    fn r22_expanded_bank_selected_on_smooth() {
+        // A smooth horizontal ramp gives the analysis pass a low-entropy residual
+        // where the R2.2 expanded bank (true-motion / gradient / half-delta)
+        // can beat the base 8 predictors. At effort >= 4 the chosen predictor
+        // map must contain at least one R2.2 id (>= 8).
+        let context = ContextParams::default();
+        let codebook = default_weight_codebook();
+        let range = PlaneRange::U8;
+        let width = 64;
+        let height = 64;
+        let plane: Vec<i16> = (0..width * height)
+            .map(|i| {
+                let x = (i % width) as i16;
+                let y = (i / width) as i16;
+                (x + y) % 256
+            })
+            .collect();
+        let model = analyze(
+            &[plane],
+            &[range],
+            width,
+            height,
+            4,
+            &context,
+            &codebook,
+            false,
+        );
+        let mut saw_expanded = false;
+        for &p in &model.planes[0].map {
+            if p >= 8 {
+                saw_expanded = true;
+            }
+        }
+        assert!(
+            saw_expanded,
+            "R2.2 expanded predictor bank should be selected somewhere on smooth content"
+        );
     }
 
     #[test]

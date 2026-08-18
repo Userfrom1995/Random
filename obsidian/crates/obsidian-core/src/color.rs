@@ -90,6 +90,41 @@ pub fn ycocgr_inverse_planes(planes: &mut [Vec<i16>]) {
     }
 }
 
+/// Apply the reversible subtract-green cross-channel transform to the first
+/// three planes in place (WebP/JPEG XL-style chroma decorrelation). For each
+/// pixel `R' = R - G`, `G' = G`, `B' = B - G`. Green is preserved, so the
+/// transform is an exact integer bijection on `i16` and the inverse is simply
+/// `R = R' + G'`, `B = B' + G'`. `alpha` (plane 3, RGBA) is left untouched.
+pub fn subtract_green_forward_planes(planes: &mut [Vec<i16>], channels: Channels) {
+    if channels == Channels::Gray {
+        return;
+    }
+    debug_assert!(planes.len() >= 3);
+    // Copy green into a local so we can mutate planes[0]/planes[2] while reading it.
+    let g = planes[1].clone();
+    for c in [0usize, 2usize] {
+        for i in 0..planes[c].len() {
+            let v = planes[c][i] as i32 - g[i] as i32;
+            planes[c][i] = v as i16;
+        }
+    }
+}
+
+/// Inverse of `subtract_green_forward_planes`: `R = R' + G'`, `B = B' + G'`.
+pub fn subtract_green_inverse_planes(planes: &mut [Vec<i16>], channels: Channels) {
+    if channels == Channels::Gray {
+        return;
+    }
+    debug_assert!(planes.len() >= 3);
+    let g = planes[1].clone();
+    for c in [0usize, 2usize] {
+        for i in 0..planes[c].len() {
+            let v = planes[c][i] as i32 + g[i] as i32;
+            planes[c][i] = v as i16;
+        }
+    }
+}
+
 /// A palette of up to 256 RGB triples plus per-pixel indices.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Palette {
@@ -190,6 +225,44 @@ mod tests {
             let (rr, gg, bb) = ycocgr_inverse(y, co, cg);
             assert_eq!((rr, gg, bb), (r, g, b));
         }
+    }
+
+    #[test]
+    fn subtract_green_bijection_rgb() {
+        let mut seed = 0xA5u64;
+        let mut next = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            (seed & 0xFF) as i32
+        };
+        for _ in 0..200_000 {
+            let (r, g, b) = (next(), next(), next());
+            let mut planes = vec![vec![r as i16], vec![g as i16], vec![b as i16]];
+            subtract_green_forward_planes(&mut planes, Channels::Rgb);
+            // green must be preserved; deltas fit in i16
+            assert_eq!(planes[1][0], g as i16);
+            let back = planes.clone();
+            let mut inv = back;
+            subtract_green_inverse_planes(&mut inv, Channels::Rgb);
+            assert_eq!(inv[0][0], r as i16);
+            assert_eq!(inv[1][0], g as i16);
+            assert_eq!(inv[2][0], b as i16);
+        }
+    }
+
+    #[test]
+    fn subtract_green_bijection_rgba_preserves_alpha() {
+        let mut planes = vec![
+            vec![200i16],
+            vec![100i16],
+            vec![50i16],
+            vec![7i16],
+        ];
+        subtract_green_forward_planes(&mut planes, Channels::Rgba);
+        assert_eq!(planes[3][0], 7); // alpha untouched
+        subtract_green_inverse_planes(&mut planes, Channels::Rgba);
+        assert_eq!(planes, vec![vec![200i16], vec![100i16], vec![50i16], vec![7i16]]);
     }
 
     #[test]
