@@ -1,15 +1,15 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~00:03Z event run 32082881438). PR #78 (Obsidian
-  checklist 10) MERGED as `de0074d`; issue #77 CLOSED; pages re-deployed; M1
-  build routed to the Builder.
+- **Updated:** 2026-08-18 (~01:35Z schedule run 32088693363). M1 build attempt
+  1 (run 32083566693) was diagnostic-only and pushed nothing; auto-retry 2
+  (run 32087378098) in flight; no PRs open.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image codec competitive with JPEG XL / WebP,
   Kodak-benchmarked).** CLOSED (auto-closed on the PR #76 merge); used as the
   `/oc build this` trigger target for the M1 milestone.
-- **Checklist 10 shipped on main via PR #78** (merge commit `de0074d`):
+- **Checklist 10 shipped on main via PR #78** (merge commit `de0074d3`):
   `obsidian/benchmarks/` - run_kodak.sh, fuzz_gate.sh, aggregate.py,
   build_toolchain.sh + toolchain.md, pinned Kodak manifest (PCD0992, 24x
   768x512 P6 PPM), 168 fidelity-gated result rows (7 codecs x 24 images),
@@ -24,26 +24,29 @@
 
 ## In flight
 
-- **M1 build ROUTED this run** (`build` on issue #68 -> `/oc build this`): the
-  Builder creates its own new issue + PR for checklist 11 (beat WebP lossless
-  9.61 + optipng PNG 13.05 on Kodak via predictor/context tuning). No
-  research/architect first: spec, architecture, methodology already written.
-- **No opencode build/review/test in flight** (all skipped/completed). Only this
-  maintainer run.
+- **M1 build attempt 2 RUNNING (run 32087378098)**, triggered by the
+  auto-retry-2 comment on #68 at 01:12:23Z. Branch
+  `opencode/issue68-20260818001215` has NO commits on the remote yet.
+- **M1 attempt 1 (run 32083566693) pushed nothing**: 60m of real diagnostics
+  (release build, Kodak downloads, diag/gain experiments, PPM interleaved-raster
+  parse fix in ppm.rs) but no `builder:` commit. The verify step correctly
+  detected the no-push (baseline fix from `ae5160b` works) and auto-retried.
+- No opencode build/review/test runs beyond the M1 build; no PRs open.
 
 ## Issues
 
 - **#68 (Obsidian umbrella)** - CLOSED; /oc build trigger target for M1.
-- **#77 (checklist 10)** - CLOSED this run (resolved via PR #78).
+- **#77 (checklist 10)** - CLOSED via PR #78.
 - **#70 (Lab Health)** - Auditor owns the daily summary on its schedule.
 - **#42 (Brainstorm board)** - frozen until Obsidian resolves.
 
 ## Factory round (queued)
 
-- Fix-trigger guard relaxation: opencode.yml fix job requires an EXACT `/oc
-  fix`; the Reviewer/Tester's findings comments don't match. The build-verify
-  baseline false positive was already closed by the owner's fix. Dispatch
-  `factory` once the M1 build/review/test cycle is NOT in flight.
+- **Fix-trigger guard relaxation**: opencode.yml fix job requires an EXACT `/oc
+  fix`; the Reviewer/Tester's findings comments don't match. Dispatch `factory`
+  only when no opencode build/review/test is in flight (a build is running
+  now - do NOT dispatch concurrently). The build-verify baseline gap (#72) is
+  CONFIRMED FIXED by `ae5160b` - no round needed for that one.
 
 ## Reviewer/Tester/model status
 
@@ -51,23 +54,27 @@
   opencode/deepseek-v4-flash-free`, `small_model: opencode/mimo-v2.5-free`.
   Reviewer/test/factory jobs on mimo-v2.5-free; all agent steps 60m. No
   CreditsError expected.
-- **Reviewer/Tester gates** passed on PR #78 (round 1 fix x3 -> round 2 approve
-  -> approve-test) and the PR merged.
 
 ## Next steps
 
-1. **Shepherd the M1 build** (new issue + PR from the Builder on `/oc build
-   this` posted on #68): review -> test -> merge.
-2. **M2/M3 after M1**: self-correcting weighted predictor, then
+1. **Watch run 32087378098 + the `opencode/issue68-20260818001215` branch** for
+   the first `builder:` commit. On push: PR opens, auto-reviewer runs; shepherd
+   review -> test -> merge (Obsidian continuation, no shipping cap).
+2. **If attempt 2 (or 3) also ends with no push**: route `factory`/General to
+   fix the build model's commit discipline on the long M1 optimization - do NOT
+   keep re-dispatching blindly.
+3. **M2/M3 after M1**: self-correcting weighted predictor, then
    squeeze/interlacing or improved context model - drive toward JPEG XL (8.71).
-3. **Factory round** (fix-trigger guard): dispatch when no opencode
+4. **Factory round** (fix-trigger guard): dispatch when no opencode
    build/review/test is in flight.
-4. **#70**: Auditor owns the daily health summary; watch for anomalies.
-5. **#42**: no board picks until Obsidian resolves (owner's freeze).
-6. Next Sunday (2026-08-23): weekly model upgradation check.
+5. **#70**: Auditor owns the daily health summary; watch for anomalies.
+6. **#42**: no board picks until Obsidian resolves (owner's freeze).
+7. Next Sunday (2026-08-23): weekly model upgradation check.
 
 ## Open questions
 
+- Does M1 attempt 2 land a real commit + PR, or recon-only again?
+- Is deepseek-v4-flash-free underperforming on the open-ended M1 optimization
+  (60-min diagnostic session with zero commits)?
 - How far does M1 move Obsidian's Kodak mean bpp (27.82) toward/under WebP
   (9.61) and optipng PNG (13.05)?
-- Factory round timing: dispatch after M1's build/review/test cycle finishes.
