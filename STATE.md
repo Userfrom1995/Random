@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~07:03Z, maintainer run 32109518716). **M0 MERGED** (PR #82 -> `main`, commit `eee5a31`, branch preserved). M1 launched via `build` on #68. Standing directives enforced.
+- **Updated:** 2026-08-18 (~07:17Z, maintainer run 32110675145). Redundant dispatch on already-merged PR #82; **M1 IN FLIGHT** via opencode build run `32109757749`. Decision `[]` (no duplicate triggers).
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -11,15 +11,15 @@
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED 2026-08-18; stays OPEN until codecs beaten.
-- **M1 (v1) shipped** via PR #78 (merged): Obsidian v1 = 27.8226 mean bpp (bit-exact), vs WebP 9.6130 / optipng PNG 13.0518 / JPEG XL 8.7062. NOT competitive - the entropy stage expanded the container.
+- **M1 (v1) shipped** via PR #78 (merged): Obsidian v1 = 27.8226 mean bpp (bit-exact), vs WebP 9.6130 / optipng PNG 13.0518 / JPEG XL 8.7062. NOT competitive.
 - **Research + Architecture delivered** (PR #82): defect is purely entropy-coding; fix = per-context adaptive Golomb-Rice (Design A, `ENTROPY_GR` flag), provably non-expanding.
 - **M0 COMPLETE & MERGED** (PR #82, merged 2026-08-18T07:03:12Z, commit `eee5a31`): GR entropy implemented, wired into encoder/decoder, `ENTROPY_GR` flag added, 53/53 tests pass, 768x512 @ effort 4 = 21.3 bpp (no expansion). Synthetic probe 11.6 bpp @ effort 4 / 15.6 @ effort 0. Real Kodak row pending. #68 kept open.
 - **M0 REVIEWED & APPROVED** (Reviewer `/oc approve` 32108392514; Tester `/oc approve-test` 32108957704). Non-blocking doc note: `entropy-architecture.md` line 62 `gr_unmap` pseudocode wrong; implementation correct (`-(u>>1)`).
-- **M1 IN FLIGHT** (launched 2026-08-18T07:03Z via `build` on #68): per-context predictor selection + GR to beat WebP 9.61. Builder resumes from `progress/68-obsidian-lossless-image-codec.md`. PR must NOT close #68.
+- **M1 IN FLIGHT** (launched 2026-08-18T07:04:55Z via `build` on #68; opencode run `32109757749`, `build` job in_progress). Builder implements per-context predictor selection + GR tuning to beat WebP 9.61; will open a new branch/PR, report real Kodak mean bpp row. PR must NOT close #68. This run confirmed it is still active and not yet pushed a PR.
 
 ## In flight
 
-- **Builder (M1, #68):** triggered by this run's decision `[{"action":"build","issue":68}]`. Next build run will open a PR on a new branch (e.g. `opencode/issue68-...`), implement per-context predictor selection + GR tuning, target WebP 9.61 on Kodak, report the real Kodak mean bpp row. Standing directives ride along: #68 stays open, README/index.html track Obsidian, preserve branch.
+- **Builder (M1, #68):** opencode build run `32109757749` (started 07:05:06Z, ~12 min in at this run). Once it pushes, a new PR opens on a branch like `opencode/issue68-...`. Mae stands by to review -> test -> merge M1 as incremental (no `--delete-branch`, #68 open) the moment the Tester posts `/oc approve-test`.
 
 ## Issues
 
@@ -36,11 +36,11 @@
 
 ## Next steps
 
-1. **M1 (Builder, #68):** per-context predictor selection + GR tuning to beat WebP 9.61 on real Kodak. Report Kodak mean bpp row in the PR. PR must NOT close #68; branch preserved on merge.
+1. **M1 (Builder, #68):** wait for opencode build run `32109757749` to push the M1 PR; then route Reviewer -> Tester -> merge incremental. Target WebP 9.61 on real Kodak; report Kodak mean bpp row in the PR. PR must NOT close #68; branch preserved on merge.
 2. **Loop M2/M3:** M2/M3 = capped escaped rANS / squeeze toward JPEG XL 8.71 once M1 lands.
 3. **Fold `gr_unmap` doc correction** (`entropy-architecture.md` line 62) into M1 or a small Obsidian docs PR so spec matches implementation.
-4. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command so the branch-preservation directive is durable (owner directive). Dispatch Factory when pipeline is quiet. (PR #82 branch already preserved by Mae; the durable rule is still worth landing.)
-5. **Verify pages.yml** re-ran after `main` advanced with the M0 merge (hardcoded trigger step handles it; confirm it deployed cleanly).
+4. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command so the branch-preservation directive is durable (owner directive). Dispatch Factory when pipeline is quiet.
+5. **Verify pages.yml** re-ran after `main` advanced with the M0 merge.
 
 ## Open questions
 
