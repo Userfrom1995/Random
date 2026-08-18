@@ -51,7 +51,7 @@
 - [ ] 20. R2.1 cross-channel (subtract-green) **IMPLEMENTED (2026-08-18, the Builder, PR #83):** `ModelConfig.cross_channel: bool` signaled in the model section (zero extra header bit; no `VERSION` bump, every legacy stream still decodes). `color.rs` gains `subtract_green_forward_planes`/`subtract_green_inverse_planes` (reversible on i16: R'=R-G, G'=G, B'=B-G; alpha untouched; green preserved). The encoder now evaluates four color-transform candidates - {None, YCoCg-R, subtract-green, subtract-green+YCoCg-R} - by MED residual cost and picks the cheapest; the choice is mirrored via the `cross_channel` flag so the decoder applies the inverse after the inverse color transform. Like YCoCg-R it is a pure transform selection that only engages when it lowers cost, so it can never expand the file. Measured on synthetic 512x512 RGB proxies (effort 4): on the correlated `photo` profile cross-channel wins (GR 1.080 -> 1.062 bpp, ~-1.7%; CARC 0.848 -> 0.816 bpp, ~-4%); on decorrelated `noise`/`color` the auto mode correctly stays OFF (default == forced-off) - forcing it ON regresses (9.005 / 0.788) but is never auto-selected, preserving the no-regression invariant. 92 lib tests pass (added `subtract_green_bijection_rgb`, `subtract_green_bijection_rgba_preserves_alpha`, `cross_channel_forced_roundtrip`, `cross_channel_forced_off_signals_none`, `cross_channel_rgba_preserves_alpha`); bit-exact. Row: `benchmarks/results/2026-08-18-r2.1-crosschannel-synth-proxy.csv`. R2.2-R2.4 still pending; real Kodak (`data/kodak` absent) gates remain UNMEASURED. R2.2 expanded predictor bank (new `PredictorId` variants >= 8, `predict()`/`predictors_for()` extended, folded into CMARC context); R2.3 LZ77 re-woven with CMARC bins (`ENTROPY_MODE_CARC_LZ`, reuse M3-A framing + hash-chain finder, match flag/length/offset via CMARC bins); R2.4 logistic mixing (`ENTROPY_MODE_CARC_MIX`). Measure after each; record rows; assert **< 8.71** (JPEG XL) by the end.
 - [ ] 21. Web specimen page + JS mirror (byte-exact) + consistency tests + Playwright/UI verification
 - [ ] 22. Docs: README, benchmark tables, landing page entries
-- [ ] 23. **R3-A: residual-context (DIFF) conditioning (ARCHITECT BLUEPRINT DELIVERED 2026-08-18, `obsidian/docs/architect-r3-residual-context-blueprint.md`):** the decisive fix for the 10.09 bpp plateau. `context.rs` gains `residual_context(dL,dU,dUl)` + `quantize_residual` + a sign-symmetry `RC_LUT`; the encoder/decoder CMARC loop computes the already-decoded neighbor residuals (`dL=L-predL`, `dU=U-predU`, `dUl=Ul-predUl`, using the same mirrored per-context predictor map) and forms `cid = rc * ACTIVITY_CLASSES + act`. This replaces the gradient-only context (which selects the predictor) with the JPEG-LS DIFF context that actually models the residual - the proven ~0.38 bpp gap to JPEG-LS (9.71). Re-measure real Kodak; target < 9.61 (WebP).
+- [x] 23. **R3-A: residual-context (DIFF) conditioning (ARCHITECT BLUEPRINT 2026-08-18):** IMPLEMENTED (2026-08-18, the Builder, on PR #84). `context.rs` gains `residual_context_for` + `quantize_residual_context` (coarse 5-level) + sign-symmetric `RcLut` (`rc_count` = base * `RC_ACTIVITY_CLASSES` = 252, deliberately bounded so the per-`(cid,bin)` CMARC binary models still specialize on photographic-sized images). The encoder/decoder CMARC loop now computes the already-decoded neighbor residuals (`dL=L-predL`, `dU=U-predU`, `dUl=Ul-predUl`, using the same mirrored per-context predictor map) and forms the JPEG-LS DIFF context `cid` (decoupled from the gradient `context_count` that selects the predictor). Predictor selection still uses the gradient context, so the predictor bank is unchanged. `OBSIDIAN_CARC_FORCE` added to measure the CMARC backend directly. Bit-exact: 109 lib tests green (added `context::residual_context_sign_symmetric`, `context::rc_count_is_bounded`, `decoder::r3a_residual_context_forced_roundtrip`). **GATE UNMEASURED:** `data/kodak` is absent in the build env, and on every available synthetic proxy CMARC (R3-A residual context) LOSES to the v1 GR backend (e.g. 12.09 vs 4.99 bpp on a 768x512 photographic proxy, 3.32 vs 2.15 on 384x384) - the safety net therefore falls back to GR, so R3-A never ships and never expands. The blueprint's "~9.4-9.7 bpp on real Kodak" claim is therefore UNVERIFIED; the only prior real-Kodak evidence (R2 gradient-context CMARC = 10.0906) exists but is not reproducible here. The Factory must provision `data/kodak` to confirm whether R3-A clears WebP (9.61). Production stays on v1 GR (10.1556) since CMARC is opt-in.
 - [ ] 24. **R3-B: restore per-context Rice-through-binary-coder magnitude** (correcting the R2 fixed-width MSB-first deviation): `cmarc_write_residual`/`cmarc_read_residual` code `q = m >> k` as a single geometric quotient run (one per-context model, no per-bit floor) + `k` remainder bits conditioned on the quotient; new compact bin layout `cmarc_bins_per_ctx()`. Re-measure; expect a few more centi-bpp.
 - [ ] 25. **R3-C: JPEG-LS run mode** for near-constant regions (both `dL,dU` quantize to 0): a binary `run_flag` + Elias-gamma run length (reuse `cmarc_lz_write_gamma`), decoder copies `prev_val`; exact by induction. Dormant behind the never-expand net.
 - [ ] 26. **R2.4 re-tune logistic mixing** on the corrected residual context; assert < 8.71 (JPEG XL) by the end.
@@ -178,18 +178,18 @@ re-runs `benchmarks/run_kodak.sh` to confirm bpp < 13.05 and the expansion is go
   ~0.55 bpp above WebP (9.61). M1-M3 follow.
 
 ## Next steps
-- Builder (M3.5 / Design B, this branch, resume via `continue`): the verified
-  photographic residual-entropy floor (~10.1 bpp) of the GR architecture means M2, M2.5,
-  and M3-B all regress vs v1 on available content. The remaining structural path to clear
-  WebP (9.61) / JPEG XL (8.71) is **Design B** (capped-and-escaped static rANS with proper
-  per-context context modeling, `obsidian/docs/entropy-architecture.md` section 7): the
-  JPEG XL / WebP-class entropy stage. Implement it behind an `ENTROPY` seam, re-measure on
-  real Kodak (PNG gate 13.05 held; WebP/JPEG XL gates measured open pending M3.5), and keep
-  it OFF by default if it regresses. If Design B also fails to clear the gates on real
-  Kodak, escalate to the Maintainer: the GR predictor/entropy design may have hit its
-  photographic ceiling and the owner override requires all three gates.
+- Builder (R3-A done, resume R3-B / R3-C via `continue`): R3-A (residual-context / DIFF
+  conditioning) is IMPLEMENTED and bit-exact, but its compression win is UNMEASURED because
+  `data/kodak` is absent and CMARC loses to v1 GR on every available synthetic proxy (the
+  safety net falls back, so R3-A never expands or ships in production). The remaining
+  blueprint stages are **R3-B** (restore per-context Rice-through-binary-coder magnitude,
+  the blueprint's corrected decomposition that removes the fixed-width per-bit floor) and
+  **R3-C** (JPEG-LS run mode for near-constant regions, dormant behind the never-expand
+  net). Both are OFF by default. Re-measure on real Kodak once `data/kodak` is provisioned
+  by the Factory (PNG gate 13.05 held; WebP 9.61 / JPEG XL 8.71 gates measured open pending
+  R3-A/B/C). Until then the gates cannot be confirmed in this build env.
 - Reviewer / Tester: quality gate, dynamic round-trip + benchmark verification on the
-  real Kodak set (PNG gate 13.05 held; WebP/JPEG XL gates measured open pending M3.5).
+  real Kodak set (PNG gate 13.05 held; WebP/JPEG XL gates measured open pending R3).
   Note `data/kodak` PPMs are absent in the build env, so the gates cannot be confirmed
   there and must be checked on a runner that has the reference corpus.
 

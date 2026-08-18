@@ -206,7 +206,10 @@ pub fn cmd_bench_synth(args: &[String]) -> i32 {
         // keeps whichever is smaller, so a carc_bpp == cm_bpp means CMARC lost
         // and fell back to the model's best GR backend (no expansion).
         std::env::remove_var("OBSIDIAN_CM");
+        // R3-A: force CMARC selection so we measure the backend's own bytes (the
+        // residual-context delta), not the never-expand fallback to GR.
         std::env::set_var("OBSIDIAN_CARC", "1");
+        std::env::set_var("OBSIDIAN_CARC_FORCE", "1");
         let (carc_bytes, _carc_stats) = match obsidian_core::encode(&img, effort) {
             Ok(v) => v,
             Err(e) => {
@@ -215,6 +218,7 @@ pub fn cmd_bench_synth(args: &[String]) -> i32 {
                 continue;
             }
         };
+        std::env::remove_var("OBSIDIAN_CARC_FORCE");
         let carc_bpp = (carc_bytes.len() as f64 * 8.0) / area;
         let carc_rt = match obsidian_core::roundtrip(&img, effort) {
             Ok((_, _, back)) => back == img,

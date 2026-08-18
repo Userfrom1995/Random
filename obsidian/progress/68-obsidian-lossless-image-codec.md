@@ -1,6 +1,6 @@
 # Issue #68 - Obsidian lossless image codec (CMARC program)
 
-Status: in_progress (R2.4 implemented; gates unmeasurable, code complete and verified)
+Status: in_progress (R3-A implemented, bit-exact; gates unmeasurable - data/kodak absent; R3-B/R3-C pending)
 Branch: opencode/issue68-20260818070512
 PR: #83
 
@@ -31,6 +31,14 @@ than Kodak and therefore a LOUSY proxy for the real gates.
 - R2.3 CMARC + LZ (RLE/gamma match coder, `ENTROPY_MODE_CARC_LZ=3`, force seam
   `OBSIDIAN_CARC_LZ_FORCE`) - implemented.
 - R2.4 CMARC logistic context mixing (`ENTROPY_MODE_CARC_MIX=4`) - implemented THIS run.
+- R3-A CMARC residual-context (DIFF) conditioning - IMPLEMENTED (2026-08-18, the Builder,
+  PR #84). Replaces the gradient (predictor-selection) context that CMARC coded against with
+  the JPEG-LS DIFF context (already-coded neighbor residuals `dL/dU/dUl`), decoupled from
+  `context_count` via `ContextModel::rc_count()` (bounded at 252 so per-`(cid,bin)` binary
+  models still specialize). Predictor selection unchanged. Bit-exact (109 lib tests). GATE
+  UNMEASURED: `data/kodak` absent; CMARC loses to v1 GR on all synthetic proxies, so the
+  never-expand net falls back and R3-A does not ship in production. Real-Kodak benefit
+  (blueprint target ~9.4-9.7 bpp) UNVERIFIED.
 
 ### R2.4 design (from architect-cmarc-blueprint.md 5.4)
 Blend two estimators in log-odds space with a per-bit learned logistic weight:
@@ -81,10 +89,16 @@ Blend two estimators in log-odds space with a per-bit learned logistic weight:
 
 ## Gates
 - PNG 13.05 bpp: MET on real Kodak (baseline 10.16 < 13.05).
-- WebP 9.61 bpp: UNMET and UNMEASURABLE (data/kodak absent).
+- WebP 9.61 bpp: UNMET and UNMEASURABLE (data/kodak absent). R3-A (DIFF context) is the
+  prescribed fix but its real-Kodak bpp is UNVERIFIED - on every synthetic proxy CMARC
+  loses to v1 GR, so the never-expand net keeps GR (10.1556) and R3-A never ships.
 - JPEG XL 8.71 bpp: UNMET and UNMEASURABLE (data/kodak absent).
 - No synthetic proxy can claim these gates: Kodak is a HARDER distribution than
-  smooth noise, so a synthetic win would not imply a real win.
+  smooth noise, so a synthetic win would not imply a real win; conversely a synthetic
+  loss (CMARC 2.4x worse than GR here) does not disprove a real-Kodak win, because the
+  GR single-k Rice coder is near-optimal on the ultra-peaked synthetic residuals while
+  CMARC's binary decomposition only pulls ahead where residuals are more spread (as on
+  real Kodak, where R2 gradient-context CMARC measured 10.0906 < GR 10.1556).
 
 ## Blocker
 `data/kodak` not present in build env. Factory was dispatched to provision it;
