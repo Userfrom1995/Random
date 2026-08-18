@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~14:43Z, maintainer run 32149665387, owner `/oc maintainer` on PR #85 at 14:39:23Z). **DECISIONS:** (1) PR #85 is a Factory infra PR (review/test/factory workflow models `mimo-v2.5-free` -> `hy3-free`, free-model fallback); I edited its body to remove the mislabeled `Closes #68` (would have auto-closed the Obsidian umbrella, forbidden by standing directive) and queued the Reviewer. (2) Re-dispatched the Factory Engineer on #68 to durably commit the Kodak PPMs to the EXISTING Obsidian branch `opencode/issue68-20260818070512` (no new PR) and harden `run_kodak.sh` - the actual dispatched data task was skipped by PR #85. The Builder is already IN FLIGHT on PR #83 (corrected R3 + owner's new full-effort benchmarking directive); I did NOT re-fire `continue`.
+- **Updated:** 2026-08-18 (~14:45Z, maintainer run 32150324050, owner `/oc review` on PR #85 at 14:45:35Z). **DECISIONS THIS RUN:** empty array - the Reviewer on PR #85, the Factory on #68 (Kodak data), and the Builder on #83 (corrected R3) are ALL already in flight from prior runs, so re-triggering would be duplicate spam. I will merge PR #85 next run once the Reviewer approves (lab-infra PR, closes no issues). No new triggers posted.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,8 +16,8 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (measurement BLOCKER still open)
 
-- **Mergeability RESOLVED.** PR #83 head `7d096a87fc57bbc716ebd3f604889a43f5e03a57` = `main` (`30fd150`) + 1 commit, valid merge base `30fd150`, `mergeable: MERGEABLE`, `mergeStateStatus: UNSTABLE` (behind base, no conflict). `--rebase` of #83 is possible once the target is met.
-- **Measurement blocker STILL OPEN:** `obsidian/benchmarks/data/kodak/*.ppm` is NOT yet committed on either branch (only `obsidian/benchmarks/data/kodak.sha256` exists on `opencode/issue68-20260818070512`). The earlier real-Kodak measurement (run ~13:15Z, 10.0906 bpp) used transient PPMs that were never committed, so it is not reproducible. PR #85 did NOT provision the data; it only switched workflow models. The Factory has been re-dispatched (this run) to durably commit the 24 PCD0992 Kodak PPMs to the existing branch and harden `run_kodak.sh`.
+- **Mergeability RESOLVED.** PR #83 head `7d096a8` = `main` (`30fd150`) + 1 commit, valid merge base `30fd150`, `mergeable: MERGEABLE`, `mergeStateStatus: UNSTABLE` (behind base, no conflict). `--rebase` of #83 is possible once the target is met.
+- **Measurement blocker STILL OPEN:** `obsidian/benchmarks/data/kodak/*.ppm` is NOT yet committed on either branch (only `obsidian/benchmarks/data/kodak.sha256` exists on `opencode/issue68-20260818070512`). The earlier real-Kodak measurement (run ~13:15Z, 10.0906 bpp) used transient PPMs that were never committed, so it is not reproducible. The Factory (run 32150104809 in_progress + 32150310716 pending) is re-dispatched to durably commit the 24 PCD0992 Kodak PPMs to the existing branch and harden `run_kodak.sh`.
 
 ## Priority project (the fundamental goal)
 
@@ -28,13 +28,13 @@
 - **CMARC ARCHITECT BLUEPRINT DELIVERED** (`obsidian/docs/architect-cmarc-blueprint.md`): CMARC as `entropy_mode` values (CARC=2, CARC_LZ=3, CARC_MIX=4).
 - **CMARC BUILT END-TO-END (R1 -> R2.4), all OFF by default.** Production stays byte-identical to v1 GR. 106 lib tests pass.
 - **R3 CORRECTED BLUEPRINT DELIVERED (14:29:43Z, run `32148118020`, head `7d096a8`):** `architect-r3-residual-context-blueprint.md` rewritten. Root cause of first R3: sparse-context regression (165-context DIFF blew CMARC's per-(cid,bin) binary models) + R3-B mis-wired as unary. Fix: R3-B Golomb-Rice-through-binary using already-computed `CarcCtx.k` -> constant `cmarc_bins_per_ctx()=35`; **neutral `CMARC_PRIOR=2048`**; R3-A residual DIFF context capped <=365 ids; per-image winner-selection flag so a regression can never ship. Build order R3-B->R3-A->R3-C->R2.4. Gates WebP 9.61 / JPEG XL 8.71.
-- **R3 BUILDER REVERTED (14:18:41Z):** first R3 implementation regressed (sparse-context penalty ~28 bpp) and was reverted to clean R2.4 baseline. Corrected blueprint then delivered; Builder resumed via `continue` (this run's owner `/oc continue` 14:31:56Z; in-flight run 32149962340) to implement the corrected R3.
+- **R3 BUILDER REVERTED (14:18:41Z):** first R3 implementation regressed (sparse-context penalty ~28 bpp) and was reverted to clean R2.4 baseline. Corrected blueprint then delivered; Builder resumed via `continue` (owner `/oc continue` 14:31:56Z; in-flight run 32149962340) to implement the corrected R3.
 
 ## In flight
 
-- **Builder (continue, PR #83, run 32149962340, pending/started 14:42:17Z):** implementing corrected R3 (R3-B Rice-through-binary + neutral prior first, then R3-A bounded residual context, then R3-C run mode); will re-measure on REAL Kodak effort-4. Acknowledged the owner's new directive (14:42:13Z) to benchmark against WebP, PNG, JPEG XL and other relevant codecs at full effort / highest-quality settings. Keep all seams OFF by default; keep never-expand safety net; per-image winner-selection flag must prevent any regression from shipping.
-- **Factory (re-dispatched this run, `/oc factory` on #68):** durably commit `obsidian/benchmarks/data/kodak/*.ppm` (24 PCD0992 Kodak PPMs) to `opencode/issue68-20260818070512` (NO new PR; push to existing branch) matching `kodak.sha256`, and harden `run_kodak.sh`. NOT a duplicate (no factory run currently in flight).
-- **PR #85 (Factory infra, head `50c6461`, OPEN, MERGEABLE):** review/test/factory workflow models `mimo-v2.5-free` -> `hy3-free` (free-model fallback). Body `Closes #68` removed by me this run. Queued for Review; I merge next run once approved (lab-infra PR, shipping limit N/A).
+- **Builder (continue, PR #83, run 32149962340, in flight since 14:42:17Z):** implementing corrected R3 (R3-B Rice-through-binary + neutral prior first, then R3-A bounded residual context, then R3-C run mode); will re-measure on REAL Kodak effort-4. Acknowledged the owner's new directive (14:42:13Z) to benchmark against WebP, PNG, JPEG XL and other relevant codecs at full effort / highest-quality settings. Keep all seams OFF by default; keep never-expand safety net; per-image winner-selection flag must prevent any regression from shipping.
+- **Factory (re-dispatched, runs 32150104809 in_progress + 32150310716 pending):** durably commit `obsidian/benchmarks/data/kodak/*.ppm` (24 PCD0992 Kodak PPMs) to `opencode/issue68-20260818070512` (NO new PR; push to existing branch) matching `kodak.sha256`, and harden `run_kodak.sh`. NOT a duplicate (no completed factory run has durable-landed the data yet).
+- **PR #85 (Factory infra, head `50c6461`, OPEN, MERGEABLE):** review/test/factory workflow models `mimo-v2.5-free` -> `hy3-free` (free-model fallback). Body `Closes #68` removed by run 32149665387. **Reviewer IN FLIGHT (run 32150310509, in_progress, no approval yet).** I merge next run once the Reviewer approves (lab-infra PR; it closes no issues).
 
 ## PENDING (deferred to a quiet run)
 
@@ -55,19 +55,19 @@
 
 ## Next steps
 
-1. **Factory (re-dispatched this run, on #68):** durably commit `obsidian/benchmarks/data/kodak/*.ppm` (matching `kodak.sha256`) to `opencode/issue68-20260818070512` (no new PR); harden `run_kodak.sh` (fail fast + sha256 verify). Confirm it reproduces JXL 8.7062 / WebP 9.6130 / JLS 9.7113 / PNG 13.0518.
+1. **Factory (in flight, on #68):** durably commit `obsidian/benchmarks/data/kodak/*.ppm` (matching `kodak.sha256`) to `opencode/issue68-20260818070512` (no new PR); harden `run_kodak.sh` (fail fast + sha256 verify). Confirm it reproduces JXL 8.7062 / WebP 9.6130 / JLS 9.7113 / PNG 13.0518.
 2. **Builder (in flight, PR #83, run 32149962340):** implement corrected R3 (R3-B -> R3-A -> R3-C -> R2.4), re-measure on REAL (now-durable) Kodak effort-4 at full effort / highest-quality vs WebP, PNG, JPEG XL (+ other relevant codecs) per the owner's 14:42 directive. Keep all seams OFF by default; keep never-expand safety net; per-image winner-selection flag must prevent any regression from shipping.
-3. **After R3 build:** if gates still unmet on real Kodak, re-engage Researcher/Architect (existing PR only) for a true QM-class adaptive arithmetic coder - do NOT autopilot with bare `continue`.
-4. **PR #85:** merge next run after the Reviewer approves (lab-infra PR; it closes no issues).
+3. **PR #85:** merge next run (this run, 32150324050, deferred) after the Reviewer approves (lab-infra PR; it closes no issues). Do not re-trigger review - it is already in flight (run 32150310509).
+4. **After R3 build:** if gates still unmet on real Kodak, re-engage Researcher/Architect (existing PR only) for a true QM-class adaptive arithmetic coder - do NOT autopilot with bare `continue`.
 5. **Merge gate (only when met AND reproducible AND main repaired):** Obsidian Kodak mean bpp < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71 (lossless, bit-exact, reproducible). Then merge (branch preserved per owner directive), close #68.
 6. **Verify README + index.html** still promote Obsidian as Current on every Obsidian advance.
 
 ## Open questions
 
-- **The decisive blocker is being closed (again):** `data/kodak/*.ppm` is not yet in git on either branch, so the 10.0906 bpp "real Kodak" number is not reproducible and no further gate measurement is possible. The Factory (re-dispatched this run) must durably commit the PPMs to the existing branch. Prior Factory attempts (run `160`/PR #84, run 32148116537/PR #85) did not durably land the data.
+- **The decisive blocker is being closed (again):** `data/kodak/*.ppm` is not yet in git on either branch, so the 10.0906 bpp "real Kodak" number is not reproducible and no further gate measurement is possible. The Factory (runs 32150104809 / 32150310716) must durably commit the PPMs to the existing branch. Prior Factory attempts (run `160`/PR #84, run 32148116537/PR #85) did not durably land the data.
 - **Will corrected R3 clear the WebP (9.61) / JPEG XL (8.71) gates on real Kodak?** The neutral `CMARC_PRIOR` + Rice-through-binary + bounded DIFF context is designed to avoid the sparse-context regression; the Builder will measure it this run against the owner's full-effort / highest-quality benchmark set. If it still stalls above 9.71 (JPEG-LS), a true QM-class adaptive arithmetic backend is the remaining path.
 - **Mergeability (RESOLVED):** PR #83 head `7d096a8` = main + 1 commit, valid merge base, MERGEABLE. PR #85 MERGEABLE.
-- **One-PR integrity (RESOLVED):** #83 is the sole canonical Obsidian PR; the Factory pushes data to it, never opens a codec PR. PR #85 is a separate, legitimate infra PR (workflow models) - it does not close #68 (body fixed this run).
+- **One-PR integrity (RESOLVED):** #83 is the sole canonical Obsidian PR; the Factory pushes data to it, never opens a codec PR. PR #85 is a separate, legitimate infra PR (workflow models) - it does not close #68 (body fixed by run 32149665387).
 - Will the Architect-on-PR (Mode 2) -> continue loop converge to a competitive codec without fracturing into multiple PRs? Hazard mitigated by targeting only the existing PR.
 
 - Mae, the Maintainer
