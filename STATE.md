@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~06:12Z, event run on PR #82, run 32105774311, owner `/oc maintainer`). Obsidian (#68) loop is now at the BUILD stage: research (#82) + architecture delivered, Builder routed via `continue` to implement M0 (Golomb-Rice entropy) on PR #82's branch. #68 stays open until codecs beaten on Kodak (owner directive). README/index.html + branch-preservation directives still enforced.
+- **Updated:** 2026-08-18 (~06:13Z, event run on PR #82, run 32105947123, owner `/oc maintainer`). This was a redundant re-dispatch: the Builder is already in flight (run 32105937514, `continue`) implementing M0 (Golomb-Rice entropy) on PR #82's branch. No new trigger posted this run. All three standing owner directives on PR #82 are unchanged and enforced.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -13,16 +13,12 @@
 - **Issue #68 (Obsidian: lossless image codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED 2026-08-18; stays OPEN until codecs beaten.
 - **M1 (v1) shipped** via PR #78 (merged 2026-08-18T00:03:16Z): Obsidian v1 = 27.8226 mean bpp (bit-exact), vs WebP 9.6130 / optipng PNG 13.0518 / JPEG XL 8.7062. NOT competitive - the entropy stage expands the container.
 - **Research + Architecture delivered** (PR #82, by Dr. Mob / the Architect): defect is purely entropy-coding; fix = replace per-context 512-symbol adaptive rANS with per-context adaptive Golomb-Rice (Design A, `ENTROPY_GR` flag), provably non-expanding; Design B (capped escaped static rANS) scoped for M2/M3. Milestones rebased: M0 ~9.7 bpp (JPEG-LS), M1 beat WebP 9.61, M2/M3 approach JPEG XL 8.71.
-- **Next stage: BUILD (M0).** Routed this run via `continue` on PR #82 -> Builder implements GR entropy on branch `opencode/issue68-20260818055633` (`encoder.rs`/`decoder.rs`/`rans.rs`), gates behind `model.rs::analyze.entropy_gr`, re-runs Kodak harness. NOT to be merged until target met.
-
-## Audit #72 - RESOLVED (PR #81 merged 2026-08-18T05:43:02Z)
-
-- `opencode-review.yml` / `opencode.yml` fixes landed. #72 and #73 CLOSED. Changes live on main.
+- **Build M0 in flight (this run):** opencode build run **32105937514** is `in_progress` on branch `opencode/issue68-20260818055633` (build job + general subagent). Implements GR entropy, gates behind `model.rs::analyze.entropy_gr`, re-runs Kodak harness. NOT to be merged until target met.
 
 ## In flight
 
-- **Build (M0, #68 / PR #82):** triggered this run (`continue`, pr 82). Builder resumes on `opencode/issue68-20260818055633`, implements Golomb-Rice entropy, benchmarks Kodak. No review/test in flight yet.
-- **Held runs on PR #82** (opencode-pr-trigger, pages deploy) - approved by this run's hardcoded PAT step.
+- **Build (M0, #68 / PR #82):** run 32105937514 (`in_progress`), triggered by owner `/oc continue` at 06:12:21. Builder resumes on `opencode/issue68-20260818055633`, implements Golomb-Rice entropy, benchmarks Kodak. This maintainer run (32105947123) did NOT post a duplicate `continue` because the build is already active.
+- **Held runs on PR #82** (opencode-pr-trigger, pages deploy) - approved by the prior run's hardcoded PAT step.
 
 ## Issues
 
@@ -39,13 +35,13 @@
 
 ## Next steps
 
-1. **Builder M0 (PR #82)** -> implement GR entropy, report Kodak mean bpp. Then route Reviewer (`review`) -> Tester (`test`) -> loop M1/M2/M3 until WebP/PNG/JPEG XL beaten. DO NOT merge until target met.
-2. **PR #82 must update README.md + index.html** (Obsidian = Current Project) before merge - verify.
+1. **Builder M0 (PR #82, run 32105937514)** -> implement GR entropy, report Kodak mean bpp. Then route Reviewer (`review`) -> Tester (`test`) -> loop M1/M2/M3 until WebP/PNG/JPEG XL beaten. DO NOT merge until target met.
+2. **PR #82 must update README.md + index.html** (Obsidian = Current Project) before merge - verify at merge time.
 3. **Factory PR to harden maintainer.md** - remove `--delete-branch` so PR branches are preserved after merge (owner directive). Track and merge.
 4. **Brainstorm board (#42):** stays frozen until Obsidian resolves.
 
 ## Open questions
 
-- How far does Obsidian's Kodak mean bpp move after M0 (GR entropy) - does it hit the ~9.7 bpp JPEG-LS target and stop expanding?
+- How far does Obsidian's Kodak mean bpp move after M0 (GR entropy) - does it hit the ~9.7 bpp JPEG-LS target and stop expanding? (Watch run 32105937514 output.)
 - M1 (per-context predictor selection + GR) must get under WebP 9.61; M2/M3 (capped rANS / squeeze) must approach JPEG XL 8.71. Will the staged plan hold?
 - Will the durable branch-preservation rule (maintainer.md update via Factory PR) land cleanly and stop future `--delete-branch` merges?
