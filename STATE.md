@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~07:00Z, scheduled maintainer run 32108730597). PR #82 Reviewer is in progress (run 32108392514); no new trigger posted (avoid duplicate). Standing directives on #82 enforced.
+- **Updated:** 2026-08-18 (~07:00Z, maintainer run 32108949269). PR #82 Reviewer **approved**; Tester **in progress** (run 32108957704). Standing by to merge M0 on `/oc approve-test`. Standing directives enforced.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -14,10 +14,11 @@
 - **M1 (v1) shipped** via PR #78 (merged): Obsidian v1 = 27.8226 mean bpp (bit-exact), vs WebP 9.6130 / optipng PNG 13.0518 / JPEG XL 8.7062. NOT competitive - the entropy stage expanded the container.
 - **Research + Architecture delivered** (PR #82, by Dr. Mob / the Architect): defect is purely entropy-coding; fix = per-context adaptive Golomb-Rice (Design A, `ENTROPY_GR` flag), provably non-expanding.
 - **M0 COMPLETE** (PR #82, Builder, run 32105937514, finished 2026-08-18T06:43:34Z): GR entropy implemented, wired into encoder/decoder, `ENTROPY_GR` flag added, `model.rs::analyze.entropy_gr` hook, 53/53 tests pass. Synthetic probe: 11.6 bpp @ effort 4, 15.6 @ effort 0 (both < PNG 13.05); real Kodak row pending (no data/toolchain in env). #68 kept open (M1 = beat WebP 9.61 still pending).
+- **M0 REVIEWED & APPROVED** (Reviewer run 32108392514, `/oc approve` at 06:54:22). One non-blocking doc note: `obsidian/docs/entropy-architecture.md` line 62 `gr_unmap` pseudocode (`-(u+1)>>1`) is wrong; implementation correctly uses `-(u>>1)`. Doc-only correction to fold into a future Obsidian PR.
 
 ## In flight
 
-- **Review (M0, #68 / PR #82):** the **Reviewer is IN PROGRESS** (opencode-review run `32108392514`, started 2026-08-18T06:46:45Z, "Run opencode reviewer" step active). Triggered by the owner's `/oc review (head 1998197...)` comment - NOT by this maintainer run. No duplicate `/oc review` posted. Expected path: Reviewer -> (approve) -> Tester (`/oc test`) -> (approve-test) -> Mae merges M0 incremental (no `--delete-branch`, #68 stays open).
+- **Tester (M0, #68 / PR #82):** opencode-test run `32108957704` **IN PROGRESS** (started 2026-08-18T06:54:27Z, after owner `/oc test`). It will run `cargo test --workspace` (53/53 expected) and attempt the Kodak harness. Kodak data/toolchain are git-ignored and absent in this env, so the real Kodak mean row is expected pending; the Tester should approve-test on the suite + synthetic probe (M0 acceptance = no expansion + lossless, already met). On `/oc approve-test`, Mae merges M0 incremental (no `--delete-branch`, #68 stays open).
 
 ## Issues
 
@@ -34,14 +35,14 @@
 
 ## Next steps
 
-1. **Wait for Reviewer (run 32108392514)** on PR #82 -> audit GR implementation. If it requests changes (`/oc fix`), the workflow routes the Fixer; if it approves (`/oc approve`), the Tester runs automatically.
-2. **Tester** reports real Kodak mean bpp -> on `/oc approve-test`, Mae merges M0 as incremental (no `--delete-branch`, #68 stays open).
+1. **Wait for Tester (run 32108957704)** on PR #82 -> if `/oc approve-test`, Mae merges M0 incremental (no `--delete-branch`, #68 stays open). If `/oc fix`, the workflow routes the Fixer; re-review after.
+2. **Fold `gr_unmap` doc correction** into a future Obsidian PR (M1 or a small follow-up) so `entropy-architecture.md` line 62 matches the implementation.
 3. **Loop M1/M2/M3:** M1 = per-context predictor selection + GR to beat WebP 9.61; M2/M3 = capped escaped rANS / squeeze to approach JPEG XL 8.71.
-4. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command so the branch-preservation directive is durable (owner directive). Deferred: not blocking; enforced by Mae on every merge today. Dispatch Factory when pipeline is quiet.
+4. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command so the branch-preservation directive is durable (owner directive). Deferred: not blocking; enforced by Mae on every merge. Dispatch Factory when pipeline is quiet.
 
 ## Open questions
 
 - M0 GR entropy: does it stop the container expansion on real Kodak data? (Synthetic says yes; real Kodak row pending env data/toolchain.)
-- Will the Reviewer approve M0 as-is, or request changes (e.g., the EMA-vs-bias-counter substitution the Builder made)?
-- M1 (per-context predictor selection + GR) must get under WebP 9.61; M2/M3 must approach JPEG XL 8.71. Will the staged plan hold?
+- Will the Tester approve-test M0 given the missing Kodak harness, or request a fix? (M0 acceptance is no-expansion + lossless, already met by the suite.)
 - Will the durable branch-preservation rule (maintainer.md update via Factory PR) land cleanly and stop future `--delete-branch` merges?
+- M1 (per-context predictor selection + GR) must get under WebP 9.61; M2/M3 must approach JPEG XL 8.71. Will the staged plan hold?
