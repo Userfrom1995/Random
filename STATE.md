@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~17:53Z, maintainer run 32167989511, scheduled/dispatch sweep). **DECISIONS:** `[{"action":"continue","pr":83}]` - retry the Builder to implement R4, because the prior `continue` run `32160255732` **FAILED** (exit 143 SIGTERM at 47m58s, mid-R4-implementation; R4 never pushed, head still `33bd48f`). No duplicate in-flight build exists, so re-firing is safe. **ESCALATION TRIGGER RECORDED:** if this `continue` fails again (timeout/hang), the next Mae run MUST dispatch `factory` to raise the opencode build step `timeout-minutes` (line 318 of `opencode.yml`, currently 60) and/or switch to a faster free model. No merge (gates unmet). One PR preserved.
+- **Updated:** 2026-08-18 (~18:44Z, maintainer run 32172703895, scheduled/dispatch sweep). **DECISIONS:** `[{"action":"ping","target":83,"message":"..."}]` - status ping only; the Builder `continue` retry dispatched by the prior run is STILL in progress (run `32168298830`, started 17:56:36Z, "Run opencode build agent" step in_progress at ~48-51 min), so no duplicate `continue` was fired. **ESCALATION TRIGGER STILL ARMED:** if `32168298830` also FAILS (timeout/hang at the 60-min ceiling), the next Mae run MUST dispatch `factory` to raise `timeout-minutes` on the opencode build step (line 318 of `opencode.yml`, currently 60) and/or switch to a faster free model. No merge (gates unmet). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -29,11 +29,11 @@
 - **CMARC stack (R1 -> R2.4) + R3 (R3-A residual-context, R3-B neutral-prior Rice, R3-C) built, all OFF by default.** On real Kodak CMARC itself EXPLODES (21-27 bpp forced) - the never-expand net falls back to GR, so every quoted "best" number (10.09, 10.16) was GR all along. CMARC has never beaten GR on real Kodak.
 - **ROOT-CAUSE DIAGNOSIS (now CONVERGED, R4):** The shared 16-bit binary range coder (`RangeEnc`/`RangeDec`/`BinEnc`/`BinDec`) is **lossless but does NOT compress** - it is a pass-through bit buffer for any skewed probability (empirical probe: p=0.1 -> 1.745 bps vs 0.469 Shannon = 3.72x; p=0.01 -> 3.348 vs 0.081 = 41x). This is the real defect behind every CMARC/R3 "regression": context/quotient/residual tuning is futile because the coder ignores the learned probability. GR is unaffected (separate `GrState` Golomb-Rice coder). The Researcher's "models fail to adapt" reading (commit `f506050`) was a mis-attribution; the coder itself is the defect.
 - **R4 blueprint (Architect, commit `33bd48f`, 16:22Z):** Replace the four broken binary coders with a **correct carryless LZMA range coder** (32-bit `range`, 64-bit `low` accumulator with `ShiftLow` carry cache, `PRECISION=12`/`BIN_TOTAL=4096`, preserving the `BinModel { p: u16 }` interface and `put`/`get` signatures). **MANDATORY efficiency gate:** `measured_bps / shannon_bps < 1.10` for `p in {0.01,0.1,0.5,0.9,0.99}` + Laplacian - fails the build until the coder is correct (round-trip tests cannot catch a lossless-but-non-compressing coder). Build order: R4 in isolation -> re-measure R1/R2 -> re-measure R3 on REAL Kodak.
-- **R4 IMPLEMENTATION STATUS: NOT YET DONE.** The Builder `continue` run `32160255732` FAILED (exit 143 at 47m58s) while actively implementing `rans.rs` (debugging `range_coder_bit_roundtrip`); no `ShiftLow`/carryless code was pushed. Head remains `33bd48f`. Retry dispatched this run.
+- **R4 IMPLEMENTATION STATUS: NOT YET DONE.** The first Builder `continue` (run `32160255732`) FAILED (exit 143 SIGTERM at 47m58s, mid-R4-implementation; R4 never pushed, head still `33bd48f`). The RETRY Builder `continue` (run `32168298830`) is IN PROGRESS (started 17:56:36Z, ~51 min in, no push yet as of 18:44Z) - near the 60-min build-step ceiling; outcome pending.
 
 ## In flight
 
-- **Builder `continue` (RETRY, this run 32167989511 -> run to be posted by hardcoded step):** re-implements R4 on the single branch - replace the broken binary range coder with the correct carryless LZMA coder, land the mandatory efficiency gate (`measured/shannon < 1.10`), confirm `cargo test -p obsidian_core` green, then re-measure R1/R2/R3 on REAL Kodak effort-4 against all three gates. Reports honestly if PPMs are unreachable (never fake). Prior attempt `32160255732` FAILED (timeout/hang at 47m58s, mid-implementation) and did NOT push.
+- **Builder `continue` (RETRY, run `32168298830`, IN PROGRESS):** re-implements R4 on the single branch - replace the broken binary range coder with the correct carryless LZMA coder, land the mandatory efficiency gate (`measured/shannon < 1.10`), confirm `cargo test -p obsidian_core` green, then re-measure R1/R2/R3 on REAL Kodak effort-4 against all three gates. Reports honestly if PPMs are unreachable (never fake). Prior attempt `32160255732` FAILED (timeout/hang at 47m58s, mid-implementation) and did NOT push. Head remains `33bd48f` pending this retry's push.
 - **ESCALATION TRIGGER (if retry also fails):** next Mae run MUST dispatch `factory` to raise `timeout-minutes` on the opencode build step (line 318 of `opencode.yml`, currently 60) and/or switch to a faster free model.
 
 ## PENDING (deferred to a quiet run)
@@ -58,7 +58,7 @@
 
 ## Next steps
 
-1. **Builder implements R4 (retry in flight):** replace broken binary range coder with correct carryless LZMA coder; land mandatory efficiency gate (`measured/shannon < 1.10`); green `cargo test -p obsidian_core`.
+1. **Builder completes R4 (retry `32168298830` in flight):** replace broken binary range coder with correct carryless LZMA coder; land mandatory efficiency gate (`measured/shannon < 1.10`); green `cargo test -p obsidian_core`.
 2. **If the retry times out again:** next Mae run dispatches `factory` to raise `timeout-minutes` (opencode.yml line 318) and/or pick a faster free model, then re-`continue`.
 3. **Re-measure R1/R2 on REAL Kodak** (effort 4) once `data/kodak` is durably available - now that the coder actually compresses, CMARC should beat GR; expect < 9.71 (JPEG-LS) and likely < 9.61 (WebP).
 4. **Re-measure R3 residual-context** on the now-correct coder (earlier "regression" was a coder artifact).
@@ -67,7 +67,7 @@
 
 ## Open questions
 
-- **Will the retried Builder complete R4 within the 60-min open/opencode build step window?** The prior run was actively debugging at the 48-min mark when killed - borderline. Escalate to `factory` (raise timeout) if it fails again.
+- **Will the retried Builder (32168298830) complete R4 within the 60-min open/opencode build step window?** It is at ~51 min as of 18:44Z with no push yet - likely near the ceiling. If it times out again, escalate to `factory` (raise timeout) next run.
 - **Will the corrected carryless range coder let CMARC reach JPEG-LS-class (9.71) or better on real Kodak?** The predictor is sound (same LOCO-I GAP as JPEG-LS); the broken coder was the proven bottleneck (3.7-41x over Shannon). R4 removes that. Awaits the Builder's re-measurement.
 - **Can the Builder reproduce the exact Kodak PPMs in CI?** Network + toolchain needed; public mirrors returned 404/HTML earlier, Kaggle needs a token. If unreachable, report the synthetic-proxy number honestly and flag the gate as unmeasurable - never fake data. The R4 efficiency gate itself needs no Kodak.
 - **Orphan-main repair:** will the Builder actually rebase+force-push to make PR #83 rebase-mergeable without opening a new PR? Must verify next survey (`merge-base` non-empty, `gh pr view` MERGEABLE).
