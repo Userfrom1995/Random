@@ -1,8 +1,8 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~04:27Z, `/oc maintainer` event run on issue/PR #80, run
-  32099177407). The M1 build loop (resumed at 03:42Z) opened PR #80 but The Builder
-  pushed a BROKEN milestone and stopped; resuming via `/oc continue`.
+- **Updated:** 2026-08-18 (~04:30Z, `/oc maintainer` event run on PR #80, run
+  32099339776). PR #80's `/oc continue` resume is **already in flight** (build run
+  32099339960); no new trigger posted to avoid a redundant concurrent build.
 
 ## Priority project (the fundamental goal)
 
@@ -15,23 +15,20 @@
 - Owner's standing directive: iterate until Obsidian beats the other codecs on
   Kodak (lossless + performance). M1-M3 are the optimization milestones.
 
-## M1 build loop - STALLED BROKEN, RESUMING (PR #80)
+## M1 build loop - RESUMING (PR #80, build run in flight)
 
 - **PR #80 OPEN** by The Builder: branch `opencode/issue68-20260818034514`, head
-  `e858ea0001bef32ce7cd71e6e33ae74171507a56`. 1 commit, +145/-335 across 3 files
-  (`rans.rs` rewritten, `encoder.rs` FREQ_BITS=14, new `rans_adapt_test.rs`).
-- **Broken:** the PR body admits adaptive tests still desync at `rans.rs:379/414`
-  (decoder renorm/stream-exhaust line); "the encoder/decoder lockstep for the
-  single-symbol and renorm-pressure cases is not yet balanced." The Builder pushed a
-  broken milestone (per the hardened MILESTONE COMMITMENT rule) and stopped.
-- **Drift:** `progress/68-*.md` still lists the older branch
-  `opencode/issue68-20260817231515` while the live PR branch is
-  `opencode/issue68-20260818034514`. The Builder should refresh this on resume.
-- **Action this run:** `continue` (PR #80) -> `/oc continue` resumes the build loop
-  from `progress/68-*.md` so the Builder fixes the lockstep. The lockstep was solved
-  once before (progress log 2026-08-17T20:30, "fixed the adaptive rANS lockstep...
-  forward dry-run recording (freq,cum), code in reverse via put_fc") then regressed in
-  the subsequent variable-total rewrite, so the proven pattern exists to reuse.
+  `e858ea0001bef32ce7cd71e6e33ae74171507a56` (still the broken milestone; no new
+  commit yet). 1 commit, +145/-335 across 3 files.
+- **Resume in flight:** the prior maintainer run (32099177407) dispatched `/oc continue`,
+  and the owner also commented `/oc continue` at 04:29:31Z. The opencode build run
+  **32099339960** is currently IN PROGRESS (started 04:29:35Z), working from
+  `progress/68-*.md` to fix the adaptive rANS lockstep. Only one build run is active
+  (no concurrent duplication).
+- **Broken:** adaptive tests desync at `rans.rs:379/414` (decoder renorm/stream-exhaust);
+  single-symbol and renorm-pressure cases not yet balanced.
+- **Drift:** `progress/68-*.md` still lists the older branch `opencode/issue68-20260817231515`;
+  live PR branch is `opencode/issue68-20260818034514`. Builder should refresh on resume.
 - **No review/test yet:** code fails its own adaptive tests, so the quality gate is
   premature. Pipeline order: Builder -> Reviewer -> Tester -> merge.
 
@@ -43,11 +40,10 @@
 
 ## In flight
 
-- **M1 build (PR #80)** - RESUMING via `/oc continue` this run (Builder fixes the
-  adaptive rANS lockstep). Also a GENERAL opencode run (32099177354) is in_progress,
-  triggered by the owner's `/oc maintainer` comment; it is a general assistant and
-  will not push a fix, so `/oc continue` is the driver.
-- No opencode review/test runs in flight (none pending on PR #80). No held runs.
+- **M1 build (PR #80)** - RESUMING; build run 32099339960 IN PROGRESS (the driver).
+  A prior opencode GENERAL run (32099177354) finished (general assistant, no push).
+  No opencode review/test runs in flight (none pending on PR #80). No held runs.
+- **This maintainer run:** 32099339776 (pending/executing), `/oc maintainer` on PR #80.
 
 ## Issues
 
@@ -71,9 +67,9 @@
 
 ## Next steps
 
-1. **Shepherd the resumed M1 build (PR #80):** watch for the Builder's passing commit
-   (adaptive tests green). On push: auto-reviewer -> review -> test -> merge (Obsidian
-   continuation, no shipping cap concern).
+1. **Watch the resumed M1 build (PR #80 / run 32099339960):** wait for The Builder's
+   passing commit (adaptive tests green). On push: auto-reviewer -> review -> test -> merge
+   (Obsidian continuation, no shipping cap concern).
 2. **If the build stalls again on the lockstep** (same wall after resume), dispatch
    `research` on #68 for the adaptive rANS correctness math before another build attempt.
 3. **After M1 lands:** M2 (self-correcting weighted predictor, within 10% of JPEG XL)
@@ -86,8 +82,8 @@
 
 ## Open questions
 
-- Does the resumed M1 build fix the lockstep and land a real passing `builder:` commit,
-  or does it hit the same wall again (escalate to Researcher)?
+- Does the resumed M1 build (run 32099339960) fix the lockstep and land a real passing
+  `builder:` commit, or does it hit the same wall again (escalate to Researcher)?
 - Does hy3-free sustain the 60-minute engineering session well enough to finish M1?
 - How far does M1 move Obsidian's Kodak mean bpp (27.82) toward/under WebP (9.61) and
   optipng PNG (13.05)?
