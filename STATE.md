@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~16:51Z, maintainer run 32162519021, triggered by owner `/oc maintainer` on PR #83 after the Architect delivered the R4 blueprint). **DECISIONS:** `[]` (no trigger). The R4 blueprint (root cause: binary range coder is a pass-through bit buffer for p≠0.5, 3.7-41x over Shannon) is delivered at commit `33bd48f`; the Builder is already implementing it via the in-flight `continue` run `32160255732` (decided by run 32159973855 at 16:25Z). No duplicate `continue` fired. No merge (gates unmet). One PR preserved.
+- **Updated:** 2026-08-18 (~17:53Z, maintainer run 32167989511, scheduled/dispatch sweep). **DECISIONS:** `[{"action":"continue","pr":83}]` - retry the Builder to implement R4, because the prior `continue` run `32160255732` **FAILED** (exit 143 SIGTERM at 47m58s, mid-R4-implementation; R4 never pushed, head still `33bd48f`). No duplicate in-flight build exists, so re-firing is safe. **ESCALATION TRIGGER RECORDED:** if this `continue` fails again (timeout/hang), the next Mae run MUST dispatch `factory` to raise the opencode build step `timeout-minutes` (line 318 of `opencode.yml`, currently 60) and/or switch to a faster free model. No merge (gates unmet). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -29,19 +29,20 @@
 - **CMARC stack (R1 -> R2.4) + R3 (R3-A residual-context, R3-B neutral-prior Rice, R3-C) built, all OFF by default.** On real Kodak CMARC itself EXPLODES (21-27 bpp forced) - the never-expand net falls back to GR, so every quoted "best" number (10.09, 10.16) was GR all along. CMARC has never beaten GR on real Kodak.
 - **ROOT-CAUSE DIAGNOSIS (now CONVERGED, R4):** The shared 16-bit binary range coder (`RangeEnc`/`RangeDec`/`BinEnc`/`BinDec`) is **lossless but does NOT compress** - it is a pass-through bit buffer for any skewed probability (empirical probe: p=0.1 -> 1.745 bps vs 0.469 Shannon = 3.72x; p=0.01 -> 3.348 vs 0.081 = 41x). This is the real defect behind every CMARC/R3 "regression": context/quotient/residual tuning is futile because the coder ignores the learned probability. GR is unaffected (separate `GrState` Golomb-Rice coder). The Researcher's "models fail to adapt" reading (commit `f506050`) was a mis-attribution; the coder itself is the defect.
 - **R4 blueprint (Architect, commit `33bd48f`, 16:22Z):** Replace the four broken binary coders with a **correct carryless LZMA range coder** (32-bit `range`, 64-bit `low` accumulator with `ShiftLow` carry cache, `PRECISION=12`/`BIN_TOTAL=4096`, preserving the `BinModel { p: u16 }` interface and `put`/`get` signatures). **MANDATORY efficiency gate:** `measured_bps / shannon_bps < 1.10` for `p in {0.01,0.1,0.5,0.9,0.99}` + Laplacian - fails the build until the coder is correct (round-trip tests cannot catch a lossless-but-non-compressing coder). Build order: R4 in isolation -> re-measure R1/R2 -> re-measure R3 on REAL Kodak.
+- **R4 IMPLEMENTATION STATUS: NOT YET DONE.** The Builder `continue` run `32160255732` FAILED (exit 143 at 47m58s) while actively implementing `rans.rs` (debugging `range_coder_bit_roundtrip`); no `ShiftLow`/carryless code was pushed. Head remains `33bd48f`. Retry dispatched this run.
 
 ## In flight
 
-- **Builder `continue` (run `32160255732`, in_progress since 16:25:55Z):** implements R4 - replace the broken binary range coder with the correct carryless LZMA coder, land the mandatory efficiency gate (`measured/shannon < 1.10`), confirm `cargo test -p obsidian_core` green, then re-measure R1/R2/R3 on REAL Kodak effort-4 against all three gates. Reports honestly if PPMs are unreachable (never fake). Triggered by prior maintainer decision `continue #83` (run 32159973855, 16:25Z).
-- **General-mode opencode run `32162519190` (pending, 16:51:24Z, event issue_comment):** a sibling run spawned by the owner's `/oc maintainer` trigger; routes to general mode (NOT a Builder `continue`), so it is not a competing implementation run.
+- **Builder `continue` (RETRY, this run 32167989511 -> run to be posted by hardcoded step):** re-implements R4 on the single branch - replace the broken binary range coder with the correct carryless LZMA coder, land the mandatory efficiency gate (`measured/shannon < 1.10`), confirm `cargo test -p obsidian_core` green, then re-measure R1/R2/R3 on REAL Kodak effort-4 against all three gates. Reports honestly if PPMs are unreachable (never fake). Prior attempt `32160255732` FAILED (timeout/hang at 47m58s, mid-implementation) and did NOT push.
+- **ESCALATION TRIGGER (if retry also fails):** next Mae run MUST dispatch `factory` to raise `timeout-minutes` on the opencode build step (line 318 of `opencode.yml`, currently 60) and/or switch to a faster free model.
 
 ## PENDING (deferred to a quiet run)
 
-- **Orphan-main repair:** Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` and force-push the SAME branch (no new PR) so PR #83 becomes rebase-mergeable. Deferred (gate unmet); NOT re-dispatching Factory this run to honor the owner's "stop opening new PRs" directive.
+- **Orphan-main repair:** Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` and force-push the SAME branch (no new PR) so PR #83 becomes rebase-mergeable. Deferred (gate unmet); NOT re-dispatching Factory this run to honor the owner's "stop opening new PRs" directive - and the current failure is a build-session timeout, not an infra defect.
 - **README / index.html Obsidian promotion.** `README.md` has no Obsidian mention; `index.html` lists Meridian as Current. Needs a Builder/Factory content pass (NOT a Mae direct edit to `main`).
 - **Factory hardening (one-PR rule):** dispatch the Factory Engineer to harden the workflow/agent so it NEVER opens a new PR for an issue that already has an open Obsidian/codec PR; it must reuse/push to the existing branch. Deferred (owner said stop opening new PRs).
 - **Fix the malformed `binenc_vs_rangeenc_skew` test** (RNG bug, false failure) - superseded by the R4 mandatory efficiency gate; low priority.
-- **opencode.yml `continue-on-error` hardening:** the research job's `continue-on-error: true` masked a silent 13s failure. Consider a post-step guard so a missing decision.json fails the run - Factory task, lower priority than the coder bug.
+- **opencode.yml `continue-on-error` hardening:** the research job's `continue-on-error: true` masked a silent 13s failure. Consider a post-step guard so a missing decision.json fails the run - Factory task, lower priority than the coder bug. Could batch with the timeout-raise if Factory is dispatched.
 
 ## Issues
 
@@ -51,24 +52,26 @@
 
 ## Reviewer/Tester/model status
 
-- **Model config:** `main` workflow agent steps (factory/review/test) pin `opencode/hy3-free`. `opencode.json` `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). main currently = `e4e3392 factory: upgrade reviewer/tester/factory models from mimo-v2.5-free to hy3-free`.
+- **Model config:** `main` workflow agent steps (factory/review/test) pin `opencode/hy3-free`. `opencode.json` `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). main currently = `e4e3392 factory: upgrade reviewer/tester/factory models from mimo-v2.5-free to hy3-free` - the earlier `CreditsError` billing outage is RESOLVED.
 - **Mergeability:** PR #83 OPEN, head `33bd48f0`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; must be repaired before `--rebase` merge is possible).
 - Next Sunday 2026-08-23: weekly free-model upgrade check.
 
 ## Next steps
 
-1. **Builder implements R4 (in flight via run `32160255732`):** replace broken binary range coder with correct carryless LZMA coder; land mandatory efficiency gate (`measured/shannon < 1.10`); green `cargo test -p obsidian_core`.
-2. **Re-measure R1/R2 on REAL Kodak** (effort 4) once `data/kodak` is durably available - now that the coder actually compresses, CMARC should beat GR; expect < 9.71 (JPEG-LS) and likely < 9.61 (WebP).
-3. **Re-measure R3 residual-context** on the now-correct coder (earlier "regression" was a coder artifact).
-4. **After a reproducible real-Kodak number below all three gates:** Builder repairs orphan-main (rebase+force-push), then rebase-merge (branch preserved per owner directive), close #68.
-5. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
+1. **Builder implements R4 (retry in flight):** replace broken binary range coder with correct carryless LZMA coder; land mandatory efficiency gate (`measured/shannon < 1.10`); green `cargo test -p obsidian_core`.
+2. **If the retry times out again:** next Mae run dispatches `factory` to raise `timeout-minutes` (opencode.yml line 318) and/or pick a faster free model, then re-`continue`.
+3. **Re-measure R1/R2 on REAL Kodak** (effort 4) once `data/kodak` is durably available - now that the coder actually compresses, CMARC should beat GR; expect < 9.71 (JPEG-LS) and likely < 9.61 (WebP).
+4. **Re-measure R3 residual-context** on the now-correct coder (earlier "regression" was a coder artifact).
+5. **After a reproducible real-Kodak number below all three gates:** Builder repairs orphan-main (rebase+force-push), then rebase-merge (branch preserved per owner directive, `--no-delete-branch`), close #68.
+6. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
 
 ## Open questions
 
+- **Will the retried Builder complete R4 within the 60-min open/opencode build step window?** The prior run was actively debugging at the 48-min mark when killed - borderline. Escalate to `factory` (raise timeout) if it fails again.
 - **Will the corrected carryless range coder let CMARC reach JPEG-LS-class (9.71) or better on real Kodak?** The predictor is sound (same LOCO-I GAP as JPEG-LS); the broken coder was the proven bottleneck (3.7-41x over Shannon). R4 removes that. Awaits the Builder's re-measurement.
 - **Can the Builder reproduce the exact Kodak PPMs in CI?** Network + toolchain needed; public mirrors returned 404/HTML earlier, Kaggle needs a token. If unreachable, report the synthetic-proxy number honestly and flag the gate as unmeasurable - never fake data. The R4 efficiency gate itself needs no Kodak.
 - **Orphan-main repair:** will the Builder actually rebase+force-push to make PR #83 rebase-mergeable without opening a new PR? Must verify next survey (`merge-base` non-empty, `gh pr view` MERGEABLE).
-- **One-PR integrity:** #83 is the sole canonical Obsidian PR; the Builder pushes to it, never opens a codec PR.
+- **One-PR integrity:** #83 is the sole canonical Obsidian PR; the Builder pushes to it, never opens a codec PR. Confirm next survey no new issue68 PR opened.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 
 - Mae, the Maintainer
