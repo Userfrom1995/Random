@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~15:47Z, maintainer run 32156541447, triggered by owner `/oc research` + `/oc maintainer` on PR #83). **DECISIONS:** `[{"action":"research","pr":83}]`. Re-engaged the Researcher (Mode 2) on the single canonical PR #83 to diagnose the **binary range coder explosion** on real Kodak (the decisive root-cause bug masking every CMARC "win"). The prior `/oc research` trigger (run `32156521813`) silently failed in 13s (no deliverable, masked by `continue-on-error`), so this run re-fires it. No merge (gates unmet; CMARC itself explodes on real Kodak). One PR preserved.
+- **Updated:** 2026-08-18 (~16:00Z, maintainer run 32157692174, triggered by owner `/oc maintainer` on PR #83). **DECISIONS:** `[{"action":"architect","pr":83,"head":"f506050f..."}]`. The Researcher (run `32156932119`) finally delivered a concrete root-cause diagnosis of the binary-coder explosion: the coder core is lossless, but the per-(cid,bin) WNC binary models cost ~1.88 bits/bin instead of 1, inflating CMARC entropy 3.3-5.4x. Engaging the Architect (Mode 2) on the single PR to re-blueprint a corrected entropy backend whose probability model actually converges. No merge (gates unmet). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,7 +16,7 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break STILL OPEN)
 
-- **Mergeability (BROKEN):** PR #83 OPEN, head `206781fc`, `mergeable: CONFLICTING`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY; `main` is NOT an ancestor of the branch. This blocks the eventual `--rebase` merge and MUST be repaired (Builder rebases `opencode/issue68-20260818070512` onto `origin/main` and force-pushes the SAME branch, no new PR).
+- **Mergeability (BROKEN):** PR #83 OPEN, head `f506050f244a931d8125ef372a498a4051ea870e`, `mergeable: CONFLICTING`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY; `main` is NOT an ancestor of the branch. This blocks the eventual `--rebase` merge and MUST be repaired (Builder rebases `opencode/issue68-20260818070512` onto `origin/main` and force-pushes the SAME branch, no new PR).
 - **Measurement blocker (root cause fully understood):**
   - `obsidian/benchmarks/data/kodak/` is **git-ignored by design** (only `kodak.sha256` tracked). PPMs are fetched+normalized at benchmark time and verified against `kodak.sha256`; not meant to live in git. The Builder owns reproduction via `run_kodak.sh --provision` (self-provisioning + fail-fast sha256 verify landed in Builder run 32151973192).
   - **Open risk:** earlier Builder runs could not reach a no-auth Kodak mirror (Kaggle needs a token; public mirrors 404/HTML), so even with the harness, real-Kodak reproduction in CI is uncertain. The Builder must report cleanly if data is unreachable - never fake numbers.
@@ -25,20 +25,21 @@
 
 - **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
-- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `206781fc`). **ROOT-CAUSE FIX earlier this cycle:** `ppm.rs` decoded the interleaved P6/P5 raster as planar, scrambling R/G/B; fixed, codec bit-exact. Corrected real-Kodak baseline (effort 4) = **10.16 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by 0.45; JPEG XL 8.71 MISSED by 1.45).
-- **CMARC stack (R1 -> R2.4) built, all OFF by default.** On real Kodak it shaved only ~0.07 bpp off v1 GR, plateauing at ~10.09 bpp - but that number came ENTIRELY from the never-expand safety net falling back to GR.
-- **R3 BLOCKED by a CORE CODER BUG (decisive finding, Builder run 32153177489):** the shared 16-bit binary range coder (`BinModel` WNC probabilities in `rans.rs`, used by both CMARC `RangeEnc`/`RangeDec` and M3-A `BinEnc`/`BinDec`) is lossless but **EXPLODES on real Kodak residuals** - CMARC forced = kodim01 27.3, kodim02 25.5, kodim03 21.6 bpp vs GR; R3-B reverted to blueprint-exact unary and still exploded (25.7 bpp); R3-A scaffolding is safe/off-by-default (`OBSIDIAN_CARC_RESIDUAL_CTX`). The blueprint's "CMARC costs H(p)+epsilon" assumption is false on real residuals - the binary coder's probability adaptation is broken. The progress file states this is a Researcher/Architect task, not a Builder task.
+- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `f506050f`). **ROOT-CAUSE FIX earlier this cycle:** `ppm.rs` decoded the interleaved P6/P5 raster as planar, scrambling R/G/B; fixed, codec bit-exact. Corrected real-Kodak baseline (effort 4) = **10.16 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by 0.45; JPEG XL 8.71 MISSED by 1.45).
+- **CMARC stack (R1 -> R2.4) + R3 (R3-A residual-context, R3-B neutral-prior Rice) built, all OFF by default.** On real Kodak CMARC itself EXPLODES (21-27 bpp forced) - the never-expand net falls back to GR, so every quoted "best" number (10.09, 10.16) was GR all along. CMARC has never beaten GR on real Kodak.
+- **ROOT-CAUSE DIAGNOSIS (Researcher run 32156932119, ~15:58Z):** the shared 16-bit binary range coder is **lossless and passes near-entropy tests** - the core is NOT broken. The defect is **model adaptation**: the per-(cid,bin) `BinModel` WNC probabilities cost ~0.97-1.88 bits per bin instead of ~1, so CMARC emits 3.3-5.4x true entropy on Laplacian residuals (b=2: 18.97 bpp vs 3.53 entropy). The blueprint's "H(p)+epsilon" claim failed because the WNC adaptation never converges. The `binenc_vs_rangeenc_skew` test is a **malformed RNG** (compares an `f64 < 0.9` against a large integer → all-1s stream) - a red herring, not coder rot. The fix is algorithmic (Architect task), not a Builder wiring task.
 
 ## In flight
 
-- **Researcher `research` run (this decision, RE-FIRED):** my prior run (32156121439, 15:42Z) decided `research`; the hardcoded step posted `/oc research` (owner 15:46:48Z); `opencode.yml` research job `32156521813` concluded `success` in 13s but committed **no diagnostic doc and posted no bot comment** - silently failed (masked by `continue-on-error`). This run re-fires `research` on PR #83. Task: diagnose WHY the binary range coder explodes on real photographic residuals (WNC prior/adaptation, context sparsity, or a lockstep/normalization bug in `RangeEnc`/`RangeDec`/`BinEnc`/`BinDec`), and prescribe a correct context-modeled adaptive arithmetic coder (QM-class or correct adaptive rANS) that reaches `H(p)+epsilon` on real Kodak. Targets the existing single PR. If this re-fire also silently fails, forward directly to the Architect with the existing empirical diagnosis and flag the 13s-crash to the Factory (model/infra fallback).
+- **Architect `architect` run (this decision):** engaging the Architect (Mode 2) on the single existing PR #83 to re-blueprint the corrected entropy backend - a per-context adaptive arithmetic/range coder whose probability model actually converges to H(p) (correctly-tuned fast/low-prior WNC, QM-class context-modelled coder, or correct adaptive rANS), integrated with the LOCO-I GAP predictor + residual DIFF context. Delivers the blueprint on the same branch, then the Builder resumes via `continue`.
 
 ## PENDING (deferred to a quiet run)
 
 - **README / index.html Obsidian promotion.** `README.md` has no Obsidian mention; `index.html` lists Meridian as Current. Needs a Builder/Factory content pass (NOT a Mae direct edit to `main`).
-- **Factory hardening (one-PR rule):** dispatch the Factory Engineer to harden the workflow/agent so it NEVER opens a new PR for an issue that already has an open Obsidian/codec PR; it must reuse/push to the existing branch. Deferred (owner said stop opening new PRs; also the Factory is the wrong data tool, so this is lower priority now).
+- **Factory hardening (one-PR rule):** dispatch the Factory Engineer to harden the workflow/agent so it NEVER opens a new PR for an issue that already has an open Obsidian/codec PR; it must reuse/push to the existing branch. Deferred (owner said stop opening new PRs).
 - **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command (owner directive).
 - **Orphan-main repair:** Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` and force-push the SAME branch (no new PR) so PR #83 becomes rebase-mergeable.
+- **Fix the malformed `binenc_vs_rangeenc_skew` test** (RNG bug) - Builder/Fixer task once the coder is reworked; low priority (it's a test-only red herring).
 - **opencode.yml `continue-on-error` hardening:** the research job's `continue-on-error: true` masked a silent 13s failure (no deliverable, no comment). Consider a post-step guard that fails the run if no `/tmp/random-lab-decision.json` is written - Factory task, but lower priority than the coder bug.
 
 ## Issues
@@ -50,24 +51,24 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `main` workflow agent steps (factory/review/test) pin `opencode/hy3-free`. `opencode.json` `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free).
-- **Mergeability:** PR #83 OPEN, head `206781fc`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; Builder `continue` did not repair it). Must be repaired before `--rebase` merge is possible.
+- **Mergeability:** PR #83 OPEN, head `f506050f`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; Builder `continue` did not repair it). Must be repaired before `--rebase` merge is possible.
 - Next Sunday 2026-08-23: weekly free-model upgrade check.
 
 ## Next steps
 
-1. **Wait for the Researcher's diagnosis** of the binary-coder explosion (re-fired this run); then have the Architect re-blueprint the coder fix on PR #83 (Mode 2) and the Builder resume via `continue`.
-2. **If the re-fired research silently fails again (13s no-op):** forward directly to the Architect with the existing empirical diagnosis (binary-coder adaptation broken, predictor sound - same LOCO-I GAP as JPEG-LS which hits 9.71 bpp), and flag the opencode.yml `continue-on-error` masking + possible model/API crash to the Factory for fallback.
+1. **Wait for the Architect's blueprint** for the corrected entropy backend (per-context adaptive coder with converging probability model), delivered on PR #83 (Mode 2).
+2. **Then resume the Builder via `continue`** on the single branch to implement the corrected coder and re-measure on REAL Kodak (effort 4) against all three gates (JXL 8.71 / WebP 9.61 / PNG 13.05), reporting honestly if PPMs are unreachable (never fake).
 3. **After a reproducible real-Kodak number below all three gates:** Builder repairs orphan-main (rebase+force-push), then rebase-merge (branch preserved per owner directive), close #68.
 4. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
 
 ## Open questions
 
-- **Why does the 16-bit binary range coder explode on real Kodak (21-27 bpp) while staying lossless?** WNC prior too strong? adaptation too slow on sparse contexts? a normalization/lockstep bug in `RangeEnc`/`RangeDec`/`BinEnc`/`BinDec`? Awaits the (re-fired) Researcher.
-- **Can the Researcher/Architect deliver a correct adaptive arithmetic coder that reaches JPEG-LS-class (9.71) or better on real Kodak?** The predictor is sound (same LOCO-I GAP as JPEG-LS); the entropy backend is the proven bottleneck.
-- **Can the Builder reproduce the exact Kodak PPMs in CI?** Network + toolchain needed; public mirrors returned 404/HTML earlier, Kaggle needs a token. If unreachable, the Builder must report the synthetic-proxy number honestly and flag the gate as unmeasurable - never fake data.
+- **Will the Architect's corrected coder reach JPEG-LS-class (9.71) or better on real Kodak?** The predictor is sound (same LOCO-I GAP as JPEG-LS); the entropy backend is the proven bottleneck - now localized to WNC model adaptation (per-bin cost ~1.88 bits instead of 1).
+- **Can the Builder reproduce the exact Kodak PPMs in CI?** Network + toolchain needed; public mirrors returned 404/HTML earlier, Kaggle needs a token. If unreachable, report the synthetic-proxy number honestly and flag the gate as unmeasurable - never fake data.
 - **Orphan-main repair:** will the Builder actually rebase+force-push to make PR #83 rebase-mergeable without opening a new PR? Must verify next survey (`merge-base` non-empty, `gh pr view` MERGEABLE).
 - **One-PR integrity:** #83 is the sole canonical Obsidian PR; the Builder pushes to it, never opens a codec PR.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
+- **Malformed test:** `binenc_vs_rangeenc_skew` has an RNG bug (false failure) - fix once the coder is reworked.
 - **opencode.yml silent-failure masking:** the research job's `continue-on-error: true` let a 13s no-deliverable run pass as `success`. Should be guarded so a missing decision.json fails the run.
 
 - Mae, the Maintainer
