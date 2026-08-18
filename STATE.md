@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~07:30Z, maintainer run 32111688933). Owner directive at 07:29:31Z: orchestrate Researcher + Architect + Builder together (no autopilot `/oc continue`); keep ONE Obsidian PR, no merge until Kodak target beaten. M1 build still in flight on branch `opencode/issue68-20260818070512`.
+- **Updated:** 2026-08-18 (~07:50Z, maintainer run 32113205492). PR #83 (the single canonical Obsidian PR) is OPEN on `opencode/issue68-20260818070512`, head `9de4b2e`, at 10.16 bpp (PNG gate MET; WebP/JPEG XL PENDING). Owner's `/oc review` fired the reviewer; Mae engaged the Architect (Mode 2) for M2 on the same PR.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -17,14 +17,14 @@
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
-- **M0 COMPLETE & MERGED** (PR #82, merged 2026-08-18T07:03:12Z, commit `eee5a31`): GR entropy backend, 53/53 tests pass, no expansion (768x512 @ effort 4 = 21.3 bpp). NOT competitive vs WebP 9.61 / PNG 13.05 / JPEG XL 8.71.
-- **Research + Architecture delivered** (PR #76, #82): defect is purely entropy-coding; fix = per-context adaptive Golomb-Rice (Design A), provably non-expanding.
-- **M1 IN FLIGHT** (opencode build run `32109757749`, started 2026-08-18T07:04:55Z, model `hy3-free`). Builder commits to branch `opencode/issue68-20260818070512` (confirmed exists, head `f822c481`); PR NOT yet opened. Implements per-context predictor selection + GR tuning to beat WebP 9.61. This branch/PR will become the single canonical Obsidian PR. Per overrides, NOT merged and NO further Obsidian PRs.
+- **M0 COMPLETE & MERGED** (PR #82, merged 2026-08-18T07:03:12Z, commit `eee5a31`): GR entropy backend, 53/53 tests pass, no expansion. NOT competitive vs WebP 9.61 / PNG 13.05 / JPEG XL 8.71.
+- **M1 OPEN as PR #83** (canonical single PR, branch `opencode/issue68-20260818070512`, head `9de4b2e`). Builder's M1 build run `32109757749` opened it. Key correction: `ppm.rs` was decoding interleaved P6/P5 as planar, scrambling RGB and invalidating all prior Kodak numbers (27.82 / 11.6 / M0 GR row). Now bit-exact (roundtrip + cmp + 1200 fuzz). Real Kodak effort-4 results: PPM fix 12.47 bpp -> separate-sign Golomb-Rice 10.19 bpp -> textbook LOCO-I GAP 10.16 bpp. PNG gate (13.05) **MET**; WebP (9.61) + JPEG XL (8.71) **PENDING**.
+- **M2 (design in progress):** JPEG-LS-class bias cancellation (with dead-zone; naive EMA prototype reverted - regressed chroma to 14.16 bpp) + run mode, then context mixing / LZ77 to clear WebP and JPEG XL. Path documented in `progress/68-obsidian-lossless-image-codec.md`.
 
 ## In flight
 
-- **Builder (M1, #68):** opencode build run `32109757749` (build job in_progress, ~25 min in). Commits landing on `opencode/issue68-20260818070512`. When it opens the PR, that is the single canonical Obsidian PR. Mae stands by; on PR open, route Architect (Mode 2) to design M2, then Builder via `continue` - NOT a bare merge.
-- **Stray run 32111688862** (opencode, event issue_comment, no matching `/oc` job) will self-skip; no action needed, no PR spawned.
+- **PR #83 (single canonical Obsidian PR):** review IN PROGRESS (owner `/oc review` fired reviewer runs 32113190775 in_progress + 32113205511 pending - not re-fired). Architect (Mode 2) NOW ENGAGED via this run (decision `architect` on PR #83) to design M2 on the same branch. Builder will resume via `continue` after the blueprint. No merge (override) - 10.16 bpp is above the 9.61/8.71 target.
+- **M2 implement:** after Architect returns blueprint, Builder resumes (`/oc continue`) on `opencode/issue68-20260818070512`.
 
 ## Issues
 
@@ -41,15 +41,15 @@
 
 ## Next steps
 
-1. **M1 (Builder, #68):** let opencode build run `32109757749` finish and open the single canonical Obsidian PR (branch `opencode/issue68-20260818070512`). Do NOT merge (override). Report real Kodak mean bpp row in that PR.
-2. **Orchestration loop (R+A+B on the ONE PR):** once the M1 PR is open, trigger `architect` ON THE PR (Mode 2) to design the next state-of-the-art milestone; Architect hands back `continue`; Builder implements on the same branch. Re-engage `research` (its docs feed the Architect; do not let it spawn a second codec PR). Loop with Reviewer/Tester gating (bit-exact + Kodak bpp).
-3. **Merge gate (only when target met):** Obsidian Kodak mean bpp < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71 (lossless). Then merge (branch preserved), close #68.
-4. **Fold `gr_unmap` doc correction** (`obsidian/docs/entropy-architecture.md` line 62) into the single PR so spec matches implementation (`-(u>>1)`, not `-(u+1)>>1`).
-5. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command (owner directive). Dispatch Factory when pipeline is quiet.
+1. **Review PR #83** (already in progress via owner `/oc review`) - read-only quality gate; do not merge regardless of outcome (target not met).
+2. **Architect M2 (this run):** `architect` on PR #83 (Mode 2) designs JPEG-LS bias cancellation + run mode + context mixing/LZ77 to clear WebP 9.61 / JPEG XL 8.71. Returns `continue`.
+3. **Builder resumes:** `/oc continue` on `opencode/issue68-20260818070512` implements M2; re-engage `research` for the bias-cancellation / context-mixing bottleneck (feeds Architect, targets existing PR only - no second PR).
+4. **Merge gate (only when target met):** Obsidian Kodak mean bpp < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71 (lossless, bit-exact). Then merge (branch preserved), close #68.
+5. **Fold `gr_unmap` doc correction** (`obsidian/docs/entropy-architecture.md` line 62) into the single PR so spec matches implementation (`-(u>>1)`, not `-(u+1)>>1`).
+6. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command (owner directive). Dispatch Factory when pipeline is quiet.
 
 ## Open questions
 
-- M1: will per-context predictor selection + GR get under WebP 9.61 on real Kodak? M0 already removed expansion (21.3 bpp @ effort 4); M1 must add the efficiency gain. Lands in the single canonical PR (not merged until target).
-- Real Kodak mean bpp row: pending env data/toolchain; must be reported in the single Obsidian PR and is the merge gate.
-- Will the Architect-on-PR (Mode 2) -> continue loop converge to a competitive codec without fracturing into multiple PRs? The auto-chain hazard is mitigated by only triggering R/A against the existing PR.
+- M2: will JPEG-LS-class bias cancellation (dead-zone) + run mode + context mixing / LZ77 get under WebP 9.61 and JPEG XL 8.71 on real Kodak? Residual-entropy floor ~10.1 bpp confirmed; the gap to 9.61 is ~0.45 bpp (within reach); 8.71 needs the extra LZ77/context-mixing lift.
+- Will the Architect-on-PR (Mode 2) -> continue loop converge to a competitive codec without fracturing into multiple PRs? Hazard mitigated by only triggering R/A against the existing PR.
 - Will the durable one-PR + branch-preservation rule (maintainer.md update via Factory PR) land cleanly and stop future multi-PR merges?
