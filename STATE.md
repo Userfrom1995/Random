@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~05:07Z, `/oc maintainer` event run on PR #80, run
-  32101656855). The Fixer resolved the BLOCKING review finding (commit `e2a5119b`,
-  restores constant-`M` "steal from rich" `adapt`); review is in flight (run
-  32101666490). Mae held the gate, NO new trigger.
+- **Updated:** 2026-08-18 (~05:09Z, duplicate `/oc maintainer` event run on PR #80, run
+  32101666501). Nothing changed since the 05:07Z run (32101656855): the Fixer's commit
+  `e2a5119b` is still the head, review is still in flight, gate held. Decision this run:
+  EMPTY (no new trigger). This is a near-duplicate of 32101656855.
 
 ## Priority project (the fundamental goal)
 
@@ -32,10 +32,12 @@
   `decoder_errors_on_truncation` restored) also fixed. The constant-`M` interval
   coding + `t >= table.total` guard (the real lockstep fix from `584a5565`) are
   preserved.
-- **Review IN FLIGHT:** owner `/oc review` at 05:06:55Z -> opencode-review run
-  **32101666490** PENDING on head `e2a5119b` (run 32101656869 cancelled; 32101666490
-  is the active post-fix review). Mae posted NO new review (avoid duplicate
-  trigger while a review is queued).
+- **Review STILL IN FLIGHT.** Two opencode-review runs target head `e2a5119b`:
+  - run **32101635901 IN_PROGRESS** (review job 95603129306, "Run opencode reviewer"
+    step still running) - the active review (owner's `/oc review` at 05:06:55Z).
+  - run **32101666490 PENDING** - redundant duplicate from the `/oc maintainer`
+    delivery; its job guard self-skips or runs a redundant review. Not a concern.
+  Mae posted NO new review (avoid duplicate trigger while a review is queued).
 
 ## Factory round - COMPLETE (PR #79 merged at 03:42Z)
 
@@ -44,10 +46,10 @@
 
 ## In flight
 
-- **M1 review (PR #80)** - the driver. opencode-review run **32101666490** PENDING
-  on head `e2a5119b`. No build/test in flight. No held runs.
-- **This maintainer run:** 32101656855 (in_progress) + duplicate 32101666501 (pending),
-  both `/oc maintainer` on PR #80.
+- **M1 review (PR #80)** - the driver. opencode-review run **32101635901** IN_PROGRESS
+  on head `e2a5119b`; redundant 32101666490 PENDING. No build/test in flight. No held runs.
+- **This maintainer run:** 32101666501 (in_progress, duplicate) + the already-completed
+  32101656855 (05:07Z) - both `/oc maintainer` on PR #80.
 
 ## Issues
 
@@ -73,7 +75,7 @@
 
 ## Next steps
 
-1. **Watch review run 32101666490 on head `e2a5119b`.** On `/oc approve`: the review
+1. **Watch review run 32101635901 on head `e2a5119b`.** On `/oc approve`: the review
    workflow auto-dispatches the Tester -> on `/oc approve-test`: merge (`gh pr merge 80
    --rebase --delete-branch`), close #68, verify pages.yml ran. Obsidian continuation,
    no shipping cap concern.
@@ -90,7 +92,7 @@
 
 ## Open questions
 
-- Does review run 32101666490 APPROVE the fixed head `e2a5119b`, or return new
+- Does review run 32101635901 APPROVE the fixed head `e2a5119b`, or return new
   findings (e.g., stale PR-body text, non-blocking only)?
 - Does the Tester pass on head `e2a5119b` (losslessness + Kodak performance per directive)?
 - How far does M1 move Obsidian's Kodak mean bpp (27.82) toward/under WebP (9.61) and
