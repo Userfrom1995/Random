@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~08:11Z, maintainer run 32115126073). PR #83 (the single canonical Obsidian PR) is OPEN on `opencode/issue68-20260818070512`, head `96a6075`, at 10.16 bpp (PNG gate MET; WebP/JPEG XL PENDING). Review APPROVED, Tester PASSED. Architect (Mode 2) M2 blueprint DELIVERED and sits on the branch. The prior `continue` run SURVEYED ONLY (no code written) - Mae is RE-FIRING `continue` so the Builder actually implements M2-A + M2-B. No merge (override - target not met).
+- **Updated:** 2026-08-18 (~09:20Z, maintainer run 32121074876). PR #83 (the single canonical Obsidian PR) is OPEN on `opencode/issue68-20260818070512`, head `e228850fa15bd9b90312ad865933b7afa23ae09a`, still at **10.16 bpp** (PNG gate MET; WebP/JPEG XL PENDING). Review APPROVED (07:52Z), Tester PASSED (07:55Z). M2 (dead-zone bias + run mode) and M2.5 (context mixing) are IMPLEMENTED but both ship **OFF by default** and do NOT beat v1 on photographic Kodak (10.38 / 11.14 / +0.5% vs 10.16), so production is unchanged. Mae is re-engaging the Architect (Mode 2) on the PR to design **M3 (LZ77 + self-correcting weighted predictor, `GR_LZ`)** - the last roadmap item that can clear WebP 9.61 / JPEG XL 8.71. No merge (override).
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -18,12 +18,14 @@
 
 - **Issue #68 (Obsidian: lossless image codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82, merged 2026-08-18T07:03:12Z, commit `eee5a31`): GR entropy backend, 53/53 tests pass, no expansion. NOT competitive vs WebP 9.61 / PNG 13.05 / JPEG XL 8.71.
-- **M1 OPEN as PR #83** (canonical single PR, branch `opencode/issue68-20260818070512`, head `96a6075` as of this run). Builder's M1 build run `32109757749` opened it. Real Kodak effort-4 results: PPM fix 12.47 bpp -> separate-sign Golomb-Rice 10.19 bpp -> textbook LOCO-I GAP 10.16 bpp. PNG gate (13.05) **MET**; WebP (9.61) + JPEG XL (8.71) **PENDING**.
-- **M2 (Architect blueprint DELIVERED, implementation PENDING):** `obsidian/docs/m2-bias-run-architecture.md` committed on the branch (run `32113387449`, head `96a6075`). Design: M2-A dead-zone bias cancellation (`GrState` gains `bias` + `bias_count`, mirrored, zero model bytes; `|r_raw| <= 2` dead-zone keeps bias 0 on zero-peaked chroma; clamped counter-committed bias in ±16, ±1 every 4 same-sign residuals) + M2-B JPEG-LS-style run mode (per-plane, parameter-free Elias-gamma(runlen), 1-pixel encoder lookahead, decoder copies `prev_val`) + new `GR_M2` header flag (bit 5, 0x20) shipping with `ENTROPY_GR` (old v1 GR streams still decode). Gate target: Kodak effort-4 < 9.71 (JPEG-LS), aim < 9.61 (WebP). Roadmap M2.5 context mixing (~9.0-9.3), M3 LZ77 + self-correcting weighted predictor (`GR_LZ`) to clear JPEG XL 8.71; Design B capped rANS fallback. **NOTE:** the prior `continue` run `32114414253` surveyed the blueprint + codec sources but wrote NO code - M2 is still unimplemented at head `96a6075`.
+- **M1 OPEN as PR #83** (canonical single PR, branch `opencode/issue68-20260818070512`, head `e228850` as of this run). Real Kodak effort-4: PPM fix 12.47 bpp -> separate-sign Golomb-Rice 10.19 bpp -> textbook LOCO-I GAP 10.16 bpp. PNG gate (13.05) **MET**; WebP (9.61) + JPEG XL (8.71) **PENDING**.
+- **M2 IMPLEMENTED, OFF by default (09:05Z, run `32115354125`):** dead-zone bias cancellation (`GrState.bias` + dead-zone `|r_raw| > 2`) + JPEG-LS-style run mode (Elias-gamma, `GR_M2` flag 0x20). Result on real Kodak effort-4: v1 GR 10.1556; run-only 10.38 (+0.22, net-negative); bias+run 11.14 (+0.98). Both seams `OBSIDIAN_M2_BIAS`/`OBSIDIAN_M2_RUN` default OFF, so production unchanged. `gr_unmap` doc bug fixed (`-(u>>1)`).
+- **M2.5 IMPLEMENTED, OFF by default (09:20Z, run `32119799911`):** context mixing (mixture of Rice experts, Hedge-style weights) behind `GR_CM` flag + `OBSIDIAN_CM` seam. Regresses ~0.5% vs v1 on photographic residuals; 65 tests pass. Default OFF -> production unchanged at 10.16 bpp.
+- **M3 (NEXT, PENDING design):** LZ77 back-references + self-correcting weighted predictor (`GR_LZ`) per the Architect's roadmap, to clear WebP 9.61 then JPEG XL 8.71. Design-B capped rANS as fallback.
 
 ## In flight
 
-- **PR #83 (single canonical Obsidian PR):** Review APPROVED (07:52Z). Tester PASSED (07:55Z, 8000 fuzz round-trips bit-exact, 52 tests green). Architect (Mode 2) DELIVERED blueprint (07:58Z, run `32113387449`, head `96a6075`). **M2 NOT YET IMPLEMENTED.** Mae is RE-FIRING `/oc continue` (this run, run `32115126073`) to get the Builder to actually land M2-A + M2-B on the same branch. No merge (override) - 10.16 bpp clears PNG but not WebP/JPEG XL (owner override).
+- **PR #83 (single canonical Obsidian PR):** Review APPROVED (07:52Z). Tester PASSED (07:55Z). M2 + M2.5 IMPLEMENTED on-branch (head `e228850`), both OFF-by-default, production 10.16 bpp. **Builder's latest `continue` (M2.5) completed** (run `32119799911`, 09:20Z) and asked "next? - start M3 or open for review?". Mae is re-engaging the **Architect (Mode 2)** on this PR to design M3 (no in-flight architect run right now). No merge (override) - 10.16 bpp clears PNG but not WebP/JPEG XL.
 
 ## Issues
 
@@ -40,16 +42,15 @@
 
 ## Next steps
 
-1. **Builder implements M2 (re-fired `continue`):** M2-A dead-zone bias cancellation + M2-B run mode per blueprint on `opencode/issue68-20260818070512`; re-benchmark real Kodak effort-4; fold in `gr_unmap` doc correction.
-2. **Re-engage `research`** for the bias-cancellation / context-mixing bottleneck if the Builder stalls (feeds Architect, targets existing PR only - no second PR).
-3. **After M2 lands:** re-engage `architect` (Mode 2) for M2.5 context mixing / M3 LZ77 if M2 alone does not clear WebP 9.61.
+1. **Architect designs M3 (this run, `architect` on PR #83):** LZ77 back-references + self-correcting weighted predictor (`GR_LZ`), targeting WebP 9.61 first then JPEG XL 8.71; Design-B capped rANS fallback. Returns `continue` for the Builder on the same branch. No second PR.
+2. **Builder implements M3 (via `continue`),** re-benchmarks real Kodak effort-4; keep M2/M2.5 seams intact (default OFF, no v1 regression).
+3. **Re-engage `research`** for the LZ77 match-finding / weighted-predictor bottleneck if the Builder stalls (feeds Architect, targets existing PR only - no second PR).
 4. **Merge gate (only when target met):** Obsidian Kodak mean bpp < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71 (lossless, bit-exact). Then merge (branch preserved), close #68.
-5. **Fold `gr_unmap` doc correction** (`obsidian/docs/entropy-architecture.md` line 62) into the single PR so spec matches implementation (`-(u>>1)`, not `-(u+1)>>1`).
+5. **Verify README + index.html** still promote Obsidian as Current on every Obsidian advance.
 6. **Factory PR to harden maintainer.md** - remove `--delete-branch` from the documented merge command (owner directive). Dispatch Factory when pipeline is quiet.
 
 ## Open questions
 
-- Will the re-fired `continue` actually land M2 (bias cancellation + run mode) this time? The blueprint is on-branch and the Builder confirmed it read the sources; implementation is the only remaining step before re-benchmark.
-- M2: will dead-zone bias cancellation + run mode get under WebP 9.61 / JPEG-LS 9.71 on real Kodak? Residual floor ~10.1 bpp; ~0.45 bpp gap to WebP looks reachable with run mode alone; 8.71 needs M2.5 context mixing / M3 LZ77 lift.
+- M3 LZ77 + weighted predictor: can it clear WebP 9.61 on real Kodak (residual floor ~10.1 bpp; needs ~0.5 bpp of match/context lift), then JPEG XL 8.71 (needs ~1.45 bpp)? M2/M2.5 both failed to help photographic data, so M3 is now the only roadmap path to the gates.
 - Will the Architect-on-PR (Mode 2) -> continue loop converge to a competitive codec without fracturing into multiple PRs? Hazard mitigated by only triggering R/A against the existing PR.
 - Will the durable one-PR + branch-preservation rule (maintainer.md update via Factory PR) land cleanly and stop future multi-PR merges?
