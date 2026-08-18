@@ -4,7 +4,7 @@
 use crate::color::{
     subtract_green_inverse_planes, ycocgr_inverse_planes, PlaneRange, TransformChoice,
 };
-use crate::context::{unzigzag, ContextModel};
+use crate::context::{residual_context_for, unzigzag, ContextModel};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::Header;
@@ -416,9 +416,12 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 } else {
                     cmarc_bins_per_ctx(mag_bits)
                 };
+                // R3-A: size the CMARC model/ctx tables by the residual-context
+                // count, decoupled from the gradient `context_count`.
+                let rc_count = cm.rc_count();
                 let mut models: Vec<BinModel> = vec![
                     BinModel::new();
-                    model.context_count * bins_per_ctx
+                    rc_count * bins_per_ctx
                 ];
                 // Seed per-`(cid, bin)` static priors when present (R1-c). The
                 // priors are stored as `(n1, n0)` count pairs indexed by `cid *
@@ -446,7 +449,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         }
                     }
                 }
-                let mut ctxs: Vec<CarcCtx> = (0..model.context_count)
+                let mut ctxs: Vec<CarcCtx> = (0..rc_count)
                     .map(|_| CarcCtx::new())
                     .collect();
                 if is_lz {
@@ -462,7 +465,22 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let x = i % width;
                         let y = i / width;
                         let nb = neighbors(&plane, x, y, width, height);
-                        let cid = cm.context_id(&nb, x, y) % model.context_count;
+                        let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                        // R3-A: residual-coding (and match-flag) context is the DIFF
+                        // context; the decoder's reconstructed prefix equals the
+                        // encoder's source by induction, so the context matches.
+                        let cid = residual_context_for(
+                            &cm,
+                            &model,
+                            &plane,
+                            x,
+                            y,
+                            width,
+                            height,
+                            wv.as_ref(),
+                            ranges[pi],
+                            pi,
+                        );
                         let slot = cid * bins_per_ctx;
                         let is_match = dec.get(&mut cbr, &mut models[slot + CMARC_LZ_FLAG])?;
                         if is_match {
@@ -493,7 +511,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             }
                             i += len;
                         } else {
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor(pi, grad_cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
@@ -520,9 +538,22 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         for x in 0..width {
                             let idx = y * width + x;
                             let nb = neighbors(&plane, x, y, width, height);
-                            let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                            let p = model.predictor(pi, grad_cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            // R3-A: residual-coding context is the DIFF context.
+                            let cid = residual_context_for(
+                                &cm,
+                                &model,
+                                &plane,
+                                x,
+                                y,
+                                width,
+                                height,
+                                wv.as_ref(),
+                                ranges[pi],
+                                pi,
+                            );
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
                                 &mut cbr,
@@ -542,9 +573,22 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         for x in 0..width {
                             let idx = y * width + x;
                             let nb = neighbors(&plane, x, y, width, height);
-                            let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                            let p = model.predictor(pi, grad_cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            // R3-A: residual-coding context is the DIFF context.
+                            let cid = residual_context_for(
+                                &cm,
+                                &model,
+                                &plane,
+                                x,
+                                y,
+                                width,
+                                height,
+                                wv.as_ref(),
+                                ranges[pi],
+                                pi,
+                            );
                             let r = cmarc_read_residual(
                                 &mut dec,
                                 &mut cbr,
@@ -1356,9 +1400,77 @@ mod tests {
         let decoded = decode(&bytes).unwrap();
         assert_eq!(decoded, img);
     }
+
+    #[test]
+    fn r3a_residual_context_forced_roundtrip() {
+        // R3-A conditions the CMARC residual coder on the JPEG-LS DIFF context
+        // (already-coded neighbor residuals). This test forces plain CMARC
+        // selection so the R3-A residual-context encode AND decode paths are
+        // exercised end-to-end on a Kodak-sized photographic proxy, proving the
+        // encoder/decoder compute identical `cid`s (bit-exact lockstep). The
+        // compression delta vs GR is measured on the real Kodak corpus (absent
+        // in this build env); the never-expand safety net keeps CMARC from
+        // shipping when it does not beat the model's best GR backend, so forcing
+        // here is purely a decode-path correctness check.
+        let w = 768usize;
+        let h = 512usize;
+        let mut img = Image::new(w as u32, h as u32, Channels::Rgb).unwrap();
+        let mut s = 1337u64;
+        let mut rng = || {
+            s = s.wrapping_mul(6364136223846793005).wrapping_add(1);
+            s
+        };
+        let tones: Vec<(f64, f64, f64, f64, f64, f64)> = (0..3)
+            .map(|c| {
+                (
+                    1.0 + (rng() % 5) as f64 * 0.5,
+                    1.0 + (rng() % 5) as f64 * 0.5,
+                    (rng() % 1000) as f64 / 1000.0 * 6.283,
+                    (rng() % 1000) as f64 / 1000.0 * 6.283,
+                    40.0 + (rng() % 60) as f64,
+                    90.0 + (rng() % 80) as f64,
+                )
+            })
+            .collect();
+        let objs: Vec<(usize, usize, usize, usize, i32)> = (0..4)
+            .map(|_| {
+                (
+                    rng() as usize % w,
+                    rng() as usize % h,
+                    8 + rng() as usize % (w / 3),
+                    8 + rng() as usize % (h / 3),
+                    (rng() % 200) as i32,
+                )
+            })
+            .collect();
+        let noise = 1.5f64;
+        for c in 0..3 {
+            let (fx, fy, px, py, amp, base) = tones[c];
+            for y in 0..h {
+                for x in 0..w {
+                    let mut v = base
+                        + amp * ((fx * x as f64 / w as f64 * 6.283 + px).sin()
+                            + (fy * y as f64 / h as f64 * 6.283 + py).sin());
+                    for (ox, oy, ow, oh, sh) in &objs {
+                        if x >= *ox && x < ox + ow && y >= *oy && y < oy + oh {
+                            v += *sh as f64 * 0.3;
+                        }
+                    }
+                    v += (((rng() % 17) as f64) - 8.0) * noise;
+                    img.planes[c][y * w + x] = v.clamp(0.0, 255.0) as u8;
+                }
+            }
+        }
+        std::env::set_var("OBSIDIAN_CARC", "1");
+        std::env::set_var("OBSIDIAN_CARC_FORCE", "1");
+        let (carc_bytes, _) = encode(&img, 4).unwrap();
+        std::env::remove_var("OBSIDIAN_CARC_FORCE");
+        std::env::remove_var("OBSIDIAN_CARC");
+        // Forced CMARC with the R3-A residual context must still round-trip
+        // bit-exactly through the dedicated decode branch.
+        assert_eq!(decode(&carc_bytes).unwrap(), img, "R3-A forced must round-trip");
+    }
 }
-
-
 
 
 

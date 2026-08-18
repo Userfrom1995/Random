@@ -7,7 +7,7 @@
 use crate::color::{
     try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, Palette, PlaneRange, TransformChoice,
 };
-use crate::context::{zigzag, ContextModel, ContextParams};
+use crate::context::{residual_context_for, zigzag, ContextModel, ContextParams};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::{Header, HEADER_LEN};
@@ -380,6 +380,12 @@ pub fn encode_with(
     // Test-only seam: force CARC_MIX selection (mirrors `OBSIDIAN_CARC_LZ_FORCE`)
     // so the R2.4 decode branch is exercised end-to-end.
     let force_carc_mix = std::env::var("OBSIDIAN_CARC_MIX_FORCE").ok().as_deref() == Some("1");
+    // Test-only seam: force plain CARC (R3-A residual-context) selection even if
+    // it is not the smallest candidate, so the R3-A decode path and its
+    // compression delta can be measured directly on synthetic proxies (the real
+    // WebP/JPEG XL gates still require the Kodak corpus). Never used in
+    // production: the never-expand net still governs shipping output.
+    let force_carc = std::env::var("OBSIDIAN_CARC_FORCE").ok().as_deref() == Some("1");
     // Capture the backend the model would have chosen without CMARC. The CMARC
     // safety net must beat THIS candidate, not just plain v1 GR, or enabling
     // CMARC would regress the file versus the production backend selection.
@@ -535,7 +541,7 @@ pub fn encode_with(
             ENTROPY_MODE_GR
         };
         let mut best_coded = if cm_total <= v1_total {
-            coded
+            coded.clone()
         } else {
             v1_coded
         };
@@ -611,6 +617,16 @@ pub fn encode_with(
                 best_gr_lz = false;
                 best_gr_m2 = false;
             }
+        }
+        // R3-A verification seam: force plain CARC selection so its compression
+        // delta (and decode path) can be measured directly, bypassing the
+        // never-expand net. Not used in production output.
+        if force_carc && !force_carc_lz && !force_carc_mix {
+            best_mode = ENTROPY_MODE_CARC;
+            best_coded = coded;
+            best_gr_cm = false;
+            best_gr_lz = false;
+            best_gr_m2 = false;
         }
         coded = best_coded;
         model.entropy_mode = best_mode;
@@ -721,6 +737,7 @@ pub fn encode_with(
 
 /// Result of the rANS coding pass: the per-plane streams and the predictor
 /// usage counts.
+#[derive(Clone)]
 struct CodedPlanes {
     streams: Vec<Vec<u8>>,
     chosen_counts: [usize; PREDICTOR_COUNT],
@@ -843,9 +860,14 @@ fn code_planes(
                 } else {
                     cmarc_bins_per_ctx(mag_bits)
                 };
+                // R3-A: the CMARC residual-coding context is the JPEG-LS DIFF
+                // context (neighbor residuals), which has its own count `rc_count`
+                // decoupled from the gradient `context_count` that selects the
+                // predictor. Size the model/ctx tables by `rc_count`.
+                let rc_count = cm.rc_count();
                 let mut models: Vec<BinModel> =
-                    vec![BinModel::new(); model.context_count * bins_per_ctx];
-                let mut ctxs: Vec<CarcCtx> = (0..model.context_count)
+                    vec![BinModel::new(); rc_count * bins_per_ctx];
+                let mut ctxs: Vec<CarcCtx> = (0..rc_count)
                     .map(|_| CarcCtx::new())
                     .collect();
                 let mut enc = RangeEnc::new();
@@ -878,7 +900,12 @@ fn code_planes(
                         let x = i % width;
                         let y = i / width;
                         let nb = neighbors(buf, x, y, width, height);
-                        let cid = cm.context_id(&nb, x, y) % model.context_count;
+                        // Predictor selection still uses the gradient context.
+                        let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                        // R3-A: the residual (and match-flag) coding context is the
+                        // JPEG-LS DIFF context of the neighbor residuals.
+                        let cid =
+                            residual_context_for(&cm, &model, buf, x, y, width, height, wv.as_ref(), ranges[pi], pi);
                         let slot = cid * bins_per_ctx;
                         match m {
                             Some((offset, length)) => {
@@ -915,7 +942,7 @@ fn code_planes(
                                     &mut models[slot + CMARC_LZ_FLAG],
                                     false,
                                 );
-                                let p = model.predictor(pi, cid);
+                                let p = model.predictor(pi, grad_cid);
                                 let pred =
                                     predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                                 let r = buf[i] as i32 - pred;
@@ -947,10 +974,23 @@ fn code_planes(
                         for x in 0..width {
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
-                            let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                            let p = model.predictor(pi, grad_cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
+                            // R3-A: residual-coding context is the DIFF context.
+                            let cid = residual_context_for(
+                                &cm,
+                                &model,
+                                &coding_planes[pi],
+                                x,
+                                y,
+                                width,
+                                height,
+                                wv.as_ref(),
+                                ranges[pi],
+                                pi,
+                            );
                             cmarc_mix_write_residual(
                                 &mut enc,
                                 &mut cbw,
@@ -971,10 +1011,25 @@ fn code_planes(
                         for x in 0..width {
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
-                            let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let grad_cid = cm.context_id(&nb, x, y) % model.context_count;
+                            let p = model.predictor(pi, grad_cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
+                            // R3-A: the residual-coding context is the JPEG-LS
+                            // DIFF context (already-coded neighbor residuals), not
+                            // the predictor-selection gradient context.
+                            let cid = residual_context_for(
+                                &cm,
+                                &model,
+                                &coding_planes[pi],
+                                x,
+                                y,
+                                width,
+                                height,
+                                wv.as_ref(),
+                                ranges[pi],
+                                pi,
+                            );
                             cmarc_write_residual(
                                 &mut enc,
                                 &mut cbw,
