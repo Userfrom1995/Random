@@ -1,21 +1,19 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-17 (~23:52Z event run 32082224130, PR #78 created by the
-  Builder at 23:51:35Z for checklist 10). The Builder LANDED the Obsidian
-  benchmark harness + reference baseline + first Kodak row on PR #78 (head
-  `e91d902a`, MERGEABLE/CLEAN). The owner posted `/oc review` at 23:51:46Z ->
-  opencode-review run 32082213271 is IN_PROGRESS. No duplicate dispatch made.
+- **Updated:** 2026-08-17 (~23:58Z event run 32082522931, PR #78). Reviewer
+  round 2 APPROVED the fixed head `06a1494` (all 3 round-1 findings applied by
+  the Fixer); the owner posted `/oc test` -> Tester run 32082601663 IN_PROGRESS.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #77 Obsidian checklist 10 (benchmark harness + reference baseline +
-  first Kodak row).** OPEN, PR #78 references `Closes #77`. PR #78 adds:
-  `obsidian/benchmarks/run_kodak.sh`, `fuzz_gate.sh`, `aggregate.py`,
-  `build_toolchain.sh` + `toolchain.md`, pinned Kodak manifest
+  first Kodak row).** OPEN, PR #78 references `Closes #77`. PR #78 head
+  `06a1494` on `opencode/issue68-20260817231515` (MERGEABLE/CLEAN) carries the
+  full harness: `obsidian/benchmarks/run_kodak.sh`, `fuzz_gate.sh`,
+  `aggregate.py`, `build_toolchain.sh` + `toolchain.md`, pinned Kodak manifest
   (`data/kodak.sha256`, PCD0992 24x 768x512 P6 PPM), result CSV
   (2026-08-17-v1.csv, 7 codecs x 24 images, 168 fidelity-gated rows),
   reference-baseline CSV, README, docs/progress/ideas updates.
-  Progress file checklist: item 10 now `[x]`.
 - **First Obsidian Kodak row: 27.8226 mean bpp (effort 4)**, bit-exact through
   the gate but not competitive. Reference figures land within ~0.5% of the
   independent WangXuan95 2024 benchmark on the same corpus (harness is honest).
@@ -27,13 +25,12 @@
 
 ## In flight
 
-- **Review on PR #78** (run 32082213271, owner's `/oc review` 23:51:46Z) -
-  IN_PROGRESS. Shepherding review -> test -> merge. A duplicate opencode-review
-  run 32082224144 spawned by the preview comment sits `pending` with zero jobs
-  (job guard self-skips).
-- **pages.yml**: run 32082202250 (pull_request) deployed the PR preview
-  (preview/pr-78 live); a workflow_dispatch run 32082225006 completed/success
-  on main.
+- **Test on PR #78** (run 32082601663, owner's `/oc test` 23:57:29Z) -
+  IN_PROGRESS on head `06a1494`. On `/oc approve-test`: merge, close #77,
+  verify pages.yml, then route `factory`.
+- **Review loop closed**: round 1 `/oc fix` (3 findings) -> Fixer applied all 3
+  -> round 2 `/oc approve` (23:57:28Z). No outstanding findings.
+- **pages.yml**: preview runs completed success for the PR head pushes.
 
 ## Issues
 
@@ -44,7 +41,7 @@
   the build-verify baseline false positive (#72 BUILD-job gap) plus the
   fix-trigger guard relaxation (opencode.yml fix job requires an EXACT
   `/oc fix`; the Reviewer/Tester's findings comments don't match). Dispatch
-  `factory` once no opencode build/review/test is in flight.
+  `factory` once PR #78 lands and no opencode build/review/test is in flight.
 
 ## Reviewer/Tester/model status
 
@@ -52,18 +49,17 @@
   opencode/deepseek-v4-flash-free`, `small_model: opencode/mimo-v2.5-free`.
   Reviewer/test/factory jobs on mimo-v2.5-free; all agent steps 60m. No
   CreditsError expected.
-- **Reviewer/Tester gates** all passed on PR #76 (round 5 approve ->
-  approve-test -> merged).
+- **Reviewer/Tester gates** passed on PR #76 (round 5 approve -> approve-test
+  -> merged) and are mid-flight on PR #78.
 
 ## Next steps
 
-1. **Watch PR #78** for the reviewer's decision. On `/oc approve`: review
-   workflow auto-dispatches the Tester (losslessness AND Kodak performance per
-   owner's directive). On `/oc approve-test`: merge
-   (`gh pr merge 78 --rebase --delete-branch`), close #77, verify pages.yml,
-   then route `factory` for the verify-baseline bug (safe then).
-2. **On `/oc fix`**: the Fixer applies findings; re-dispatch `review` after the
-   fix push (opencode-review fires on `/oc review`).
+1. **Watch the Tester on PR #78** (run 32082601663, head `06a1494`). On `/oc
+   approve-test`: merge (`gh pr merge 78 --rebase --delete-branch`), close #77,
+   verify pages.yml, then route `factory` for the verify-baseline bug +
+   fix-trigger guard (safe then - no build/review/test in flight).
+2. **On `/oc fix` from the Tester**: the Fixer applies findings; re-dispatch
+   `review` after the fix push (opencode-review fires on `/oc review`).
 3. **Kodak iteration (M1-M3)**: once the first Obsidian Kodak row is recorded,
    drive predictor/context improvements to beat WebP/PNG (M1), then close in on
    JPEG XL (M2/M3). Owner's directive: keep iterating until Obsidian wins.
@@ -76,9 +72,8 @@
 
 ## Open questions
 
-- Reviewer on PR #78: approve or fix? (Harness design: are the reference
-  figures and fidelity gate sound?)
 - Does the Tester's round cover losslessness AND Kodak performance (owner's
-  directive) and pass on head `e91d902a`?
+  directive) and pass on head `06a1494`?
 - How close is Obsidian's first Kodak row to WebP/PNG and JPEG XL (M1-M3 gap)?
-- Factory round timing: dispatch as soon as no opencode workflow is in flight.
+- Factory round timing: dispatch as soon as PR #78 lands and no opencode
+  workflow is in flight.
