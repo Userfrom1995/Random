@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-18 (~20:00Z, maintainer run 32179754782, owner `/oc maintainer` on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resumed the Builder on the single branch to implement R4 from the now-delivered CONCRETE coder reference. No duplicate: the Architect run `32179249366` completed at 19:54:25Z, delivering the reference; no opencode `continue` was in flight.
+- **Updated:** 2026-08-18 (~20:36Z, maintainer run 32183165907, owner `/oc maintainer` on PR #83). **DECISIONS:** `[{"action":"architect","pr":83}]` - re-engaged the Architect (Mode 2) on the single PR to deliver a CORRECTED, actually-tested range coder reference, because the prior "concrete" R4 reference (commit `53d63e4`) is itself defective (its `shift_low` masks `low` to 32 bits, discarding the LZMA carry accumulator, so the encoder byte count never matches the decoder -> "10 emits vs 43 reads"). Did NOT fire `continue` (would be a 5th blind re-copy of the broken spec) or `factory` (codec-design defect, not an infra/timeout truncation).
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,28 +16,30 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break STILL OPEN; rebase deferred)
 
-- **Mergeability (BROKEN):** PR #83 OPEN, head `53d63e4363fa` ("architect: R4 revised - byte-oriented LZMA range coder, exact buildable spec + efficiency gate"), `mergeable: CONFLICTING`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY (verified live this run); `main` (`e4e3392`, single orphan commit) is NOT an ancestor of the branch. This blocks the eventual `--rebase` merge.
-- **OWNER-MANDATED REPAIR (16:51Z, MANY runs overdue):** the Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` (replay all codec commits on top of `e4e3392`, preserving every commit's work) and force-push the SAME branch - NO new PR. The Factory is deliberately NOT used for the rebase (its prior squash-rebase opened redundant PR #84 and re-orphaned `main`, violating the one-PR rule). This is deferred until after the coder is fixed; non-blocking now because the performance gate is unmet.
+- **Mergeability (BROKEN):** PR #83 OPEN, head `36ec55330daf91a604cb88d9fd549a942b9d279e` ("Bug: 10 emits vs 43 reads; byte accounting desync."), `mergeable: CONFLICTING`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY (verified live this run); `main` (`e4e3392`, single orphan commit) is NOT an ancestor of the branch. This blocks the eventual `--rebase` merge.
+- **Owner-mandated repair (16:51Z, MANY runs overdue):** the Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` (replay all codec commits on top of `e4e3392`, preserving every commit's work) and force-push the SAME branch - NO new PR. The Factory is deliberately NOT used for the rebase (its prior squash-rebase opened redundant PR #84 and re-orphaned `main`, violating the one-PR rule). Deferred until after the coder is fixed; non-blocking now because the performance gate is unmet.
 - **Measurement blocker (RESOLVED):** `obsidian/benchmarks/data/kodak/` PPMs ARE PRESENT and tracked in git (kodim01..24.ppm). `run_kodak.sh` self-provisions + verifies against `kodak.sha256`. R4 re-measurement on REAL Kodak is possible. Earlier "10.0906 bpp" was GR-fallback only (CMARC explodes until the coder is fixed).
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
-- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `53d63e4`). Root-cause PPM-scramble fix landed; codec bit-exact. Corrected real-Kodak baseline (effort 4) = **10.16 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by 0.45; JPEG XL 8.71 MISSED by 1.45).
+- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `36ec553`). Root-cause PPM-scramble fix landed; codec bit-exact. Corrected real-Kodak baseline (effort 4) = **10.16 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by 0.45; JPEG XL 8.71 MISSED by 1.45).
 - **CMARC stack (R1 -> R2.4) + R3 built, all OFF by default.** On real Kodak CMARC itself EXPLODES (21-27 bpp forced) - the never-expand net falls back to GR, so every quoted "best" number (10.09, 10.16) was GR all along. CMARC has never beaten GR because the shared binary coder is **lossless but does NOT compress** (p=0.1 -> 1.745 bps vs 0.469 Shannon = 3.72x; p=0.01 -> 3.348 vs 0.081 = 41x).
-- **R4 (correct arithmetic coder + mandatory <1.10x efficiency gate): ARCHITECT ESCALATION DELIVERED.** Run `32179249366` (ARCHITECT Mode 2 on PR #83) COMPLETED (19:54:25Z, 5m25s) and pushed `53d63e4`. `obsidian/docs/architect-r4-binary-coder-blueprint.md` is rewritten as a **buildable, copy-pasteable spec**: ONE correct byte-oriented carryless LZMA range coder (`RangeEnc`/`RangeDec` owning its own `Vec<u8>`/`&[u8]` buffer, 32-bit `range`, 64-bit `low` carry accumulator, `ShiftLow` renorm, `finish` = 5 `shift_low`, decoder seeds `code` from the first 5 bytes), the `[carc_len: u32 LE][carc_bytes]` serialization contract decoupling it from `BitWriter`, and the MANDATORY efficiency gate (remove `#[ignore]` from `range_coder_skew_efficiency`; `cmarc_efficiency_vs_shannon` already asserts `bps/shannon < 1.10`). Replaces `RcEnc`/`RcDec` (WNC) and `BinEnc`/`BinDec`. The GR default path is untouched. This makes the root cause regression-proof (broken coders scored 3.7-41x; the gate allows 1.10x).
-- **Builder `continue` (this run):** implements R4 from the concrete reference - drop `BitWriter`/`BitReader` from carc call sites, adopt `RangeEnc`/`RangeDec` + `[len][bytes]` framing, remove `#[ignore]` from the efficiency test, get `cargo test -p obsidian_core` green, commit a clean R4; then re-measures R1/R2/R3 on REAL Kodak effort-4 (target < 9.71 JPEG-LS, ideally < 9.61 WebP, then < 8.71 JPEG XL) and reports honestly; then rebases the branch onto `origin/main` + force-pushes the SAME branch.
+- **R4 (correct arithmetic coder + mandatory <1.10x efficiency gate): FOURTH FAILURE, root-caused to the blueprint reference itself.** The "concrete copy-paste" reference delivered by the Architect (commit `53d63e4`, `architect-r4-binary-coder-blueprint.md`) is defective: its `RangeEnc::shift_low` does `self.low = (self.low << 8) & 0xFFFF_FFFF`, masking `low` to 32 bits every call and discarding the LZMA carry accumulator; `(self.low >> 32)` is then dead code, so the encoder emits a byte count that does not match the decoder's expectation ("10 emits vs 43 reads"). The `[carc_len u32 LE][carc_bytes]` framing in encoder.rs/decoder.rs is correct; the defect is inside the coder reference. The Builder's `continue` (from run 32179754782) copied it and pushed `36ec553` (a WIP bug state). This is why all four R4 attempts (LZMA -> WNC ~2x -> bit-sync -> byte-accounting) failed.
+- **Architect (this run) re-engaged (Mode 2, PR #83):** deliver a CORRECTED, actually-tested range coder reference - true 64-bit `low` carry accumulator (do NOT mask to 32 bits each `shift_low`; emit `(low >> 32) as u8` and keep only the low 32 bits for the next renorm), encoder/decoder byte counts provably equal, and which passes the mandatory `measured_bps / shannon_bps < 1.10` efficiency gate AND a real round-trip test BEFORE pushing. The Builder resumes via `continue` once it lands.
 
 ## In flight
 
-- **Builder `continue` (this run 32179754782 -> run after decision posted):** implement R4 (correct coder <1.10x + drop BitWriter + efficiency gate + green tests + clean commit), re-measure R1/R2/R3 on REAL Kodak, then rebase onto `origin/main` + force-push SAME branch.
+- **Architect (this run 32183165907 -> Architect run after decision posted):** deliver the corrected, tested range coder reference on the single branch `opencode/issue68-20260818070512`. Returns `continue` for the Builder after the reference lands.
+- **No Builder `continue` in flight** (the last one produced `36ec553` and stopped; this run did not re-fire it).
 
 ## PENDING (deferred to a quiet run)
 
 - **README / index.html Obsidian promotion.** `README.md` has no Obsidian mention; `index.html` lists Meridian as Current. Needs a Builder/Factory content pass (NOT a Mae direct edit to `main`).
 - **Branch rebase onto `main` (owner 16:51Z):** deferred until after R4 coder fixed; then Builder force-pushes the SAME branch, verify MERGEABLE.
-- **Factory infra hardening:** raise build `timeout-minutes` (opencode.yml, currently 60) so long R4 sessions stop truncating at 60m; harden `continue-on-error` so a masked failure fails the run. Re-engage `factory` ONLY if the 60-min window again truncates the coder work. R4 has timed out twice before on abstract specs; escalation re-armed: if THIS `continue` also fails/truncates, the NEXT Mae run MUST dispatch `factory`. (#84 closed; one-PR rule enforced.)
+- **Factory infra hardening:** raise build `timeout-minutes` (opencode.yml) only if a future `continue` again truncates at 60m; harden `continue-on-error` so a masked failure fails the run. NOT triggered this run (the failure was a design defect, not a timeout).
+- **Re-armed escalation clarified:** the prior "factory on timeout" trigger is specific to 60-min truncation. This run's failure was a defective reference, so the Architect (not Factory) is the correct escalation.
 
 ## Issues
 
@@ -48,25 +50,26 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** main workflow agent steps (factory/review/test) pin `opencode/hy3-free`. `opencode.json` `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). main currently = `e4e3392 factory: upgrade reviewer/tester/factory models from mimo-v2.5-free to hy3-free` - the earlier `CreditsError` billing outage is RESOLVED.
-- **Mergeability:** PR #83 OPEN, head `53d63e4`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; rebase deferred to after R4 coder fix).
+- **Mergeability:** PR #83 OPEN, head `36ec553`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; rebase deferred to after R4 coder fix).
 - Next Sunday 2026-08-23: weekly free-model upgrade check.
 
 ## Next steps
 
-1. **Builder `continue` (this run):** finish R4 from the concrete reference (coder <1.10x + efficiency gate + drop BitWriter + green `cargo test -p obsidian_core` + clean commit).
-2. **Re-measure R1/R2/R3 on REAL Kodak effort-4** (data durably in git): target < 9.71 JPEG-LS, ideally < 9.61 WebP, then < 8.71 JPEG XL. Record `benchmarks/results/2026-08-18-real-kodak-r4.csv`.
-3. **Builder rebases branch onto `origin/main`** + force-pushes the SAME branch (clear CONFLICTING, preserve all codec work, no new PR).
-4. **After a reproducible real-Kodak number below all three gates:** branch already rebase-mergeable, then rebase-merge (`--no-delete-branch` per owner directive), close #68.
-5. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
-6. **If THIS `continue` fails/truncates:** next Mae run MUST dispatch `factory` (timeout raise / faster model) before re-resuming.
+1. **Architect (in flight):** deliver the corrected, tested range coder reference (true 64-bit carry accumulator; passes <1.10x efficiency gate + round-trip before push) to `opencode/issue68-20260818070512`.
+2. **Builder `continue` (after Architect lands):** integrate the corrected coder (replace `RcEnc`/`RcDec` + `BinEnc`/`BinDec` with the fixed `RangeEnc`/`RangeDec`; drop `BitWriter`/`BitReader` from carc call sites; adopt `[carc_len][carc_bytes]` framing already in place), land the mandatory efficiency-gate test (remove `#[ignore]`), get `cargo test -p obsidian_core` green, commit a clean R4.
+3. **Re-measure R1/R2/R3 on REAL Kodak effort-4** (data durably in git): target < 9.71 JPEG-LS, ideally < 9.61 WebP, then < 8.71 JPEG XL. Record `benchmarks/results/2026-08-18-real-kodak-r4.csv`. Never fake a number.
+4. **Builder rebases branch onto `origin/main`** + force-pushes the SAME branch (clear CONFLICTING, preserve all codec work, no new PR).
+5. **After a reproducible real-Kodak number below all three gates:** branch already rebase-mergeable, then rebase-merge (`--no-delete-branch` per owner directive), close #68.
+6. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
+7. **If the corrected reference ALSO fails to let the Builder land R4:** next Mae run should escalate harder (consider Researcher for an independent correct coder design, and/or Factory for a faster free model / longer timeout) before re-resuming.
 
 ## Open questions
 
-- **Will the Builder land R4 (<1.10x efficiency + green tests + efficiency gate) within the 60-min window now that a concrete copy-paste reference exists?** If it truncates, next run dispatches `factory`.
+- **Will the corrected Architect reference (true 64-bit carry accumulator, verified <1.10x efficiency + round-trip before push) let the Builder land R4?** The prior reference was the proven bottleneck; a corrected, tested one is the right escalation. Watch the Architect run for its push.
 - **Will a correctly-compressing CMARC reach JPEG-LS-class (9.71) or better on REAL Kodak?** Predictor is sound (same LOCO-I GAP); broken coder was the proven 3.7-41x-over-Shannon bottleneck. Awaits R4 completion + re-measurement.
 - **Will the branch rebase onto `main` succeed (preserving all codec work) and make PR #83 MERGEABLE without a new PR?** Owner-requested 16:51Z, many runs overdue. Verify next survey (`merge-base` non-empty, `gh pr view 83` MERGEABLE, no new issue68 codec PR).
-- **One-PR integrity:** #83 sole canonical Obsidian PR; #84 confirmed CLOSED; no new issue68 codec PR opened.
+- **One-PR integrity:** #83 sole canonical Obsidian PR; #84 confirmed CLOSED; no new issue68 codec PR.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
-- **Factory infra hardening:** timeout-raise / continue-on-error hardening still pending (deferred); reassess after the Architect/Builder finish R4.
+- **Factory infra hardening:** timeout-raise / continue-on-error hardening still pending (deferred); reassess only if a future `continue` truncates at 60m.
 
 - Mae, the Maintainer
