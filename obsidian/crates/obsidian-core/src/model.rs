@@ -45,6 +45,13 @@ pub const ENTROPY_MODE_CARC_LZ: u8 = 3;
 /// R1 + R2.1/2.2 + R2.4: CMARC + cross-channel + expanded predictor bank +
 /// logistic mixing. Planned (R2); reserved here so streams decode.
 pub const ENTROPY_MODE_CARC_MIX: u8 = 4;
+/// R6-B color cache (Component A): CMARC residuals with a per-plane LRU color
+/// cache of reconstructed sample values. A literal whose value hits the cache is
+/// coded as a `cache_flag` (1) plus a small cache-index code, instead of the full
+/// residual, exploiting the repeated-value redundancy WebP/JPEG XL use. Signaled
+/// via `entropy_mode` (no header flag bit), so every legacy stream still decodes.
+/// See `obsidian/docs/architect-r6-corrected-blueprint.md` Component A.
+pub const ENTROPY_MODE_CARC_CACHE: u8 = 6;
 
 /// The complete signaled model.
 pub struct ModelConfig {
@@ -89,6 +96,13 @@ pub struct ModelConfig {
     /// wins, so a regression can never ship. Mirrored: both sides read it from
     /// the model (zero extra header bit).
     pub cmarc_run: bool,
+    /// R6-B color cache (Component A): per-plane LRU of reconstructed sample values.
+    /// When set, the CMARC coding pass maintains the LRU and codes a literal whose
+    /// value hits the cache as a `cache_flag` + small index instead of the full
+    /// residual. Signaled in the model section; the never-expand safety net keeps
+    /// it on only when it actually wins, so a regression can never ship. Mirrored:
+    /// both sides read it from the model (zero extra header bit).
+    pub cmarc_use_color_cache: bool,
 }
 
 impl ModelConfig {
@@ -198,6 +212,7 @@ pub fn analyze(
         cmarc_priors: None,
         cmarc_residual_ctx: false,
         cmarc_run: false,
+        cmarc_use_color_cache: false,
     };
 
     let predictors = predictors_for(effort);
@@ -340,6 +355,7 @@ pub fn default_model(
         cmarc_priors: None,
         cmarc_residual_ctx: false,
         cmarc_run: false,
+        cmarc_use_color_cache: false,
     }
 }
 
@@ -512,6 +528,9 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     // R3-C run-mode flag for CMARC. Appended after the residual-context flag;
     // decoder mirrors it to decide whether to read run lengths.
     w.write_all(&[if m.cmarc_run { 1 } else { 0 }])?;
+    // R6-B color-cache flag for CMARC. Appended after the run-mode flag; the
+    // decoder mirrors it to decide whether to maintain the per-plane LRU.
+    w.write_all(&[if m.cmarc_use_color_cache { 1 } else { 0 }])?;
     Ok(())
 }
 
@@ -740,6 +759,11 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
     r.read_exact(&mut rc2)?;
     let cmarc_run = rc2[0] != 0;
 
+    // R6-B color-cache flag for CMARC, appended after the run-mode flag.
+    let mut ccf = [0u8; 1];
+    r.read_exact(&mut ccf)?;
+    let cmarc_use_color_cache = ccf[0] != 0;
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -754,6 +778,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         cmarc_priors,
         cmarc_residual_ctx,
         cmarc_run,
+        cmarc_use_color_cache,
     })
 }
 

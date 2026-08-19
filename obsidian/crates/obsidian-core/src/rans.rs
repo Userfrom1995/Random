@@ -20,6 +20,7 @@
 //! `(freq, cum, total)` BEFORE the update; the reverse pass replays them via
 //! `put_fc` with no further adaptation.
 
+use crate::color::ColorCache;
 use crate::error::CodecError;
 
 /// The rANS frequency denominator used as the halving baseline.
@@ -1264,6 +1265,75 @@ fn cid_bin(cid: usize, bins_per_ctx: usize, bin: usize) -> usize {
     cid * bins_per_ctx + bin
 }
 
+/// R6-B color cache (Component A): per-plane LRU of reconstructed sample values.
+/// Default cache size; tuned like WebP's color cache (large enough to capture
+/// photographic repetition, small enough that the index code stays cheap).
+pub const CARC_CACHE_SIZE: usize = 512;
+
+/// Bin layout within a context for the `ENTROPY_MODE_CARC_CACHE` mode:
+///   - 0: cache hit flag (1 = value hit the LRU, 0 = miss -> full residual follows)
+///   - 1: cache-index Elias-gamma unary stop bit (only when flag == 1)
+///   - 2: cache-index Elias-gamma low bits (only when flag == 1)
+///   - 3.. : the CMARC residual region (zero/sign/quotient/remainder), identical to
+///           the plain CMARC layout but offset by `CMARC_CACHE_RES_ZERO`.
+pub const CMARC_CACHE_FLAG: usize = 0;
+pub const CMARC_CACHE_GU: usize = 1;
+pub const CMARC_CACHE_GL: usize = 2;
+pub const CMARC_CACHE_RES_ZERO: usize = 3;
+pub const CMARC_CACHE_RES_SIGN: usize = 4;
+pub const CMARC_CACHE_RES_Q: usize = 5;
+pub const CMARC_CACHE_RES_REM: usize = 6;
+/// Total bins per context for the cache mode. The residual region has the same
+/// width as plain CMARC (`CMARC_BIN_RUN` bins, since plain CMARC's residual occupies
+/// bins `0..CMARC_BIN_RUN`), but is offset by `CMARC_CACHE_RES_ZERO`, so the cache
+/// mode adds the 3 cache bins (flag + gamma unary/low) in front.
+pub const CMARC_CACHE_BINS: usize = CMARC_CACHE_RES_ZERO + CMARC_BIN_RUN;
+
+/// Bins per context for the `ENTROPY_MODE_CARC_CACHE` mode (constant, independent of
+/// plane bit-depth, like the plain CMARC layout).
+pub fn cmarc_cache_bins_per_ctx() -> usize {
+    CMARC_CACHE_BINS
+}
+
+/// Code an Elias-gamma value `n >= 1` through the cache-index gamma bins (unary
+/// stop bit + LSB-first low bits), all keyed on the context `cid`. Decoder mirrors
+/// this exactly. Used only to encode the LRU rank, which is always >= 1.
+#[inline]
+fn cmarc_cache_write_gamma(enc: &mut RangeEnc, models: &mut [BinModel], base: usize, n: u32) {
+    debug_assert!(n >= 1, "cache gamma requires n >= 1");
+    let k = 31 - n.leading_zeros();
+    for _ in 0..k {
+        enc.put(&mut models[base + CMARC_CACHE_GU], false);
+    }
+    enc.put(&mut models[base + CMARC_CACHE_GU], true);
+    let low = n & ((1u32 << k) - 1);
+    for i in 0..k {
+        enc.put(&mut models[base + CMARC_CACHE_GL], (low >> i) & 1 == 1);
+    }
+}
+
+#[inline]
+fn cmarc_cache_read_gamma<'a>(
+    dec: &mut RangeDec<'a>,
+    models: &mut [BinModel],
+    base: usize,
+) -> Result<u32, CodecError> {
+    let mut k: u32 = 0;
+    loop {
+        let b = dec.get(&mut models[base + CMARC_CACHE_GU])?;
+        if b {
+            break;
+        }
+        k += 1;
+    }
+    let mut low = 0u32;
+    for i in 0..k {
+        let b = dec.get(&mut models[base + CMARC_CACHE_GL])?;
+        low |= (b as u32) << i;
+    }
+    Ok((1u32 << k) | low)
+}
+
 /// Per-context `k` (Rice divisor exponent) + EMA, mirroring `GrState` minus the
 /// M2 bias fields. `k` now only sets the remainder width; the quotient is coded
 /// fractionally so the integer `k` quantization no longer bounds the coder.
@@ -1572,55 +1642,110 @@ impl<'a> RangeDec<'a> {
 /// its QM coder), so the per-`(cid, bin)` models specialize on the local residual
 /// scale. When R3-A is OFF callers pass `rcid == cid`, so every bin keys on the
 /// gradient context and the coder is byte-identical to the pre-R3-A path.
-pub fn cmarc_write_residual(
+/// Internal: code a signed residual `r` whose every bin is offset by `base` within
+/// its context (so the cache mode can place the residual region after the cache
+/// flag/index bins). When `base == 0` and `bins_per_ctx == cmarc_bins_per_ctx()`
+/// this is byte-identical to the original CMARC residual coder. `cc` is the context
+/// all bins key on; `rcid` separately conditions the quotient run (R3-A).
+fn cmarc_write_residual_at(
     enc: &mut RangeEnc,
     models: &mut [BinModel],
     ctx: &mut CarcCtx,
-    cid: usize,
+    cc: usize,
     rcid: usize,
     r: i32,
+    bins_per_ctx: usize,
+    base: usize,
 ) {
-    let bins = cmarc_bins_per_ctx();
     // When R3-A is active `rcid` is the residual DIFF context; otherwise it equals
-    // `cid` (gradient context). Use `rcid` for every bin so R3-A conditions the
-    // whole residual on the neighbor residuals, not just the quotient run.
-    let cc = rcid;
+    // `cc`. Use `rcid` for every bin so R3-A conditions the whole residual on the
+    // neighbor residuals, not just the quotient run.
     let m = r.unsigned_abs();
     let is_zero = m == 0;
-    // Zero/sign flags on the (residual) coding context `cc`.
-    enc.put(&mut models[cid_bin(cc, bins, CMARC_BIN_ZERO)], is_zero);
+    enc.put(&mut models[cid_bin(cc, bins_per_ctx, base + CMARC_BIN_ZERO)], is_zero);
     if is_zero {
         ctx.adapt(0);
         return;
     }
-    enc.put(&mut models[cid_bin(cc, bins, CMARC_BIN_SIGN)], r < 0);
+    enc.put(&mut models[cid_bin(cc, bins_per_ctx, base + CMARC_BIN_SIGN)], r < 0);
     let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
     let q = (m >> k) as usize;
     let rem = (m & ((1u32 << k) - 1)) as u32;
-    // Quotient unary run with run-POSITION-DEPENDENT bins (R3-B root-cause fix),
-    // conditioned on the residual DIFF context `rcid`: each run position gets its
-    // own adaptive bin so the model learns the geometric quotient distribution
-    // predicted by the local residual context.
     let mut pos = 0usize;
     for _ in 0..q {
-        let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-        enc.put(&mut models[cid_bin(rcid, bins, bin)], false);
+        let bin = base + CMARC_BIN_Q + pos.min(CMARC_QCAP);
+        enc.put(&mut models[cid_bin(rcid, bins_per_ctx, bin)], false);
         pos += 1;
     }
-    let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-    enc.put(&mut models[cid_bin(rcid, bins, bin)], true);
-    // Remainder: k MSB-first bits, each conditioned on the trailing window. When
-    // R3-A is on this keys on the residual DIFF context `cc` (the local residual
-    // scale), exactly as the quotient does; when off `cc == cid` (gradient).
+    let bin = base + CMARC_BIN_Q + pos.min(CMARC_QCAP);
+    enc.put(&mut models[cid_bin(rcid, bins_per_ctx, bin)], true);
     let mut window: u32 = 0;
     for j in 0..k {
         let bit = (rem >> (k - 1 - j)) & 1 == 1;
         let state = (window & ((1 << CMARC_REM_WIN) - 1)) as usize;
-        let bin = CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
-        enc.put(&mut models[cid_bin(cc, bins, bin)], bit);
+        let bin = base + CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
+        enc.put(&mut models[cid_bin(cc, bins_per_ctx, bin)], bit);
         window = ((window << 1) | bit as u32) & ((1 << CMARC_REM_WIN) - 1);
     }
     ctx.adapt(m);
+}
+
+/// Internal: decode a signed residual coded by `cmarc_write_residual_at`, adapting
+/// the models and `ctx` identically. See `cmarc_write_residual_at` for the bin
+/// offset/`rcid` semantics.
+fn cmarc_read_residual_at<'a>(
+    dec: &mut RangeDec<'a>,
+    models: &mut [BinModel],
+    ctx: &mut CarcCtx,
+    cc: usize,
+    rcid: usize,
+    bins_per_ctx: usize,
+    base: usize,
+) -> Result<i32, CodecError> {
+    let is_zero = dec.get(&mut models[cid_bin(cc, bins_per_ctx, base + CMARC_BIN_ZERO)])?;
+    if is_zero {
+        ctx.adapt(0);
+        return Ok(0);
+    }
+    let neg = dec.get(&mut models[cid_bin(cc, bins_per_ctx, base + CMARC_BIN_SIGN)])?;
+    let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
+    let mut q: u32 = 0;
+    let mut pos = 0usize;
+    loop {
+        let bin = base + CMARC_BIN_Q + pos.min(CMARC_QCAP);
+        let b = dec.get(&mut models[cid_bin(rcid, bins_per_ctx, bin)])?;
+        if b {
+            break;
+        }
+        q += 1;
+        pos += 1;
+    }
+    let mut rem: u32 = 0;
+    let mut window: u32 = 0;
+    for j in 0..k {
+        let state = (window & ((1 << CMARC_REM_WIN) - 1)) as usize;
+        let bin = base + CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
+        let bit = dec.get(&mut models[cid_bin(cc, bins_per_ctx, bin)])?;
+        rem = (rem << 1) | bit as u32;
+        window = ((window << 1) | bit as u32) & ((1 << CMARC_REM_WIN) - 1);
+    }
+    let m = (q << k) | rem;
+    let residual = if neg { -(m as i32) } else { m as i32 };
+    ctx.adapt(m);
+    Ok(residual)
+}
+
+pub fn cmarc_write_residual(
+    enc: &mut RangeEnc,
+    models: &mut [BinModel],
+    ctx: &mut CarcCtx,
+    _cid: usize,
+    rcid: usize,
+    r: i32,
+) {
+    // Plain CMARC residual: every residual bin keys on `rcid` (the coding context),
+    // which is the residual DIFF context under R3-A and the gradient context otherwise.
+    cmarc_write_residual_at(enc, models, ctx, rcid, rcid, r, cmarc_bins_per_ctx(), 0)
 }
 
 /// Read a signed residual coded by `cmarc_write_residual`, adapting the models
@@ -1632,45 +1757,81 @@ pub fn cmarc_read_residual<'a>(
     dec: &mut RangeDec<'a>,
     models: &mut [BinModel],
     ctx: &mut CarcCtx,
-    cid: usize,
+    _cid: usize,
     rcid: usize,
 ) -> Result<i32, CodecError> {
-    let bins = cmarc_bins_per_ctx();
-    // Mirror the encoder: `cc` is the context every bin keys on (residual DIFF
-    // context when R3-A is on, gradient context otherwise).
-    let cc = rcid;
-    let is_zero = dec.get(&mut models[cid_bin(cc, bins, CMARC_BIN_ZERO)])?;
-    if is_zero {
-        ctx.adapt(0);
-        return Ok(0);
-    }
-    let neg = dec.get(&mut models[cid_bin(cc, bins, CMARC_BIN_SIGN)])?;
-    let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
-    // Quotient: read ZERO bits until a stop-ONE, conditioned on `rcid`.
-    let mut q: u32 = 0;
-    let mut pos = 0usize;
-    loop {
-        let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-        let b = dec.get(&mut models[cid_bin(rcid, bins, bin)])?;
-        if b {
-            break;
+    cmarc_read_residual_at(dec, models, ctx, rcid, rcid, cmarc_bins_per_ctx(), 0)
+}
+
+/// Code a literal in `ENTROPY_MODE_CARC_CACHE` mode. `v` is the reconstructed
+/// sample value (the actual pixel), `r` its predictor residual (`v - pred`). If `v`
+/// hits the per-plane `cache`, emit a `cache_flag` (1) plus the LRU rank gamma
+/// instead of the full residual; otherwise emit `cache_flag` (0) and the CMARC
+/// residual. The cache is touched with `v` on every literal so encoder and decoder
+/// keep identical LRU state (both produce `v` in raster order), preserving
+/// bit-exact lockstep without signaling any cache contents.
+pub fn cmarc_cache_write(
+    enc: &mut RangeEnc,
+    models: &mut [BinModel],
+    ctx: &mut CarcCtx,
+    cid: usize,
+    v: i32,
+    r: i32,
+    cache: &mut ColorCache,
+) {
+    let bins = cmarc_cache_bins_per_ctx();
+    let slot = cid * bins;
+    match cache.contains(v) {
+        Some(rank) => {
+            enc.put(&mut models[slot + CMARC_CACHE_FLAG], true);
+            cmarc_cache_write_gamma(enc, models, slot, rank as u32 + 1);
         }
-        q += 1;
-        pos += 1;
+        None => {
+            enc.put(&mut models[slot + CMARC_CACHE_FLAG], false);
+            // Residual region lives at `CMARC_CACHE_RES_ZERO`; use the gradient
+            // context for the residual bins (cache mode does not combine with R3-A).
+            cmarc_write_residual_at(
+                enc,
+                models,
+                ctx,
+                cid,
+                cid,
+                r,
+                bins,
+                CMARC_CACHE_RES_ZERO,
+            );
+        }
     }
-    let mut rem: u32 = 0;
-    let mut window: u32 = 0;
-    for j in 0..k {
-        let state = (window & ((1 << CMARC_REM_WIN) - 1)) as usize;
-        let bin = CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
-        let bit = dec.get(&mut models[cid_bin(cc, bins, bin)])?;
-        rem = (rem << 1) | bit as u32;
-        window = ((window << 1) | bit as u32) & ((1 << CMARC_REM_WIN) - 1);
+    cache.touch(v);
+}
+
+/// Decode a literal in `ENTROPY_MODE_CARC_CACHE` mode. Returns the reconstructed
+/// sample value `v`. On a cache hit `v` is recovered from the LRU rank; on a miss
+/// `v = pred + residual`. The cache is touched with `v` so its state mirrors the
+/// encoder exactly. See `cmarc_cache_write` for the lockstep invariant.
+pub fn cmarc_cache_read<'a>(
+    dec: &mut RangeDec<'a>,
+    models: &mut [BinModel],
+    ctx: &mut CarcCtx,
+    cid: usize,
+    pred: i32,
+    cache: &mut ColorCache,
+) -> Result<i32, CodecError> {
+    let bins = cmarc_cache_bins_per_ctx();
+    let slot = cid * bins;
+    let hit = dec.get(&mut models[slot + CMARC_CACHE_FLAG])?;
+    if hit {
+        let g = cmarc_cache_read_gamma(dec, models, slot)?;
+        let rank = (g - 1) as usize;
+        let v = cache.value_at(rank);
+        cache.touch(v);
+        Ok(v)
+    } else {
+        let r = cmarc_read_residual_at(dec, models, ctx, cid, cid, bins, CMARC_CACHE_RES_ZERO)?;
+        let v = pred + r;
+        cache.touch(v);
+        Ok(v)
     }
-    let m = (q << k) | rem;
-    let residual = if neg { -(m as i32) } else { m as i32 };
-    ctx.adapt(m);
-    Ok(residual)
 }
 
 // ===========================================================================

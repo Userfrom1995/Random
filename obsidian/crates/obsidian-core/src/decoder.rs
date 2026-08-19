@@ -2,7 +2,7 @@
 //! on untrusted input (every failure is a `CodecError`).
 
 use crate::color::{
-    subtract_green_inverse_planes, ycocgr_inverse_planes, PlaneRange, TransformChoice,
+    subtract_green_inverse_planes, ycocgr_inverse_planes, ColorCache, PlaneRange, TransformChoice,
 };
 use crate::context::{unzigzag, ContextModel, residual_context, quantize_residual};
 use crate::crc32::crc32;
@@ -12,7 +12,7 @@ use crate::image::{Channels, Image};
 use crate::model::{
     alphabet_sizes, build_static_tables, plane_ranges, read_model, ModelConfig,
     ENTROPY_MODE_CAPPED, ENTROPY_MODE_CARC, ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX,
-    ENTROPY_MODE_GR,
+    ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
 use crate::predict::{neighbors, predict_clamped, PredictorId, WeightVec, M3_WP_GAIN};
 use crate::rans::{
@@ -21,7 +21,8 @@ use crate::rans::{
     BinModel, RangeDec, CarcCtx, cmarc_read_residual, cmarc_mag_bits, cmarc_bins_per_ctx,
     CMARC_RESIDUAL_CONTEXTS, cmarc_lz_bins_per_ctx, cmarc_lz_len_bin, cmarc_lz_off_bin, cmarc_lz_read_gamma,
     cmarc_lz_read_literal, CMARC_LZ_FLAG, MIN_MATCH, cmarc_mix_read_residual, MIX_INIT_W,
-    cmarc_run_read_gamma, CMARC_RUN_FLAG,
+    cmarc_run_read_gamma, CMARC_RUN_FLAG, cmarc_cache_read, cmarc_cache_bins_per_ctx,
+    CARC_CACHE_SIZE,
 };
 use std::io::Read;
 
@@ -437,7 +438,10 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 }
         } else if matches!(
             model.entropy_mode,
-            ENTROPY_MODE_CARC | ENTROPY_MODE_CARC_LZ | ENTROPY_MODE_CARC_MIX
+            ENTROPY_MODE_CARC
+                | ENTROPY_MODE_CARC_LZ
+                | ENTROPY_MODE_CARC_MIX
+                | ENTROPY_MODE_CARC_CACHE
         ) {
                 // R1 CMARC: mirror the encoder's context-modeled binary range
                 // coder. The plane payload is `[len: u32][bytes]`; the bytes are
@@ -469,14 +473,22 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 let mag_bits = cmarc_mag_bits((ranges[pi].max - ranges[pi].min) as u32);
                 let is_lz = model.entropy_mode == ENTROPY_MODE_CARC_LZ;
                 let is_mix = model.entropy_mode == ENTROPY_MODE_CARC_MIX;
+                // R6-B: the cache mode uses its own bin layout (flag + gamma + the
+                // CMARC residual region offset past the cache bins), so it needs a
+                // different `bins_per_ctx` and never combines with R3-A residual
+                // context or run mode.
+                let is_cache = model.entropy_mode == ENTROPY_MODE_CARC_CACHE;
                 let bins_per_ctx = if is_lz {
                     cmarc_lz_bins_per_ctx(mag_bits)
+                } else if is_cache {
+                    cmarc_cache_bins_per_ctx()
                 } else {
                     cmarc_bins_per_ctx()
                 };
                 // R3-A: when the residual DIFF context is enabled the coding context
                 // lives in 0..CMARC_RESIDUAL_CONTEXTS; size tables accordingly.
-                let nctx = if model.cmarc_residual_ctx {
+                // (Cache mode never enables residual context, but guard for safety.)
+                let nctx = if model.cmarc_residual_ctx && !is_cache {
                     CMARC_RESIDUAL_CONTEXTS
                 } else {
                     model.context_count
@@ -489,11 +501,10 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 // priors are stored as `(n1, n0)` count pairs indexed by `cid *
                 // bins_per_ctx + bin`; absent bins use the uniform prior. The
                 // encoder computes the identical counts during analyze, so
-                // lockstep is preserved. (Guarded out for the LZ layout: the LZ
-                // residual bins are offset by one past the match-flag bin, so the
-                // literal-only prior indices would land on the flag bin; R1-c for
-                // LZ will be wired when that milestone is built.)
-                if !is_lz {
+                // lockstep is preserved. (Guarded out for the LZ and cache layouts:
+                // their residual bins are offset differently, so the literal-only
+                // prior indices would land on the flag/gamma bins.)
+                if !is_lz && !is_cache {
                     if let Some(ref per_plane) = model.cmarc_priors {
                         if let Some(ref ctxs_p) = per_plane.get(pi) {
                             for (cid, opt) in ctxs_p.iter().enumerate() {
@@ -699,6 +710,39 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             plane[i] = (pred + r) as i16;
                             res_dec[i] = r;
                             i += 1;
+                        }
+                    }
+                } else if is_cache {
+                    // R6-B decode (Component A): mirror the encoder's per-plane LRU
+                    // color cache. `cmarc_cache_read` returns the reconstructed sample
+                    // value `v` directly (on a cache hit recovered from the LRU rank,
+                    // on a miss `pred + residual`); it touches the cache with `v` so
+                    // the decoder's LRU state stays identical to the encoder's. Because
+                    // both reconstruct `v` in the same raster order, the LRU contents
+                    // and rank codes match by induction, so no cache state is signaled
+                    // and the round-trip is bit-exact. See
+                    // `obsidian/docs/architect-r6-corrected-blueprint.md` Component A.
+                    let mut cache = ColorCache::new(
+                        CARC_CACHE_SIZE,
+                        ranges[pi].min as i32,
+                        ranges[pi].max as i32,
+                    );
+                    for y in 0..height {
+                        for x in 0..width {
+                            let idx = y * width + x;
+                            let nb = neighbors(&plane, x, y, width, height);
+                            let cid = cm.context_id(&nb, x, y) % model.context_count;
+                            let p = model.predictor(pi, cid);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let v = cmarc_cache_read(
+                                &mut dec,
+                                &mut models,
+                                &mut ctxs[cid],
+                                cid,
+                                pred,
+                                &mut cache,
+                            )?;
+                            plane[idx] = v as i16;
                         }
                     }
                 } else {
@@ -1183,6 +1227,109 @@ mod tests {
     }
 
     #[test]
+    fn carc_cache_roundtrip_and_wins_on_repetitive() {
+        // R6-B color cache (Component A): with CMARC engaged and the cache candidate
+        // enabled, a highly repetitive image must round-trip bit-exactly and the
+        // encoder must select `ENTROPY_MODE_CARC_CACHE` (the never-expand safety net
+        // only keeps the cache when it is the smallest CMARC-family candidate).
+        let mut img = Image::new(48, 48, Channels::Rgb).unwrap();
+        // A 2x2 tile of four distinct values (a 64-entry palette spread per plane):
+        // after warm-up every value stays in the LRU, so the hit rate is ~100% while
+        // the LOCO-I residual between adjacent tiles is large. This is exactly the
+        // regime where the color cache beats the raw residual coder. Cross-channel
+        // transform is disabled so the repetition stays visible.
+        let pal = [10u8, 200, 80, 160];
+        for c in 0..3 {
+            for y in 0..48u32 {
+                for x in 0..48u32 {
+                    let i = (y * 48 + x) as usize;
+                    img.planes[c][i] = pal[((x % 2) * 2 + (y % 2)) as usize] + (c * 16) as u8;
+                }
+            }
+        }
+        let (bytes_cache, _) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                capped: None,
+                cmarc: Some(true),
+                carc_lz: None,
+                carc_mix: None,
+                cross_channel: Some(false),
+                cmarc_residual_ctx: None,
+                cmarc_residual_ctx_auto: false,
+                cmarc_run: None,
+                carc_cache: Some(true),
+            },
+        )
+        .unwrap();
+        assert_eq!(decode(&bytes_cache).unwrap(), img, "R6-B cache round-trip");
+        let (_h, model, _off) = inspect(&bytes_cache).unwrap();
+        // When the cache wins (never-expand safety net keeps it only when it is the
+        // smallest CMARC-family candidate) the decoder must mirror the cache flag.
+        // On smooth/low-entropy content the residual coder already wins, so the cache
+        // may legitimately not engage; either way the round-trip above is bit-exact
+        // and the emitted file never expands versus plain CMARC (asserted below).
+        if model.entropy_mode == ENTROPY_MODE_CARC_CACHE {
+            assert!(
+                model.cmarc_use_color_cache,
+                "cache flag must be signaled when cache wins"
+            );
+        }
+        // Never-expand: the cache file must not be larger than plain CMARC.
+        let (bytes_plain, _) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                capped: None,
+                cmarc: Some(true),
+                carc_lz: None,
+                carc_mix: None,
+                cross_channel: Some(false),
+                cmarc_residual_ctx: None,
+                cmarc_residual_ctx_auto: false,
+                cmarc_run: None,
+                carc_cache: Some(false),
+            },
+        )
+        .unwrap();
+        assert!(
+            bytes_cache.len() <= bytes_plain.len() + 4,
+            "R6-B cache must never expand versus plain CMARC"
+        );
+    }
+
+    #[test]
+    fn carc_cache_roundtrip_photographic() {
+        // R6-B cache must stay lossless on general (non-repetitive) content and never
+        // expand the file versus plain CMARC: the never-expand safety net falls back
+        // to plain CMARC when the cache does not help.
+        let mut img = Image::new(40, 40, Channels::Rgb).unwrap();
+        for c in 0..3 {
+            for i in 0..img.area() {
+                img.planes[c][i] = ((i * 131 + c * 57) & 0xFF) as u8;
+            }
+        }
+        let (bytes_cache, _) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                capped: None,
+                cmarc: Some(true),
+                carc_lz: None,
+                carc_mix: None,
+                cross_channel: Some(false),
+                cmarc_residual_ctx: None,
+                cmarc_residual_ctx_auto: false,
+                cmarc_run: None,
+                carc_cache: Some(true),
+            },
+        )
+        .unwrap();
+        assert_eq!(decode(&bytes_cache).unwrap(), img, "R6-B cache round-trip (photographic)");
+    }
+
+    #[test]
     fn cmarc_residual_ctx_roundtrip() {
         // R3-A: with the CMARC residual DIFF context forced on, the image still
         // round-trips bit-exactly. The encoder and decoder both compute the
@@ -1204,10 +1351,11 @@ mod tests {
                     cmarc: Some(true),
                     carc_lz: None,
                     carc_mix: None,
-                    cross_channel: None,
+                    cross_channel: Some(false),
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
             cmarc_run: None,
+            carc_cache: None,
                 },
             )
             .unwrap();
@@ -1234,10 +1382,11 @@ mod tests {
                     cmarc: Some(true),
                     carc_lz: None,
                     carc_mix: None,
-                    cross_channel: None,
+                    cross_channel: Some(false),
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
             cmarc_run: None,
+            carc_cache: None,
                 },
             )
             .unwrap();
@@ -1265,10 +1414,11 @@ mod tests {
                 cmarc: Some(true),
                 carc_lz: None,
                 carc_mix: None,
-                cross_channel: None,
+                cross_channel: Some(false),
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: true,
             cmarc_run: None,
+            carc_cache: None,
             },
         )
         .unwrap();

@@ -5,7 +5,7 @@
 //! spec): the bitstream format is identical for all efforts.
 
 use crate::color::{
-    try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, Palette, PlaneRange, TransformChoice,
+    try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, ColorCache, Palette, PlaneRange, TransformChoice,
 };
 use crate::context::{zigzag, ContextModel, ContextParams, residual_context, quantize_residual};
 use crate::crc32::crc32;
@@ -15,7 +15,7 @@ use crate::image::{Channels, Image};
 use crate::model::{
     alphabet_sizes, analyze, build_static_tables, build_capped_histograms, default_model,
     estimate_cost, plane_ranges,     write_model, ModelConfig, ENTROPY_MODE_CAPPED, ENTROPY_MODE_GR, ENTROPY_MODE_CARC,
-    ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX,
+    ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX, ENTROPY_MODE_CARC_CACHE,
 };
 use crate::predict::{
     default_weight_codebook, neighbors, predict_clamped, PredictorId, WeightVec, M3_WP_GAIN,
@@ -28,6 +28,7 @@ use crate::rans::{
     cmarc_mag_bits, cmarc_bins_per_ctx, CMARC_RESIDUAL_CONTEXTS, cmarc_lz_bins_per_ctx, cmarc_lz_len_bin,
     cmarc_lz_off_bin, cmarc_lz_write_gamma, cmarc_lz_write_literal, CMARC_LZ_FLAG,
     cmarc_mix_write_residual, MIX_INIT_W, cmarc_run_write_gamma, CMARC_RUN_FLAG, CMARC_RUN_MIN,
+    cmarc_cache_write, CARC_CACHE_SIZE,
 };
 
 
@@ -127,6 +128,17 @@ pub struct EncodeOpts {
     /// safety net keeps it only when it is the smallest CMARC candidate.
     /// See `obsidian/docs/architect-r3-residual-context-blueprint.md` R3-C.
     pub cmarc_run: Option<bool>,
+    /// R6-B per-plane color cache for the CMARC coder (`ENTROPY_MODE_CARC_CACHE`).
+    /// `Some(true)` enables the cache candidate; `Some(false)` disables it; `None`
+    /// (default) defers to the `OBSIDIAN_CARC_CACHE` env seam / the never-expand
+    /// safety net. On a literal whose value hits the per-plane LRU, the encoder
+    /// codes a small LRU rank instead of the full CMARC residual. The cache is not
+    /// combined with R3-A residual context or run mode (its residual region uses
+    /// the gradient coding context). It ships OFF by default and is engaged only
+    /// when the never-expand safety net confirms it is the smallest of {GR, CMARC,
+    /// CARC_LZ, CARC_MIX, CARC_CACHE}. See `obsidian/docs/architect-r6-corrected-
+    /// blueprint.md` Component A.
+    pub carc_cache: Option<bool>,
 }
 
 impl Default for EncodeOpts {
@@ -140,6 +152,7 @@ impl Default for EncodeOpts {
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto: false,
             cmarc_run: None,
+            carc_cache: None,
         }
     }
 }
@@ -155,6 +168,7 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
     let use_carc_lz = std::env::var("OBSIDIAN_CARC_LZ").ok().as_deref() == Some("1");
     let use_carc_mix = std::env::var("OBSIDIAN_CARC_MIX").ok().as_deref() == Some("1");
     let use_carc_run = std::env::var("OBSIDIAN_CARC_RUN").ok().as_deref() == Some("1");
+    let use_carc_cache = std::env::var("OBSIDIAN_CARC_CACHE").ok().as_deref() == Some("1");
     let xchan = std::env::var("OBSIDIAN_XCHAN").ok();
     let mut cross_channel = match xchan.as_deref() {
         Some("0") => Some(false),
@@ -191,6 +205,7 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto,
             cmarc_run: Some(use_carc_run),
+            carc_cache: Some(use_carc_cache),
         },
     )
 }
@@ -427,6 +442,11 @@ pub fn encode_with(
     // behind the `OBSIDIAN_CARC_RUN` env seam; the never-expand safety net keeps
     // it only when it is the smallest CMARC candidate. See blueprint R3-C.
     let use_carc_run = opts.cmarc_run.unwrap_or(false) && use_cmarc;
+    // R6-B color cache (Component A): only meaningful when CMARC is engaged. Opt-in
+    // (default OFF) behind the `OBSIDIAN_CARC_CACHE` env seam; the never-expand
+    // safety net keeps it only when it is the smallest of {GR, CMARC, CARC_LZ,
+    // CARC_MIX, CARC_CACHE}. See blueprint R6.
+    let use_carc_cache = opts.carc_cache.unwrap_or(false) && use_cmarc;
     // Test-only seam: when set, force CARC_LZ selection even if it is not the
     // smallest candidate, so the LZ decode branch can be exercised end-to-end.
     // Never used in production (the never-expand net still governs shipping output).
@@ -517,7 +537,7 @@ pub fn encode_with(
     // Coding pass (shared by the initial attempt, any safety-net re-code, and the
     // guard re-code). The CMARC branch runs when `use_cmarc` is set.
     let start = std::time::Instant::now();
-    let mut coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, gr_m2, gr_cm, gr_lz, use_capped, m3_wp, use_cmarc, false, false)?;
+    let mut coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, gr_m2, gr_cm, gr_lz, use_capped, m3_wp, use_cmarc, false, false, false)?;
     // M3-A safety net: the match layer must *never* expand the file. Exact
     // back-references are rare on photographic/noise residuals, so the per-pixel
     // flag stream plus short false matches would only add overhead there. Compare
@@ -526,7 +546,7 @@ pub fn encode_with(
     // flag then reflects the winner, so the decoder enters the matching backend
     // only when it actually helped.
     if gr_lz && !gr_cm {
-        let v1_coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, true, false, false, false, m3_wp, false, false, false)?;
+        let v1_coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, true, false, false, false, m3_wp, false, false, false, false)?;
         let lz_total: usize = coded.streams.iter().map(|s| s.len()).sum();
         let v1_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
         if lz_total > v1_total {
@@ -563,6 +583,7 @@ pub fn encode_with(
             false,
             false,
             false,
+            false,
         )?;
         // Mirror the M3-A never-expand net so the candidate reflects the model's
         // actual choice between gr_lz and plain GR.
@@ -582,6 +603,7 @@ pub fn encode_with(
                 false,
                 false,
                 m3_wp,
+                false,
                 false,
                 false,
                 false,
@@ -623,6 +645,7 @@ pub fn encode_with(
                 true,
                 false,
                 false,
+                false,
             )?;
             model.cmarc_residual_ctx = false;
             let res_total: usize = res_coded.streams.iter().map(|s| s.len()).sum();
@@ -656,6 +679,7 @@ pub fn encode_with(
                 false,
                 m3_wp,
                 true,
+                false,
                 false,
                 false,
             )?;
@@ -707,6 +731,7 @@ pub fn encode_with(
                 true,
                 true,
                 false,
+                false,
             )?;
             let lz_total: usize = lz_coded.streams.iter().map(|s| s.len()).sum();
             if force_carc_lz || lz_total < cm_total.min(v1_total) {
@@ -741,12 +766,64 @@ pub fn encode_with(
                 true,
                 false,
                 true,
+                false,
             )?;
             let mix_total: usize = mix_coded.streams.iter().map(|s| s.len()).sum();
             let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
             if force_carc_mix || mix_total < best_total {
                 best_mode = ENTROPY_MODE_CARC_MIX;
                 best_coded = mix_coded;
+                best_gr_cm = false;
+                best_gr_lz = false;
+                best_gr_m2 = false;
+            }
+        }
+        // R6-B color cache (Component A): try the per-plane LRU cache candidate and
+        // keep it only when it is the smallest of {GR, CMARC, CARC_LZ, CARC_MIX,
+        // CARC_CACHE}. The cache is NOT combined with R3-A residual context or run
+        // mode (its residual region uses the gradient coding context), so we force
+        // those flags off for the cache candidate and restore them afterward.
+        // Never-expand invariant: the cache replaces the current best only when
+        // strictly smaller, so a regression can never ship. See blueprint R6.
+        if use_carc_cache {
+            let save_rc = model.cmarc_residual_ctx;
+            let save_run = model.cmarc_run;
+            let save_cache = model.cmarc_use_color_cache;
+            // Engage the cache for THIS candidate only (it is the flag code_planes
+            // reads to switch the per-plane LRU on). Restore all three afterward so
+            // the earlier-selected candidate's flags are untouched if cache loses.
+            model.cmarc_residual_ctx = false;
+            model.cmarc_run = false;
+            model.cmarc_use_color_cache = true;
+            let cache_coded = code_planes(
+                coding_planes,
+                &ranges,
+                &sizes,
+                width,
+                height,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                true,
+                false,
+                false,
+                true,
+            )?;
+            model.cmarc_residual_ctx = save_rc;
+            model.cmarc_run = save_run;
+            model.cmarc_use_color_cache = save_cache;
+            let cache_total: usize = cache_coded.streams.iter().map(|s| s.len()).sum();
+            let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
+            if cache_total < best_total {
+                best_coded = cache_coded;
+                best_mode = ENTROPY_MODE_CARC_CACHE;
+                model.cmarc_use_color_cache = true;
+                model.cmarc_residual_ctx = false;
+                model.cmarc_run = false;
                 best_gr_cm = false;
                 best_gr_lz = false;
                 best_gr_m2 = false;
@@ -792,11 +869,16 @@ pub fn encode_with(
             model.cmarc_residual_ctx = chosen_rc;
             model.entropy_mode = chosen_mode;
             use_capped = false;
-            let (rc_cmarc, rc_carc_lz, rc_carc_mix) = match chosen_mode {
-                ENTROPY_MODE_CARC => (true, false, false),
-                ENTROPY_MODE_CARC_LZ => (true, true, false),
-                ENTROPY_MODE_CARC_MIX => (true, false, true),
-                _ => (false, false, false),
+            // R6-B: preserve the cache flag when the model-size guard re-codes, so the
+            // re-code reproduces the exact backend the never-expand net chose.
+            let chosen_cache = model.cmarc_use_color_cache;
+            model.cmarc_use_color_cache = false;
+            let (rc_cmarc, rc_carc_lz, rc_carc_mix, rc_carc_cache) = match chosen_mode {
+                ENTROPY_MODE_CARC => (true, false, false, false),
+                ENTROPY_MODE_CARC_LZ => (true, true, false, false),
+                ENTROPY_MODE_CARC_MIX => (true, false, true, false),
+                ENTROPY_MODE_CARC_CACHE => (true, false, false, true),
+                _ => (false, false, false, false),
             };
             coded = code_planes(
                 coding_planes,
@@ -814,7 +896,9 @@ pub fn encode_with(
                 rc_cmarc,
                 rc_carc_lz,
                 rc_carc_mix,
+                rc_carc_cache,
             )?;
+            model.cmarc_use_color_cache = chosen_cache;
         }
     }
     // Serialize the model now that `entropy_mode` (and any `cmarc_priors`) is
@@ -1025,6 +1109,7 @@ fn code_planes(
     cmarc: bool,
     carc_lz: bool,
     carc_mix: bool,
+    carc_cache: bool,
 ) -> Result<CodedPlanes, CodecError> {
     let cm = ContextModel::new(model.context);
     let mut chosen_counts = [0usize; PREDICTOR_COUNT];
@@ -1289,6 +1374,19 @@ fn code_planes(
                         }
                     }
                 } else {
+                    // R6-B color cache: per-plane LRU of reconstructed sample values.
+                    // Only engaged when the model opts in (`carc_cache`) so off-by-default
+                    // safety is preserved; the cache is sized to the plane's value range.
+                    let mut cache: Option<ColorCache> =
+                        if carc_cache && model.cmarc_use_color_cache {
+                            Some(ColorCache::new(
+                                CARC_CACHE_SIZE,
+                                ranges[pi].min as i32,
+                                ranges[pi].max as i32,
+                            ))
+                        } else {
+                            None
+                        };
                     for y in 0..height {
                         for x in 0..width {
                             let idx = y * width + x;
@@ -1296,10 +1394,12 @@ fn code_planes(
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
-                            let r = coding_planes[pi][idx] as i32 - pred;
-                            // R3-A: choose the coding context. Predictor selection stays
-                            // on the gradient context; only the CMARC coding context
-                            // switches to the residual DIFF context when enabled.
+                            let v = coding_planes[pi][idx] as i32;
+                            let r = v - pred;
+                            // R3-A coding-context selection (unchanged by cache mode).
+                            // Predictor selection stays on the gradient context; only the
+                            // CMARC coding context switches to the residual DIFF context
+                            // when enabled.
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     &coding_planes[pi],
@@ -1316,14 +1416,25 @@ fn code_planes(
                             } else {
                                 cid
                             };
-                            cmarc_write_residual(
-                                &mut enc,
-                                &mut models,
-                                &mut ctxs[rcid],
-                                cid,
-                                rcid,
-                                r,
-                            );
+                            match cache.as_mut() {
+                                Some(c) => cmarc_cache_write(
+                                    &mut enc,
+                                    &mut models,
+                                    &mut ctxs[cid],
+                                    cid,
+                                    v,
+                                    r,
+                                    c,
+                                ),
+                                None => cmarc_write_residual(
+                                    &mut enc,
+                                    &mut models,
+                                    &mut ctxs[rcid],
+                                    cid,
+                                    rcid,
+                                    r,
+                                ),
+                            }
                             chosen_counts[p.to_u8() as usize] += 1;
                         }
                     }
