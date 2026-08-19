@@ -250,6 +250,28 @@ constants, format layout, pseudo-code, complexity analysis) is in
 `docs/algorithmic-spec.md`. The measurement protocol is in
 `docs/benchmark-methodology.md`. Handoff to the Architect.
 
+## 6. Roadmap addendum (2026-08-19): the path from 10.16 bpp to beating WebP and JPEG XL
+
+M1 (per-context adaptive Golomb-Rice) lands at **10.16 bpp** on real Kodak: it
+clears optipng PNG (13.05) but not WebP (9.61), JPEG-LS (9.71), or JPEG XL
+(8.71). The residual-entropy floor after good prediction is a *prediction and
+redundancy* limit, not an entropy-coding limit: GR is already near-Shannon for
+the conditioned stream. The remaining ~14% gap to JPEG XL decomposes into two
+independent, published levers:
+
+- **LZ77 + color cache** (WebP's signature weapon): removes the structured
+  repetition per-pixel context modeling misses. Expected to take Obsidian from
+  ~10.1 below WebP (9.61) into the ~9.0-9.4 band.
+- **Self-correcting weighted predictor + binary rANS** (JPEG XL's signature
+  weapons): tighten the predictor (~3-6%) and reach the Shannon limit of the
+  LZ77-augmented stream (< 1.10x gate). Expected to clear JPEG XL (8.71).
+
+The full, rigorous algorithmic blueprint (mixed-alphabet LZ77 coding, integer
+weighted-predictor adaptation, binary rANS primitive with the mandatory
+efficiency gate, bitstream integration, revised M2/M3 milestones, and the
+competitive math) is in **`docs/research-roadmap-m2m3.md`**. Handoff to the
+Architect for M2/M3.
+
 ---
 
 ## 6. Interim diagnosis (2026-08-18)
