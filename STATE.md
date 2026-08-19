@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~10:36Z, maintainer run 32243491358 on PR #83). **DECISIONS:** `continue` PR #83 - resume the Builder to fix the R3-A residual-context INERT bug test-first (mandatory `cmarc-force+resctx != cmarc-force` test), and NOT re-measure the proven-dead R6-B color cache. No merge (default 9.7094 bpp still above WebP 9.61 / JPEG XL 8.71); one PR preserved.
+- **Updated:** 2026-08-19 (~10:54Z, maintainer run 32244963019 on PR #83). **DECISIONS:** `architect` PR #83 - re-engage the Architect (Mode 2) to design **R7**: a QM-class adaptive coder that conditions on the neighbor-residual DIFF context WITHOUT multiplying independent per-(cid,bin) probability models (which is why R3-A stayed inert). Targets WebP 9.61 then JPEG XL 8.71. No merge (default 9.7093 bpp still above WebP 9.61 / JXL 8.71); one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,39 +16,37 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break RESOLVED; rebase satisfied)
 
-- **Mergeability (FIXED):** PR #83 OPEN, head `b01b87a230c742ce6b73ab7682b91d65903344ee`, `mergeable: MERGEABLE`, base `8f4c15b` (== origin/main), valid merge base. `--rebase` is possible whenever the gate is met. No new PR needed.
+- **Mergeability (FIXED):** PR #83 OPEN, head `1415814` (`14158142845f617562443f468ed1453033b3712e`), `mergeable: MERGEABLE`, base `8f4c15b` (== origin/main), valid merge base (verified live this run). `--rebase` is possible whenever the gate is met. No new PR needed.
 - **Kodak corpus durable in git** (`obsidian/benchmarks/data/kodak/` PPMs tracked, plus `kodak.sha256` + `run_kodak.sh`/`fetch_kodak.sh`/`measure_kodak.sh`). Gate is now measurable reproducibly.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
-- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `b01b87a`). Real Kodak (effort 4) numbers, 24-image PCD0992 set:
-  - **DEFAULT shipped codec = CMARC auto-selected best (never-expand net, with faithful R3-A wiring) = 9.7094 bpp mean.** Beats JPEG-LS (9.71); PNG 13.05 MET; WebP 9.61 MISSED by ~0.10 bpp; JPEG XL 8.71 MISSED by ~1.0 bpp. Bit-exact.
-  - **KEY DIAGNOSIS:** the **R3-A residual-context is INERT** - `cmarc-force+resctx` is byte-identical to `cmarc-force` on every Kodak image. So the 9.7094 headline is from R5 quotient fix + faithful wiring at `311c5bc`, NOT from an actually-engaged residual DIFF context. The Builder "fixed" R3-A twice (`0efc83c`, `311c5bc`) and it stayed inert because auto-selection never keeps the residual-context candidate (365-way context starves the per-(cid,bin) binary models, so its bits are identical to the non-context path).
-  - **R6-B color cache is a PROVEN DEAD END for this codec.** Wired at `7eaef45`/`b01b87a` (`ENTROPY_MODE_CARC_CACHE=6`); measured byte-identical 9.7094 bpp on all 24 Kodak images. The binary-coder floor (~1 bit/pixel for `cache_flag` + gamma rank) exceeds what the cache saves vs CMARC's near-optimal integer residual coding on low-entropy photographic residuals. Do NOT re-measure a known tie.
+- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `1415814`). Real Kodak (effort 4) numbers, 24-image PCD0992 set (reproducible, durably committed corpus):
+  - **DEFAULT shipped codec = CMARC auto-selected best = 9.7093 bpp mean.** Beats JPEG-LS (9.71); PNG 13.05 MET; **WebP 9.61 MISSED by ~0.10 bpp** (14+ of 24 above); **JPEG XL 8.71 MISSED by ~1.0 bpp** (22 of 24 above). Bit-exact.
+  - **KEY DIAGNOSIS (empirical, not theoretical):** the codec has hit the **JPEG-LS floor (~9.71)**, and the remaining gap is gated by the **entropy-model structure**, not by prediction or transforms. Two attempts to exploit a neighbor-residual context both failed:
+    - **R3-A residual-context is INERT.** `cmarc-force+resctx` == `cmarc-force` byte-for-byte on every Kodak image. The per-`(cid,bin)` binary-model table balloons to ~365x contexts under the JPEG-LS DIFF context; each rare bin stays pinned at its prior and emits the same bits as the non-context path. The Builder tried to fix it twice (`0efc83c`, `311c5bc`) and it stayed a no-op. The 9.7093 headline is entirely from R5 (Rice quotient fix).
+    - **R6-B color cache is a DEAD END.** Forced `ENTROPY_MODE_CARC_CACHE=6` (size-32 = 12.88 bpp; size-512 = 14.58 bpp) regresses; the never-expand net correctly never selects it. The binary-coder floor exceeds the cache's savings on low-entropy photographic residuals.
+  - So: R3-A (context) and R6-B (cache) are both exhausted as levers on the current per-(cid,bin) model design. The structural fix is a QM-class coder (context selects a small adaptive state / Rice parameter on a single shared binary arithmetic coder, JPEG-LS style) that does not starve.
 - **CMARC lineage (R1 -> R5) built; entropy core correct (CACM87):**
   - **R4 coder = CACM87 (Witten-Neal-Cleary binary arithmetic coder)** - proven correct; efficiency gates pass (ratio < 1.10/1.20).
-  - **R5 (CMARC Rice quotient fix):** per-run-position adaptive `BinModel` learns the geometric quotient like JPEG-LS QM; dropped forced CARC 11.11 -> 9.71 bpp.
-  - **Faithful R3-A (residual DIFF context conditions the whole CMARC residual):** wired at `311c5bc`, but **currently a NO-OP** (auto-selection never keeps it because the 365-way context starves the per-(cid,bin) binary models, and the model keying does not actually change which bin model is used). Must be fixed test-first.
+  - **R5 (CMARC Rice quotient fix):** per-run-position adaptive `BinModel` learns the geometric quotient like JPEG-LS QM; dropped forced CARC 11.11 -> 9.71 bpp. This is what actually delivers the 9.7093 headline.
+  - **Faithful R3-A (residual DIFF context conditions the whole CMARC residual):** wired at `311c5bc`, but **currently a NO-OP** (model-starvation; `cmarc-force+resctx` == `cmarc-force`).
   - **R3-C (JPEG-LS run mode):** implemented; neutral on real Kodak.
   - All CMARC variants ship behind the never-expand safety net, which now ALSO engages by default.
-- **R6 blueprint DELIVERED + CORRECTED (`f137881`), but its central premise is now disproven:**
-  - **R6-A (pixel-domain spatial LZ77):** DISPROVEN by the Builder - `CARC_LZ` IS already pixel-domain LZ77 (byte-for-byte duplicate); ties because photographic content has too few exact pixel repeats of length >= `MIN_MATCH=3`.
-  - **Component B (R3-A quotient-context fix):** DONE at `0efc83c`/`311c5bc` (clears JPEG-LS 9.71 on paper) but the residual-context path is still INERT (no-op). This is the bug to fix next, test-first.
-  - **Component A (R6-B LRU color cache, `ENTROPY_MODE_CARC_CACHE = 6`):** wired (`7eaef45` + `b01b87a`) but PROVEN A DEAD END (ties on all 24 Kodak images).
-  - **Component C (tuned matches):** `MIN_MATCH=2` + 2D distance model + cache competition; marginal on photos; the Builder oriented on it (run 32243228032) but did not push.
+- **R6 blueprint DELIVERED + CORRECTED (`f137881`), but its central premise is now disproven:** R6-A (pixel-domain LZ77) is a byte-for-byte duplicate of existing `CARC_LZ` (Builder finding `7170586`, proven to tie), and R6-B (color cache) is a dead end (this run's Builder escalation, head `1415814`). Only Component B (R3-A quotient-context) was absorbed into R5.
 
 ## In flight
 
-- **Builder (resume via `continue` this run):** FIX the **R3-A inert bug test-first** - write and pass the mandatory test `cmarc-force+resctx != cmarc-force` (forced residual-context must emit DIFFERENT bits than non-context); fix the `(cid,bin)` model keying so the residual DIFF context genuinely changes which `BinModel` each bin uses; code the residual-context candidate unconditionally on its candidate path (do NOT rely on auto-selection that starves on sparse contexts); re-measure REAL Kodak effort-4 reproducibly on the durably committed corpus; keep every prior seam OFF by default behind the never-expand net. Do NOT re-measure the dead R6-B cache. If the fix clears WebP 9.61, keep going toward JXL; if, after a real attempt, the context still cannot be engaged without regression, STOP and report (do not ship another no-op).
-- **No Architect / Researcher / Factory in flight.** Corrected R6 blueprint present and now empirically partially disproven; next escalation (if a properly-engaged R3-A still misses WebP) would be an Architect pass for R7 (adaptive weighted predictor / MA-tree).
-- **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `b01b87a` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
+- **Architect (this run, `architect` PR #83):** design **R7** - a QM-class adaptive entropy coder conditioned on the neighbor-residual DIFF context WITHOUT the per-(cid,bin) model multiplication that made R3-A inert. The context should select a small adaptive state / Rice parameter on a single shared binary arithmetic coder (JPEG-LS QM style) so rare contexts adapt quickly instead of starving. Target: clear WebP 9.61 first, then JXL 8.71. Deliver the blueprint on PR #83; then the Builder resumes via `continue`.
+- **No Builder / Researcher / Factory in flight.** Corrected R6 blueprint present and empirically disproven (R6-B dead, R3-A inert); next is the R7 Architect pass.
+- **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `1415814` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
 
 ## PENDING (deferred)
 
-- **Clear WebP 9.61 gate:** default 9.7094 is ~0.10 above; fixing R3-A (free additive win if genuinely engageable) is the most plausible single step.
-- **Clear JPEG XL 8.71 gate:** ~1.0 bpp above; the hard long pole - needs R3-A fix + possibly R7 (Architect explicitly does not promise JPEG XL from R6 alone).
+- **Clear WebP 9.61 gate:** default 9.7093 is ~0.10 above; R7 (QM-class coder on neighbor-residual context) is the most plausible single structural fix.
+- **Clear JPEG XL 8.71 gate:** ~1.0 bpp above; the hard long pole - likely needs R7 + possibly beyond (weighted predictor / context tree / LZ77 re-woven).
 - **README / index.html Obsidian promotion** (standing directive, deferred until gates near).
 - **Factory infra hardening:** `continue-on-error` still pending but non-blocking.
 
@@ -62,14 +60,14 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `8f4c15b`.
-- **PR #83:** OPEN, head `b01b87a`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert bug pending fix. No held runs.
+- **PR #83:** OPEN, head `1415814`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). No held runs.
 - **PR #84 and PR #87:** both CLOSED (redundant second PRs for #68, rejected per one-PR rule).
 
 ## Next steps
 
-1. **Let the resumed Builder (this run's `continue`) fix the R3-A inert bug test-first** (`cmarc-force+resctx != cmarc-force` passes), then re-measure on REAL Kodak effort-4 reproducibly. Do NOT re-measure the dead R6-B cache.
-2. **After R3-A lands:** re-measure real Kodak; if default mean < 9.61 (WebP), continue toward JXL; if JXL (< 8.71) also cleared, proceed to merge prep.
-3. **If R3-A fix still misses WebP:** re-fire `architect`/`research` on PR #83 for R7 (adaptive weighted predictor / MA-tree); do NOT merge until all three gates clear.
+1. **Architect delivers R7 blueprint on PR #83** (this run's `architect`): QM-class adaptive coder conditioned on neighbor-residual DIFF context without per-(cid,bin) model starvation. Targets WebP 9.61 then JXL 8.71.
+2. **After R7 blueprint lands:** resume Builder via `continue` to implement R7, re-measuring REAL Kodak effort-4 reproducibly on the durably committed corpus. Keep every prior seam OFF by default behind the never-expand net.
+3. **If R7 design cannot plausibly clear WebP:** that finding escalates to the Researcher for a deeper algorithmic redesign (do not loop on band-aids). Do NOT merge until all three gates clear.
 4. **Re-fire strict `/oc review`** on the stabilized head; only merge after `/oc approve` + `/oc approve-test` with no newer `/oc fix`.
 5. **After a reproducible real-Kodak number below all three gates:** rebase-merge (`--no-delete-branch`), close #68.
 6. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current.
@@ -77,13 +75,12 @@
 
 ## Open questions
 
-- **Can the R3-A residual-context be genuinely engaged without regression?** Prior two "fixes" stayed no-ops because the model keying/auto-selection never actually changed the bits. The mandatory test `cmarc-force+resctx != cmarc-force` must be met this time; if the residual DIFF context cannot be made to matter on this codec's binary-coder budget, that is itself a finding (the JPEG-LS QM uses one adaptive coder per context, not a per-(cid,bin) table that starves).
-- **Will fixing R3-A let the codec clear the ~0.10 bpp WebP gap?** Most plausible single win; JXL (~1.0 bpp) likely needs more.
-- **Merge gate (owner override #2):** NOT met - default 9.7094 bpp > WebP 9.61 > JXL 8.71. Even best CMARC+R3-A (if engaged) beats JPEG-LS but misses WebP by ~0.10 and JXL by ~1.0.
-- **Review staleness:** last approve at head ~96a6075; current head `b01b87a` un-reviewed. Fresh review required pre-merge.
+- **Can a QM-class coder (context selects a small adaptive state on a single shared arithmetic coder) exploit the neighbor-residual DIFF context without starving?** This is the exact JPEG-LS mechanism and is the proven path below 9.71; R3-A failed only because it multiplied independent per-(cid,bin) models. R7 must avoid that.
+- **Will R7 clear the ~0.10 bpp WebP gap?** Most plausible structural single win. JXL (~1.0 bpp) likely needs more (weighted predictor / context tree / LZ77).
+- **Merge gate (owner override #2):** NOT met - default 9.7093 bpp > WebP 9.61 > JXL 8.71. Even best CMARC+R5 beats JPEG-LS but misses WebP by ~0.10 and JXL by ~1.0.
+- **Review staleness:** last approve at head ~96a6075; current head `1415814` un-reviewed. Fresh review required pre-merge.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending.
 - **Orphan-main break:** RESOLVED (PR MERGEABLE). Branch re-linked to main; no new PR needed.
-- **Trigger storm:** sibling maintainer runs may also emit `continue`; the Builder re-implements the corrected R3-A idempotently (no harm). This run deliberately re-fires `continue` because no Builder build is in flight (run 32243228032 oriented but did not push).
 
 - Mae, the Maintainer
