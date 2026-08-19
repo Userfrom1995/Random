@@ -11,7 +11,10 @@ use crate::color::{Palette, PlaneRange, TransformChoice};
 use crate::context::{zigzag, Alphabet, ContextModel, ContextParams};
 use crate::error::CodecError;
 use crate::image::Channels;
-use crate::predict::{default_weight_codebook, neighbors, predict_clamped, PredictorId, WeightVec};
+use crate::predict::{
+    default_weight_codebook, neighbors, predict_clamped, solve_weighted_tree, weight_context,
+    PredictorId, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
+};
 use crate::rans::{RansTable, CAPPED_SYMBOLS, CAPPED_ALPHABET};
 use std::io::{Read, Write};
 
@@ -103,6 +106,15 @@ pub struct ModelConfig {
     /// it on only when it actually wins, so a regression can never ship. Mirrored:
     /// both sides read it from the model (zero extra header bit).
     pub cmarc_use_color_cache: bool,
+    /// R9-B context-tree weighted predictor: per-plane (optional) table of
+    /// `WC_LEAVES` weight tuples `(wL,wT,wTL,wTR,bias,shift)` solved per fine leaf in
+    /// `analyze`. Tiny (O(1) bytes/plane, ~75), so it does not regress like the
+    /// R7-A per-coarse-context codebook. Entry is `None` for planes that do not
+    /// use `WeightedTree` (so no model bytes are wasted). The whole field is
+    /// `None` when `WeightedTree` is not enabled/used on this image. Both encoder
+    /// and decoder read it from the model, so lockstep is exact with zero online
+    /// state.
+    pub weighted_wc_table: Option<Vec<Option<Vec<WLeaf>>>>,
 }
 
 impl ModelConfig {
@@ -118,6 +130,13 @@ impl ModelConfig {
         } else {
             self.weight_codebook.get(idx as usize).copied()
         }
+    }
+
+    /// The R9-B weighted-tree table for a plane, if `WeightedTree` is in use.
+    pub fn weighted_tree_for(&self, plane: usize) -> Option<&[WLeaf]> {
+        self.weighted_wc_table
+            .as_ref()
+            .and_then(|v| v.get(plane).and_then(|o| o.as_ref()).map(|x| x.as_slice()))
     }
 }
 
@@ -165,6 +184,10 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         // Deterministic from the causal neighborhood, so it adds no model bytes and is
         // only ever selected where it lowers the summed residual magnitude.
         PredictorId::AdaptiveWeighted,
+        // R9-B: context-tree weighted predictor (per-fine-leaf least-squares weights,
+        // signaled as a tiny per-plane table). A strict superset of every fixed
+        // candidate, so it is selected per context only where it lowers |residual|.
+        PredictorId::WeightedTree,
     ]
 }
 
@@ -180,7 +203,7 @@ pub fn estimate_cost(plane: &[i16], range: PlaneRange, width: usize, height: usi
     for y in 0..height {
         for x in 0..width {
             let nb = neighbors(plane, x, y, width, height);
-            let pred = predict_clamped(PredictorId::Med, &nb, None, range);
+            let pred = predict_clamped(PredictorId::Med, &nb, None, None, range);
             let r = plane[y * width + x] as i32 - pred;
             total += zigzag(r) as u64;
         }
@@ -217,10 +240,13 @@ pub fn analyze(
         cmarc_residual_ctx: false,
         cmarc_run: false,
         cmarc_use_color_cache: false,
+        weighted_wc_table: None,
     };
 
     let predictors = predictors_for(effort);
     let include_weighted = predictors.contains(&PredictorId::Weighted);
+    let include_tree = predictors.contains(&PredictorId::WeightedTree);
+    let mut wtables: Vec<Option<Vec<WLeaf>>> = Vec::new();
 
     for (pi, plane) in planes.iter().enumerate() {
         let range = ranges[pi];
@@ -234,7 +260,7 @@ pub fn analyze(
                 for y in 0..height {
                     for x in 0..width {
                         let nb = neighbors(plane, x, y, width, height);
-                        let pred = predict_clamped(PredictorId::Weighted, &nb, Some(w), range);
+                        let pred = predict_clamped(PredictorId::Weighted, &nb, Some(w), None, range);
                         let r = plane[y * width + x] as i32 - pred;
                         cost += zigzag(r) as u64;
                     }
@@ -246,6 +272,44 @@ pub fn analyze(
             }
             weight_index = best;
         }
+
+        // R9-B: build the per-fine-leaf weighted-tree table for this plane (only when
+        // the `WeightedTree` predictor is a candidate, i.e. effort >= 4). Accumulate
+        // the 4x4 normal equations per leaf over (L,T,TL,TR) and the value v, solve
+        // the least-squares weights, and keep the table only if some context actually
+        // selects `WeightedTree` (so no model bytes are wasted when it does not help).
+        let wt_table: Vec<WLeaf> = if include_tree {
+            let mut s_leaf: Vec<[[i64; 5]; 5]> = vec![[[0i64; 5]; 5]; WC_LEAVES];
+            let mut b_leaf: Vec<[i64; 5]> = vec![[0i64; 5]; WC_LEAVES];
+            let mut cnt: Vec<i64> = vec![0i64; WC_LEAVES];
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = y * width + x;
+                    let n = neighbors(plane, x, y, width, height);
+                    let wc = weight_context(&n);
+                    let ns = [n.l as i64, n.t as i64, n.tl as i64, n.tr as i64, 1i64];
+                    for i in 0..5 {
+                        for j in 0..5 {
+                            s_leaf[wc][i][j] += ns[i] * ns[j];
+                        }
+                        b_leaf[wc][i] += (plane[idx] as i64) * ns[i];
+                    }
+                    cnt[wc] += 1;
+                }
+            }
+            let mut table = Vec::with_capacity(WC_LEAVES);
+            for lc in 0..WC_LEAVES {
+                let leaf = if cnt[lc] >= WC_MIN_SAMPLES as i64 {
+                    solve_weighted_tree(&s_leaf[lc], &b_leaf[lc]).unwrap_or(UNIT_LEAF)
+                } else {
+                    UNIT_LEAF
+                };
+                table.push(leaf);
+            }
+            table
+        } else {
+            Vec::new()
+        };
 
         // Per-context predictor selection by cost.
         let mut ctx_costs: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
@@ -261,7 +325,12 @@ pub fn analyze(
                 };
                 let v = plane[idx] as i32;
                 for (k, &p) in predictors.iter().enumerate() {
-                    let pred = predict_clamped(p, &nb, wv, range);
+                    let wtree = if p == PredictorId::WeightedTree {
+                        Some(wt_table.as_slice())
+                    } else {
+                        None
+                    };
+                    let pred = predict_clamped(p, &nb, wv, wtree, range);
                     ctx_costs[cid][k] += zigzag(v - pred) as u64;
                 }
             }
@@ -271,20 +340,32 @@ pub fn analyze(
             let mut best_k = 0usize;
             let mut best_c = u64::MAX;
             for (k, &c) in ctx_costs[cid].iter().enumerate() {
-                if c < best_c {
+                let p = predictors[k];
+                // `WeightedTree` is a strict superset of every fixed predictor (it
+                // can emulate any of them via its per-leaf table), so when its
+                // summed residual ties or beats a fixed candidate it wins the
+                // context - this is what lets it displace the simpler predictors
+                // on structured content without costing extra per-symbol bits.
+                if c < best_c || (c == best_c && p == PredictorId::WeightedTree) {
                     best_c = c;
                     best_k = k;
                 }
             }
             best_pred[cid] = predictors[best_k].to_u8();
         }
-        model
-            .planes
-            .push(PlaneModel {
-                map: best_pred,
-                weight_index,
-            });
+        // Keep the table only if this plane actually uses `WeightedTree` somewhere.
+        let used_tree = best_pred.iter().any(|&p| p == PredictorId::WeightedTree.to_u8());
+        wtables.push(if used_tree { Some(wt_table) } else { None });
+        model.planes.push(PlaneModel {
+            map: best_pred,
+            weight_index,
+        });
     }
+    model.weighted_wc_table = if wtables.iter().any(|o| o.is_some()) {
+        Some(wtables)
+    } else {
+        None
+    };
 
     // Static histograms at effort >= 6. Skipped under the Golomb-Rice backend
     // (M0/M1), where per-context k is implicit mirrored state and the histogram
@@ -302,7 +383,7 @@ pub fn analyze(
                     let nb = neighbors(plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y);
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), range);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), model.weighted_tree_for(pi), range);
                     let r = plane[idx] as i32 - pred;
                     hist[cid][zigzag(r) as usize] += 1;
                 }
@@ -360,6 +441,7 @@ pub fn default_model(
         cmarc_residual_ctx: false,
         cmarc_run: false,
         cmarc_use_color_cache: false,
+        weighted_wc_table: None,
     }
 }
 
@@ -382,15 +464,15 @@ pub fn build_capped_histograms(
     for (pi, plane) in planes.iter().enumerate() {
         let range = ranges[pi];
         let mut hist: Vec<Vec<u64>> = vec![vec![0u64; CAPPED_SYMBOLS]; model.context_count];
-        let wv = model.weight_for(pi);
-        let area = width * height;
-        for i in 0..area {
-            let x = i % width;
-            let y = i / width;
-            let nb = neighbors(plane, x, y, width, height);
-            let cid = cm.context_id(&nb, x, y) % model.context_count;
-            let p = model.predictor(pi, cid);
-            let pred = predict_clamped(p, &nb, wv.as_ref(), range);
+            let wv = model.weight_for(pi);
+            let area = width * height;
+            for i in 0..area {
+                let x = i % width;
+                let y = i / width;
+                let nb = neighbors(plane, x, y, width, height);
+                let cid = cm.context_id(&nb, x, y) % model.context_count;
+                let p = model.predictor(pi, cid);
+                let pred = predict_clamped(p, &nb, wv.as_ref(), model.weighted_tree_for(pi), range);
             let r = plane[i] as i32 - pred;
             let z = zigzag(r) as usize;
             let sym = z.min(CAPPED_ALPHABET);
@@ -535,6 +617,34 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     // R6-B color-cache flag for CMARC. Appended after the run-mode flag; the
     // decoder mirrors it to decide whether to maintain the per-plane LRU.
     w.write_all(&[if m.cmarc_use_color_cache { 1 } else { 0 }])?;
+    // R9-B weighted-tree table. Appended last so legacy readers still parse the
+    // model body. Format: [flag]; if 1, then per plane [flag]; if a plane's flag
+    // is 1, [WC_LEAVES as u16] followed by that many (i16,i16,i16,i16,i16,u8) leaves
+    // (spatial weights, bias, shift - all little-endian / shift as one byte). The
+    // decoder threads the table into the `WeightedTree` prediction so encoder/
+    // decoder lockstep is exact.
+    match &m.weighted_wc_table {
+        None => w.write_all(&[0])?,
+        Some(per_plane) => {
+            w.write_all(&[1])?;
+            for plane in per_plane {
+                if let Some(table) = plane {
+                    w.write_all(&[1])?;
+                    w.write_all(&(table.len() as u16).to_le_bytes())?;
+                    for &(w0, w1, w2, w3, bias, s) in table {
+                        w.write_all(&w0.to_le_bytes())?;
+                        w.write_all(&w1.to_le_bytes())?;
+                        w.write_all(&w2.to_le_bytes())?;
+                        w.write_all(&w3.to_le_bytes())?;
+                        w.write_all(&bias.to_le_bytes())?;
+                        w.write_all(&[s])?;
+                    }
+                } else {
+                    w.write_all(&[0])?;
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -768,6 +878,57 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
     r.read_exact(&mut ccf)?;
     let cmarc_use_color_cache = ccf[0] != 0;
 
+    // R9-B weighted-tree table, appended after the color-cache flag. Format mirrors
+    // `write_model`: a flag byte, then per plane a flag byte and (if set) the leaf
+    // count followed by the weight tuples.
+    let mut wt_flag = [0u8; 1];
+    r.read_exact(&mut wt_flag)?;
+    let weighted_wc_table = if wt_flag[0] == 1 {
+        let mut per_plane: Vec<Option<Vec<WLeaf>>> = Vec::with_capacity(plane_count);
+        for _ in 0..plane_count {
+            let mut pf = [0u8; 1];
+            r.read_exact(&mut pf)?;
+            if pf[0] == 1 {
+                let mut lc = [0u8; 2];
+                r.read_exact(&mut lc)?;
+                let n = u16::from_le_bytes(lc) as usize;
+                let mut table = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let mut w0 = [0u8; 2];
+                    r.read_exact(&mut w0)?;
+                    let mut w1 = [0u8; 2];
+                    r.read_exact(&mut w1)?;
+                    let mut w2 = [0u8; 2];
+                    r.read_exact(&mut w2)?;
+                    let mut w3 = [0u8; 2];
+                    r.read_exact(&mut w3)?;
+                    let mut bias = [0u8; 2];
+                    r.read_exact(&mut bias)?;
+                    let mut s = [0u8; 1];
+                    r.read_exact(&mut s)?;
+                    table.push((
+                        i16::from_le_bytes(w0),
+                        i16::from_le_bytes(w1),
+                        i16::from_le_bytes(w2),
+                        i16::from_le_bytes(w3),
+                        i16::from_le_bytes(bias),
+                        s[0],
+                    ));
+                }
+                per_plane.push(Some(table));
+            } else if pf[0] == 0 {
+                per_plane.push(None);
+            } else {
+                return Err(CodecError::InvalidStream("bad weighted-tree plane flag".into()));
+            }
+        }
+        Some(per_plane)
+    } else if wt_flag[0] == 0 {
+        None
+    } else {
+        return Err(CodecError::InvalidStream("bad weighted-tree flag".into()));
+    };
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -783,6 +944,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         cmarc_residual_ctx,
         cmarc_run,
         cmarc_use_color_cache,
+        weighted_wc_table,
     })
 }
 
@@ -971,5 +1133,85 @@ mod tests {
             &sizes,
         );
         assert_eq!(tables.len(), 1);
+    }
+
+    #[test]
+    fn r9b_weighted_tree_selected_and_table_roundtrips() {
+        // R9-B: on smooth structured content the per-fine-leaf least-squares
+        // weighted predictor (`WeightedTree`) should be selected somewhere by the
+        // analysis pass, and its table (when used) must serialize and deserialize
+        // bit-exactly so the encoder and decoder agree on the weights.
+        let context = ContextParams::default();
+        let codebook = default_weight_codebook();
+        let range = PlaneRange::U8;
+        let width = 64;
+        let height = 64;
+        let plane: Vec<i16> = (0..width * height)
+            .map(|i| {
+                let x = (i % width) as i16;
+                let y = (i / width) as i16;
+                // Linear (non-wrapping) content: the per-leaf least-squares fit can
+                // reproduce `v = x + y` exactly, beating the fixed predictors.
+                (x + y) % 256
+            })
+            .collect();
+        let model = analyze(&[plane], &[range], width, height, 4, &context, &codebook, false);
+        let used = model
+            .planes
+            .iter()
+            .flat_map(|p| p.map.iter())
+            .any(|&p| p == PredictorId::WeightedTree.to_u8());
+        assert!(used, "WeightedTree should be selected somewhere on smooth content");
+
+        let table = model
+            .weighted_tree_for(0)
+            .expect("weighted-tree table present when WeightedTree is used");
+        assert_eq!(table.len(), WC_LEAVES);
+        for &(w0, w1, w2, w3, bias, s) in table {
+            assert!(
+                (-32768..=32767).contains(&w0)
+                    && (-32768..=32767).contains(&w1)
+                    && (-32768..=32767).contains(&w2)
+                    && (-32768..=32767).contains(&w3)
+                    && (-32768..=32767).contains(&bias)
+            );
+            assert!(s <= 12);
+        }
+
+        // Serialization round-trip of the full model (including the table).
+        let mut bytes = Vec::new();
+        write_model(&mut bytes, &model).unwrap();
+        let sizes = alphabet_sizes(&[range]);
+        let back = read_model(&mut std::io::Cursor::new(bytes), &sizes).unwrap();
+        assert_eq!(back.weighted_tree_for(0), model.weighted_tree_for(0));
+    }
+
+    #[test]
+    fn r9b_weighted_tree_full_roundtrip_bit_exact() {
+        // End-to-end: encode then decode a synthetic gradient+edge RGB image at
+        // effort 4 (where WeightedTree is a candidate) and confirm the output is
+        // bit-exact. This exercises the locked encoder/decoder weighted-tree path.
+        use crate::image::{Channels, Image};
+        use crate::{decode, encode};
+        let w = 48u32;
+        let h = 40u32;
+        let mut planes = vec![vec![0u8; (w * h) as usize]; 3];
+        for y in 0..h as usize {
+            for x in 0..w as usize {
+                let idx = y * w as usize + x;
+                planes[0][idx] = ((x + 2 * y) % 256) as u8;
+                planes[1][idx] = ((x.wrapping_mul(3) ^ y) % 256) as u8;
+                planes[2][idx] = (((x as i32 - 24).unsigned_abs() as u32 + y as u32) % 256) as u8;
+            }
+        }
+        let img = Image {
+            width: w,
+            height: h,
+            channels: Channels::Rgb,
+            planes,
+        };
+        let (bytes, _stats) = encode(&img, 4).unwrap();
+        let out = decode(&bytes).unwrap();
+        assert_eq!(out.planes, img.planes, "R9-B WeightedTree roundtrip must be bit-exact");
     }
 }

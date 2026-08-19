@@ -19,9 +19,12 @@ pub struct Neighbors {
 ///
 /// Ids 0..=7 are the original Obsidian bank (Left/Top/Tl/Tr/Avg/Med/GapLite/
 /// Weighted). Ids 8..=16 are the R2.2 WebP/JPEG XL-style expansion (true-motion,
-/// half-delta, gradient, and the six clamped add/subtract forms). Existing ids
-/// are preserved so every previously-produced stream still decodes; the new ids
-/// only appear in streams whose analysis pass enabled them (effort >= 4).
+/// half-delta, gradient, and the six clamped add/subtract forms). Id 17 is the
+/// R8-A signaling-free adaptive weighted predictor. Id 18 is the R9-B context-tree
+/// weighted predictor (per-fine-leaf least-squares weights signaled in the model
+/// section). Existing ids are preserved so every previously-produced stream still
+/// decodes; the new ids only appear in streams whose analysis pass enabled them
+/// (effort >= 4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PredictorId {
@@ -48,9 +51,37 @@ pub enum PredictorId {
     // strict superset of the fixed predictor candidates: the analysis pass selects
     // it per context only where it lowers the summed residual magnitude.
     AdaptiveWeighted = 17,
+    // ---- R9-B context-tree weighted predictor (JPEG XL "weighted" at fine granularity) ----
+    // Deterministic weight CONTEXT from the causal gradients (so encoder and decoder
+    // agree with zero signaled bytes), but the actual 4 weights per leaf ARE
+    // signaled in the model section as a tiny per-plane table (O(1) bytes, ~75/plane).
+    // The analysis pass solves, per fine leaf, the least-squares optimal weights, so
+    // this captures within-coarse-context variation R8-A's single fixed formula
+    // cannot. Selected per context only where it lowers the summed residual.
+    WeightedTree = 18,
 }
 
-pub const PREDICTOR_COUNT: usize = 18;
+pub const PREDICTOR_COUNT: usize = 19;
+
+/// A per-leaf weight tuple for the R9-B `WeightedTree` predictor:
+/// `(wL, wT, wTL, wTR, bias, shift)`. The prediction is
+/// `round((wL*L + wT*T + wTL*TL + wTR*TR + bias) >> shift)`.
+/// The `bias` term lets the fit reproduce smooth gradients (and the constant
+/// offset that a pure linear combination of one-step-behind neighbors cannot).
+pub type WLeaf = (i16, i16, i16, i16, i16, u8);
+
+/// Number of fine weight-context leaves for `WeightedTree`. Small (JPEG XL uses
+/// 8-15), so the per-plane table is ~`WC_LEAVES * 6` bytes (O(1), amortized over
+/// millions of pixels) - the decisive difference from the R7-A blowup (which added
+/// a codebook index per coarse context, hundreds of bytes/image).
+pub const WC_LEAVES: usize = 15;
+
+/// Minimum samples in a leaf before its least-squares solve is trusted; smaller
+/// leaves fall back to `UNIT_LEAF` (LOCO-I L+T average) so no leaf diverges.
+pub const WC_MIN_SAMPLES: usize = 64;
+
+/// The neutral leaf weight (LOCO-I `L+T` average): `8*L + 8*T + 0 + 0 >> 4`.
+pub const UNIT_LEAF: WLeaf = (8, 8, 0, 0, 0, 4);
 
 impl PredictorId {
     pub fn from_u8(v: u8) -> Option<PredictorId> {
@@ -73,6 +104,7 @@ impl PredictorId {
             15 => Some(PredictorId::SubTLT),
             16 => Some(PredictorId::SubTTR),
             17 => Some(PredictorId::AdaptiveWeighted),
+            18 => Some(PredictorId::WeightedTree),
             _ => None,
         }
     }
@@ -101,6 +133,7 @@ impl PredictorId {
             PredictorId::SubTLT => "Sub(TL,T)",
             PredictorId::SubTTR => "Sub(T,TR)",
             PredictorId::AdaptiveWeighted => "AdaptiveWeighted",
+            PredictorId::WeightedTree => "WeightedTree",
         }
     }
 }
@@ -241,7 +274,13 @@ impl WeightVec {
 
 /// Compute the prediction for a pixel given its neighborhood. The caller
 /// clamps to the plane's value range.
-pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
+///
+/// `wtree` carries the per-plane R9-B weighted-tree table (a `WC_LEAVES`-entry
+/// slice of `(wL,wT,wTL,wTR,bias,shift)` tuples). It is only consulted for the
+/// `WeightedTree` predictor; all other predictors ignore it. Supplying `None`
+/// for `WeightedTree` falls back to the left neighbor (deterministic, so encode
+/// and decode still agree - they just both get a useless prediction).
+pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>, wtree: Option<&[WLeaf]>) -> i32 {
     match id {
         PredictorId::Left => n.l,
         PredictorId::Top => n.t,
@@ -271,7 +310,140 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
             };
             weighted(n, w)
         }
+        PredictorId::WeightedTree => match wtree {
+            Some(table) => predict_weighted_tree(n, table),
+            None => n.l,
+        },
     }
+}
+
+/// R9-B: the fine weight context, a pure function of the already-decoded causal
+/// neighborhood (so encoder and decoder compute it identically with zero signaled
+/// bytes). Three causal gradients, each quantized to 3 tiers (zero / small / large),
+/// packed into a 27-cell raw index then folded into `WC_LEAVES` leaves. Identical
+/// leaves group pixels with similar local structure, so the per-leaf least-squares
+/// weights specialize to the local image statistics.
+pub fn weight_context(n: &Neighbors) -> usize {
+    let gh = n.l - n.tl; // horizontal gradient
+    let gv = n.t - n.tl; // vertical gradient
+    let gd = n.tl - n.tr; // diagonal gradient
+    let q = |g: i32| -> usize {
+        match g.unsigned_abs() {
+            0 => 0,
+            a if a <= 8 => 1,
+            _ => 2,
+        }
+    };
+    let raw = q(gh) * 9 + q(gv) * 3 + q(gd); // 0..26
+    raw % WC_LEAVES
+}
+
+/// R9-B: predict with the per-leaf weighted-tree table. `wc = weight_context(n)`
+/// selects the leaf; the prediction is the (clamped, shifted) dot product of the
+/// four causal neighbors with the leaf's weights. Deterministic given `n` and the
+/// table, so encoder/decoder lockstep is exact with zero online state.
+pub fn predict_weighted_tree(n: &Neighbors, table: &[WLeaf]) -> i32 {
+    let wc = weight_context(n) % table.len().max(1);
+    let (w0, w1, w2, w3, bias, s) = table[wc];
+    let acc = (w0 as i32) * n.l
+        + (w1 as i32) * n.t
+        + (w2 as i32) * n.tl
+        + (w3 as i32) * n.tr
+        + bias as i32;
+    let shift = s as u32;
+    if shift == 0 {
+        return acc;
+    }
+    let half = 1i32 << (shift - 1);
+    (acc + half) >> shift
+}
+
+/// R9-B: solve the per-leaf least-squares weights from accumulated 5x5 normal
+/// equations `S` and RHS `b` (sums of outer products of `(L,T,TL,TR,1)` and of
+/// `v*(L,T,TL,TR,1)` respectively), returning an unconstrained integer
+/// `(wL,wT,wTL,wTR,bias,shift)` tuple, or `None` if the system is ill-conditioned
+/// (caller falls back to `UNIT_LEAF`). The 5th basis term is a constant bias.
+///
+/// The weights are NOT forced to sum to a power of two: the fit is
+/// `v ~ wL*L + wT*T + wTL*TL + wTR*TR + bias`, solved in the natural scale so that
+/// `w . n + bias` actually reproduces `v`. The shift `s` is chosen independently so
+/// the largest spatial weight sits near `2^10` (preserving fractional precision
+/// while staying safely in `i16`); the prediction is `round((w . n + bias) / 2^s)`.
+/// A small ridge term keeps the solve stable on near-singular leaves.
+pub fn solve_weighted_tree(s: &[[i64; 5]; 5], b: &[i64; 5]) -> Option<WLeaf> {
+    const RIDGE: i64 = 8;
+    let mut a = *s;
+    for i in 0..5 {
+        a[i][i] += RIDGE;
+    }
+    // Gauss-Jordan on f64 for robustness (analysis runs on the host, not the stream).
+    let mut m = [[0f64; 5]; 5];
+    for i in 0..5 {
+        for j in 0..5 {
+            m[i][j] = a[i][j] as f64;
+        }
+    }
+    let mut rhs = [0f64; 5];
+    for i in 0..5 {
+        rhs[i] = b[i] as f64;
+    }
+    for col in 0..5 {
+        let mut piv = col;
+        let mut best = m[col][col].abs();
+        for r in (col + 1)..5 {
+            if m[r][col].abs() > best {
+                best = m[r][col].abs();
+                piv = r;
+            }
+        }
+        if best < 1e-9 {
+            return None;
+        }
+        m.swap(col, piv);
+        rhs.swap(col, piv);
+        let d = m[col][col];
+        for j in col..5 {
+            m[col][j] /= d;
+        }
+        rhs[col] /= d;
+        for r in 0..5 {
+            if r != col {
+                let f = m[r][col];
+                for j in col..5 {
+                    m[r][j] -= f * m[col][j];
+                }
+                rhs[r] -= f * rhs[col];
+            }
+        }
+    }
+    let w = rhs; // solution x = m^{-1} b (m is now I)
+    let maxw = w[0].abs().max(w[1].abs()).max(w[2].abs()).max(w[3].abs());
+    if maxw < 1e-9 {
+        return None;
+    }
+    // Independent shift: scale the largest spatial weight to ~2^10 so fractional
+    // is preserved while the stored weights stay within i16.
+    let s = ((1024.0 / maxw).ln() / std::f64::consts::LN_2)
+        .round()
+        .clamp(0.0, 12.0) as u32;
+    let scale = (1u64 << s) as f64;
+    let wi: Vec<i32> = w
+        .iter()
+        .map(|x| (x * scale).round().clamp(i32::MIN as f64, i32::MAX as f64) as i32)
+        .collect();
+    if wi[0] == 0 && wi[1] == 0 && wi[2] == 0 && wi[3] == 0 {
+        return None;
+    }
+    // `wi[4]` is the bias, stored in the same scaled units so it joins the dot
+    // product before the shift.
+    Some((
+        wi[0].clamp(i16::MIN as i32, i16::MAX as i32) as i16,
+        wi[1].clamp(i16::MIN as i32, i16::MAX as i32) as i16,
+        wi[2].clamp(i16::MIN as i32, i16::MAX as i32) as i16,
+        wi[3].clamp(i16::MIN as i32, i16::MAX as i32) as i16,
+        wi[4].clamp(i16::MIN as i32, i16::MAX as i32) as i16,
+        s as u8,
+    ))
 }
 
 fn med(n: &Neighbors) -> i32 {
@@ -351,9 +523,10 @@ pub fn predict_clamped(
     id: PredictorId,
     n: &Neighbors,
     w: Option<&WeightVec>,
+    wtree: Option<&[WLeaf]>,
     range: PlaneRange,
 ) -> i32 {
-    range.clamp(predict(id, n, w))
+    range.clamp(predict(id, n, w, wtree))
 }
 
 #[cfg(test)]
@@ -369,7 +542,7 @@ mod tests {
             tr: 0,
         };
         // tl(95) between min(90,100)=90 and max=100 -> L+T-TL = 100+90-95 = 95
-        assert_eq!(predict(PredictorId::Med, &n, None), 95);
+        assert_eq!(predict(PredictorId::Med, &n, None, None), 95);
         let n2 = Neighbors {
             l: 200,
             t: 10,
@@ -377,7 +550,7 @@ mod tests {
             tr: 0,
         };
         // tl >= max(200,10) -> min = 10
-        assert_eq!(predict(PredictorId::Med, &n2, None), 10);
+        assert_eq!(predict(PredictorId::Med, &n2, None, None), 10);
         let n3 = Neighbors {
             l: 200,
             t: 10,
@@ -385,7 +558,7 @@ mod tests {
             tr: 0,
         };
         // tl <= min -> max = 200
-        assert_eq!(predict(PredictorId::Med, &n3, None), 200);
+        assert_eq!(predict(PredictorId::Med, &n3, None, None), 200);
     }
 
     #[test]
@@ -450,8 +623,8 @@ mod tests {
             tr: 0,
         };
         // (8*10 + 8*20 + 8)/16 = (240+8)/16 = 15
-        assert_eq!(predict(PredictorId::Weighted, &n, Some(&w)), 15);
-        assert_eq!(predict(PredictorId::Weighted, &n, None), 10);
+        assert_eq!(predict(PredictorId::Weighted, &n, Some(&w), None), 15);
+        assert_eq!(predict(PredictorId::Weighted, &n, None, None), 10);
     }
 
     #[test]
@@ -465,26 +638,26 @@ mod tests {
             tr: 90,
         };
         // TrueMotion = L + T - TL = 100 + 120 - 110 = 110
-        assert_eq!(predict(PredictorId::TrueMotion, &n, None), 110);
+        assert_eq!(predict(PredictorId::TrueMotion, &n, None, None), 110);
         // L + (TL - T)/2 = 100 + (110 - 120)/2 = 100 - 5 = 95
-        assert_eq!(predict(PredictorId::LPlusHalfTLMinusT, &n, None), 95);
+        assert_eq!(predict(PredictorId::LPlusHalfTLMinusT, &n, None, None), 95);
         // Gradient2 = (L + T)/2 + (TL - TR)/2 = 110 + 10 = 120
-        assert_eq!(predict(PredictorId::Gradient2, &n, None), 120);
-        assert_eq!(predict(PredictorId::AddLT, &n, None), 220);
-        assert_eq!(predict(PredictorId::AddLTL, &n, None), 210);
-        assert_eq!(predict(PredictorId::AddTLT, &n, None), 230);
-        assert_eq!(predict(PredictorId::SubLTL, &n, None), -10);
-        assert_eq!(predict(PredictorId::SubTLT, &n, None), -10);
-        assert_eq!(predict(PredictorId::SubTTR, &n, None), 30);
+        assert_eq!(predict(PredictorId::Gradient2, &n, None, None), 120);
+        assert_eq!(predict(PredictorId::AddLT, &n, None, None), 220);
+        assert_eq!(predict(PredictorId::AddLTL, &n, None, None), 210);
+        assert_eq!(predict(PredictorId::AddTLT, &n, None, None), 230);
+        assert_eq!(predict(PredictorId::SubLTL, &n, None, None), -10);
+        assert_eq!(predict(PredictorId::SubTLT, &n, None, None), -10);
+        assert_eq!(predict(PredictorId::SubTTR, &n, None, None), 30);
     }
 
     #[test]
     fn r22_predictor_count_and_ids() {
-        assert_eq!(PREDICTOR_COUNT, 18);
-        for id in 0..18u8 {
+        assert_eq!(PREDICTOR_COUNT, 19);
+        for id in 0..19u8 {
             assert!(PredictorId::from_u8(id).is_some(), "id {id} must map");
         }
-        assert!(PredictorId::from_u8(18).is_none());
+        assert!(PredictorId::from_u8(19).is_none());
     }
 
     #[test]
@@ -497,7 +670,7 @@ mod tests {
             tl: 120,
             tr: 120,
         };
-        assert_eq!(predict(PredictorId::AdaptiveWeighted, &flat, None), 120);
+        assert_eq!(predict(PredictorId::AdaptiveWeighted, &flat, None, None), 120);
 
         // A structured neighborhood: the smoother (horizontal) direction should get
         // more weight than the steep vertical direction.
@@ -510,7 +683,7 @@ mod tests {
         // d_l = 0 -> wl = 256; d_t = 60 -> wt = 256/61 ~= 4; d_tl = 0 -> wtl = 256;
         // wtr = 256. sum = 772. dot = 256*100 + 4*160 + 256*100 + 256*100 = 76864.
         // pred = round(76864/772) = round(99.56) = 100.
-        let p = predict(PredictorId::AdaptiveWeighted, &n, None);
+        let p = predict(PredictorId::AdaptiveWeighted, &n, None, None);
         assert_eq!(p, 100, "smooth horizontal direction dominates");
         // Result lies within [min, max] of the neighbors (convex combination).
         assert!((80..=180).contains(&p));
@@ -523,8 +696,8 @@ mod tests {
             tr: 40,
         };
         assert_eq!(
-            predict(PredictorId::AdaptiveWeighted, &n2, None),
-            predict(PredictorId::AdaptiveWeighted, &n2, None)
+            predict(PredictorId::AdaptiveWeighted, &n2, None, None),
+            predict(PredictorId::AdaptiveWeighted, &n2, None, None)
         );
     }
 
@@ -561,7 +734,13 @@ mod tests {
                 let nb = neighbors(&recon, x, y, w as usize, h as usize);
                 let cid = cm.context_id(&nb, x, y) % model.context_count;
                 let p = model.predictor(0, cid);
-                let pred = predict_clamped(p, &nb, model.weight_for(0).as_ref(), range);
+                let pred = predict_clamped(
+                    p,
+                    &nb,
+                    model.weight_for(0).as_ref(),
+                    model.weighted_tree_for(0),
+                    range,
+                );
                 let r = planes[0][idx] as i32 - pred;
                 recon[idx] = (pred + r) as i16;
             }
@@ -578,8 +757,57 @@ mod tests {
             tl: 0,
             tr: 0,
         };
-        assert_eq!(predict_clamped(PredictorId::Avg, &n, None, range), 255);
+        assert_eq!(predict_clamped(PredictorId::Avg, &n, None, None, range), 255);
         let range2 = PlaneRange::U8;
-        assert_eq!(predict_clamped(PredictorId::Avg, &n, None, range2), 255);
+        assert_eq!(predict_clamped(PredictorId::Avg, &n, None, None, range2), 255);
+    }
+
+    #[test]
+    fn r9b_weighted_tree_predict_and_solve() {
+        // `weight_context` is a deterministic function of the neighborhood.
+        let n = Neighbors { l: 10, t: 20, tl: 5, tr: 8 };
+        assert_eq!(weight_context(&n), weight_context(&n));
+
+        // A neutral table modelling the L+T average (8,8,0,0,0,4) predicts (8*10+8*20)/16.
+        let table: Vec<WLeaf> = vec![(8, 8, 0, 0, 0, 4); WC_LEAVES];
+        let p = predict_weighted_tree(&n, &table);
+        assert_eq!(p, (8 * 10 + 8 * 20) >> 4);
+
+        // Solve on data where v = (L+T)/2 exactly: the per-leaf least-squares fit
+        // (with bias) should learn weights concentrated on L and T with near-zero
+        // diagonal terms and a positive bias.
+        let mut s = [[0i64; 5]; 5];
+        let mut b = [0i64; 5];
+        for l in 0..8i64 {
+            for t in 0..8i64 {
+                let v = (l + t) / 2;
+                let ns = [l, t, 0i64, 0i64, 1i64];
+                for i in 0..5 {
+                    for j in 0..5 {
+                        s[i][j] += ns[i] * ns[j];
+                    }
+                    b[i] += v * ns[i];
+                }
+            }
+        }
+        let leaf = solve_weighted_tree(&s, &b).expect("solve succeeds on well-conditioned data");
+        let (w0, w1, w2, w3, bias, sh) = leaf;
+        assert!(w2.abs() <= 2 && w3.abs() <= 2, "diagonal weights ~0 for v=(L+T)/2, got {leaf:?}");
+        assert!(w0 > 0 && w1 > 0, "L and T weights positive, got {leaf:?}");
+        assert!((0u32..=12).contains(&(sh as u32)));
+        // The learned leaf must reproduce `v = (L+T)/2` on its own training data.
+        let table: Vec<WLeaf> = vec![leaf; WC_LEAVES];
+        for l in 0..8i32 {
+            for t in 0..8i32 {
+                let n = Neighbors { l, t, tl: 0, tr: 0 };
+                let pred = predict_weighted_tree(&n, &table);
+                assert_eq!(pred, (l + t) / 2, "leaf {leaf:?} on l={l} t={t}");
+            }
+        }
+
+        // Ill-conditioned system (all-identical inputs) must return None, not panic.
+        let s2 = [[0i64; 5]; 5];
+        let b2 = [0i64; 5];
+        assert!(solve_weighted_tree(&s2, &b2).is_none());
     }
 }

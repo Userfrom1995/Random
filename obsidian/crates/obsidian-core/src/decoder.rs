@@ -14,7 +14,7 @@ use crate::model::{
     ENTROPY_MODE_CAPPED, ENTROPY_MODE_CARC, ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX,
     ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
-use crate::predict::{neighbors, predict_clamped, PredictorId, WeightVec, M3_WP_GAIN};
+use crate::predict::{neighbors, predict_clamped, PredictorId, WLeaf, WeightVec, M3_WP_GAIN};
 use crate::rans::{
     RansDecoder, RansTable, BitReader, GrState, GR_K_INIT, gr_read_symbol, read_gamma,
     gr_adapt_bias, CmState, gr_read_symbol_k, read_match, CAPPED_SYMBOLS, CAPPED_ALPHABET,
@@ -50,6 +50,7 @@ fn cmarc_residual_context_of(
     cm: &ContextModel,
     model: &ModelConfig,
     wv: Option<&WeightVec>,
+    wtree: Option<&[WLeaf]>,
     range: &PlaneRange,
 ) -> usize {
     let coords: [(usize, usize); 3] = [
@@ -69,7 +70,7 @@ fn cmarc_residual_context_of(
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
         let np = model.predictor(pi, ncid);
-        let npred = predict_clamped(np, &nnb, wv, *range);
+        let npred = predict_clamped(np, &nnb, wv, wtree, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
     residual_context(qs[0], qs[1], qs[2])
@@ -133,6 +134,14 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
     if cur.position() as usize != model_end {
         return Err(CodecError::InvalidStream("model length mismatch".into()));
     }
+    // Verify the model checksum so a corrupted model is rejected rather than
+    // silently decoded (the pixel CRC only catches payload corruption).
+    let mut mc = [0u8; 4];
+    cur.read_exact(&mut mc)?;
+    let stored = u32::from_le_bytes(mc);
+    if crc32(&bytes[model_start..model_end]) != stored {
+        return Err(CodecError::InvalidStream("model checksum mismatch".into()));
+    }
 
     // The palette colors come from the model; fix the index plane range and
     // recompute the alphabet sizes. The pre-model placeholder (`PlaneRange::U8`)
@@ -185,6 +194,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
     for pi in 0..plane_count {
         let alphabet = sizes[pi];
         let wv = model.weight_for(pi);
+        let wtree = model.weighted_tree_for(pi);
         let mut plane = vec![0i16; area];
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
@@ -208,7 +218,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
                         let recon = pred + r;
@@ -285,7 +295,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         } else {
                             wv.as_ref()
                         };
-                        let pred = predict_clamped(p, &nb, w, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, w, wtree, ranges[pi]);
                         let r = gr_read_symbol(&mut dbr, &mut gr[cid])?;
                         plane[i] = (pred + r) as i16;
                         if m3_wp && matches!(p, PredictorId::Weighted) {
@@ -323,7 +333,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
                     let r_coded = gr_read_symbol(&mut br, &mut gr[cid])?;
@@ -354,7 +364,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
                         plane[idx] = (pred + r) as i16;
                     }
@@ -426,7 +436,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let sym = rdec.get(&mut tables[cid])?;
                         let r = if sym != CAPPED_ALPHABET {
                             unzigzag(sym as u32)
@@ -588,7 +598,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             i += len;
                         } else {
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
                                 &mut models,
@@ -615,7 +625,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
                                 &mut models,
@@ -647,7 +657,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let ql = if x > 0 {
                             quantize_residual(res_dec[i - 1])
                         } else {
@@ -670,6 +680,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 &cm,
                                 &model,
                                 wv.as_ref(),
+                                wtree,
                                 &ranges[pi],
                             )
                         } else {
@@ -698,6 +709,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                         pj,
                                         &nbj,
                                         wv.as_ref(),
+                                        wtree,
                                         ranges[pi],
                                     );
                                     plane[j] = predj as i16;
@@ -750,7 +762,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let v = cmarc_cache_read(
                                 &mut dec,
                                 &mut models,
@@ -769,7 +781,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     &plane,
@@ -781,6 +793,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                     &cm,
                                     &model,
                                     wv.as_ref(),
+                                    wtree,
                                     &ranges[pi],
                                 )
                             } else {
@@ -817,7 +830,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let sym = if use_static {
                         let table = static_tables[cid].as_mut().ok_or_else(|| {
                             CodecError::InvalidStream(format!("missing static table for context {cid}"))
@@ -895,8 +908,16 @@ pub fn inspect(bytes: &[u8]) -> Result<(Header, ModelConfig, usize), CodecError>
     };
     let sizes = alphabet_sizes(&ranges);
     let model = read_model(&mut cur, &sizes)?;
+    // Consume (and verify) the trailing model checksum so `model_end` points at
+    // the payload start, matching the on-disk layout emitted by the encoder.
+    let mut mc = [0u8; 4];
+    cur.read_exact(&mut mc)?;
+    let stored = u32::from_le_bytes(mc);
+    if crc32(&bytes[model_start..model_end]) != stored {
+        return Err(CodecError::InvalidStream("model checksum mismatch".into()));
+    }
     let _ = eff_channels;
-    Ok((header, model, model_end))
+    Ok((header, model, cur.position() as usize))
 }
 
 #[cfg(test)]

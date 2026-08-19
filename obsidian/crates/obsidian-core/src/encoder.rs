@@ -18,7 +18,7 @@ use crate::model::{
     ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX, ENTROPY_MODE_CARC_CACHE,
 };
 use crate::predict::{
-    default_weight_codebook, neighbors, predict_clamped, PredictorId, WeightVec, M3_WP_GAIN,
+    default_weight_codebook, neighbors, predict_clamped, PredictorId, WLeaf, WeightVec, M3_WP_GAIN,
     PREDICTOR_COUNT,
 };
 use crate::rans::{
@@ -952,6 +952,9 @@ pub fn encode_with(
     header.write(&mut out)?;
     out.extend_from_slice(&(model_bytes.len() as u32).to_le_bytes());
     out.extend_from_slice(&model_bytes);
+    // Checksum the model so header corruption is rejected (the pixel CRC alone
+    // would not catch a model byte that happens to decode to the same image).
+    out.extend_from_slice(&crc32(&model_bytes).to_le_bytes());
     // Payload: per-plane lengths then streams.
     for s in &streams {
         out.extend_from_slice(&(s.len() as u32).to_le_bytes());
@@ -1070,6 +1073,7 @@ fn cmarc_residual_context_of(
     cm: &ContextModel,
     model: &ModelConfig,
     wv: Option<&WeightVec>,
+    wtree: Option<&[WLeaf]>,
     range: &PlaneRange,
 ) -> usize {
     let coords: [(usize, usize); 3] = [
@@ -1089,7 +1093,7 @@ fn cmarc_residual_context_of(
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
         let np = model.predictor(pi, ncid);
-        let npred = predict_clamped(np, &nnb, wv, *range);
+        let npred = predict_clamped(np, &nnb, wv, wtree, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
     residual_context(qs[0], qs[1], qs[2])
@@ -1124,6 +1128,7 @@ fn code_planes(
     for pi in 0..coding_planes.len() {
         let alphabet = sizes[pi];
         let wv = model.weight_for(pi);
+        let wtree = model.weighted_tree_for(pi);
         if entropy_gr {
             // Design A: per-context adaptive Golomb-Rice. Forward raster order;
             // both sides adapt `k` from the decoded symbols (mirrored state), so
@@ -1246,7 +1251,7 @@ fn code_planes(
                                 );
                                 let p = model.predictor(pi, cid);
                                 let pred =
-                                    predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                                    predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                                 let r = buf[i] as i32 - pred;
                                 cmarc_lz_write_literal(
                                     &mut enc,
@@ -1277,7 +1282,7 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
                             cmarc_mix_write_residual(
                                 &mut enc,
@@ -1311,7 +1316,7 @@ fn code_planes(
                             let cidp = cm.context_id(&nb, xx, yy) % model.context_count;
                             let pp = model.predictor(pi, cidp);
                             let predp =
-                                predict_clamped(pp, &nb, wv.as_ref(), ranges[pi]);
+                                predict_clamped(pp, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let rp = coding_planes[pi][idx] as i32 - predp;
                             res[idx] = rp;
                             let ql = if xx > 0 {
@@ -1346,6 +1351,7 @@ fn code_planes(
                                 &cm,
                                 model,
                                 wv.as_ref(),
+                                wtree,
                                 &ranges[pi],
                             )
                         } else {
@@ -1420,7 +1426,7 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let v = coding_planes[pi][idx] as i32;
                             let r = v - pred;
                             // R3-A coding-context selection (unchanged by cache mode).
@@ -1438,6 +1444,7 @@ fn code_planes(
                                     &cm,
                                     model,
                                     wv.as_ref(),
+                                    wtree,
                                     &ranges[pi],
                                 )
                             } else {
@@ -1488,7 +1495,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let k = cms[cid].k_current();
                         gr_write_symbol_k(&mut bw, r, k);
@@ -1563,7 +1570,7 @@ fn code_planes(
                             } else {
                                 wv.as_ref()
                             };
-                            let pred = predict_clamped(p, &nb, w, ranges[pi]);
+                            let pred = predict_clamped(p, &nb, w, wtree, ranges[pi]);
                             let r = coding_planes[pi][i] as i32 - pred;
                             gr_write_symbol(&mut data_bw, &mut gr[cid], r);
                             if m3_wp && matches!(p, PredictorId::Weighted) {
@@ -1619,7 +1626,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
                     let r_coded = val - pred_b;
@@ -1704,7 +1711,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let z = zigzag(r) as usize;
                         let sym = z.min(CAPPED_ALPHABET);
@@ -1741,7 +1748,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
                         chosen_counts[p.to_u8() as usize] += 1;
@@ -1766,7 +1773,7 @@ fn code_planes(
                             CodecError::InvalidStream(format!("no static table for context {cid}"))
                         })?;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     enc.put(zigzag(r) as usize, table);
                     chosen_counts[p.to_u8() as usize] += 1;
@@ -1789,7 +1796,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let sym = zigzag(r) as usize;
                     let (f, c) = tables[cid].lookup(sym);
@@ -1804,7 +1811,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let packed = plan[idx];
                     let total = (packed & FREQ_MASK) as u32;
