@@ -43,18 +43,9 @@ pub enum PredictorId {
     SubLTL = 14,
     SubTLT = 15,
     SubTTR = 16,
-    /// R8-A: a signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
-    /// The weights are a deterministic inverse-gradient function of the already
-    /// decoded causal neighborhood, so the decoder recomputes identical weights
-    /// with zero signaled bytes. A high id keeps it clear of the `0..=16` bank
-    /// and the legacy `17 + j` Weighted-codebook reserved range (see `model.rs`).
-    AdaptiveWeighted = 200,
 }
 
-/// Upper bound on any `PredictorId` value + 1, used to size the per-predictor
-/// usage counts. The `AdaptiveWeighted` id (200) is the largest, so the table
-/// must span it.
-pub const PREDICTOR_COUNT: usize = 201;
+pub const PREDICTOR_COUNT: usize = 17;
 
 impl PredictorId {
     pub fn from_u8(v: u8) -> Option<PredictorId> {
@@ -76,7 +67,6 @@ impl PredictorId {
             14 => Some(PredictorId::SubLTL),
             15 => Some(PredictorId::SubTLT),
             16 => Some(PredictorId::SubTTR),
-            200 => Some(PredictorId::AdaptiveWeighted),
             _ => None,
         }
     }
@@ -104,7 +94,6 @@ impl PredictorId {
             PredictorId::SubLTL => "Sub(L,TL)",
             PredictorId::SubTLT => "Sub(TL,T)",
             PredictorId::SubTTR => "Sub(T,TR)",
-            PredictorId::AdaptiveWeighted => "AdaptiveWeighted",
         }
     }
 }
@@ -123,53 +112,32 @@ pub struct WeightVec {
 /// The default weight codebook searched by the analysis pass for the Weighted
 /// predictor (effort >= 4). Sums are chosen around 16 so `shift = 4` gives a
 /// near-unit scaling.
-///
-/// R7-A expands the codebook well beyond the original 16 entries: the diagonal
-/// `(wl, wt)` family is augmented with small off-diagonal `(wtl, wtr)` correction
-/// terms and alternate `shift` values (3, 4, 5). The analysis pass picks the best
-/// codebook weight *per spatial context* (signaled as `17 + j` in the predictor
-/// map), so the codec gets a near-least-squares linear predictor everywhere
-/// instead of one shared per-plane weight. All entries are generated
-/// deterministically so the encoder and decoder agree without signaling them.
 pub fn default_weight_codebook() -> Vec<WeightVec> {
-    let v = |wl: i16, wt: i16, wtl: i16, wtr: i16, shift: u8| WeightVec {
+    let v = |wl: i16, wt: i16, wtl: i16, wtr: i16| WeightVec {
         wl,
         wt,
         wtl,
         wtr,
-        shift,
+        shift: 4,
     };
-    let mut out: Vec<WeightVec> = Vec::new();
-    // Base diagonal, shift 4, wl + wt = 16.
-    let diag = [
-        (8, 8),
-        (10, 6),
-        (6, 10),
-        (12, 4),
-        (4, 12),
-        (14, 2),
-        (2, 14),
-        (16, 0),
-        (0, 16),
-    ];
-    for (wl, wt) in diag {
-        out.push(v(wl, wt, 0, 0, 4));
-    }
-    // Diagonal plus small off-diagonal correction terms. `predict_weighted`
-    // scales by `(acc + half) >> shift` and assumes the weights sum to
-    // `2^shift == 16`, so every correction must keep `wl + wt + wtl + wtr == 16`.
-    // We use antisymmetric pairs (`wtr = -wtl`) so the total never drifts.
-    for (wl, wt) in [(8, 8), (10, 6), (6, 10), (12, 4), (4, 12)] {
-        for wtl in [-2i16, -1, 1, 2] {
-            out.push(v(wl, wt, wtl, -wtl, 4));
-        }
-    }
-    // Diagonal with alternate shift values for sharper / softer scaling.
-    for (wl, wt) in [(8, 8), (10, 6), (6, 10), (12, 4), (4, 12)] {
-        out.push(v(wl, wt, 0, 0, 3));
-        out.push(v(wl, wt, 0, 0, 5));
-    }
-    out
+    vec![
+        v(8, 8, 0, 0),
+        v(10, 6, 0, 0),
+        v(6, 10, 0, 0),
+        v(12, 4, 0, 0),
+        v(4, 12, 0, 0),
+        v(9, 9, -2, 0),
+        v(11, 7, -2, 0),
+        v(7, 11, -2, 0),
+        v(8, 8, 0, -2),
+        v(10, 6, 0, -2),
+        v(6, 10, 0, -2),
+        v(9, 9, -2, -2),
+        v(12, 8, -4, 0),
+        v(8, 12, -4, 0),
+        v(14, 6, -4, 0),
+        v(6, 14, -4, 0),
+    ]
 }
 
 /// Compute the causal neighborhood for pixel `(x, y)` in a `width x height`
@@ -288,7 +256,6 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
         PredictorId::SubLTL => n.l - n.tl,
         PredictorId::SubTLT => n.tl - n.t,
         PredictorId::SubTTR => n.t - n.tr,
-        PredictorId::AdaptiveWeighted => predict_weighted_adaptive(n),
         PredictorId::Weighted => {
             let w = match w {
                 Some(w) => w,
@@ -332,46 +299,6 @@ fn weighted(n: &Neighbors, w: &WeightVec) -> i32 {
     let shift = w.shift as u32;
     let half = 1i32 << (shift - 1);
     (acc + half) >> shift
-}
-
-/// R8-A: signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
-///
-/// Each of the four causal neighbors `(L, T, TL, TR)` receives a soft
-/// inverse-gradient weight: a direction with a small local gradient (smooth,
-/// predictable) gets a large weight, a direction with a large gradient gets a
-/// small weight. This is the JPEG XL `Predictor::Weighted` formulation: the
-/// prediction is `TL + (wL*(L-TL) + wT*(T-TL) + wTL*(TL-TR)) / (1<<WSCALE)`,
-/// where each weight is `sign(d)/(1+|d|)` in Q-`WSCALE`. It is a deterministic
-/// function of the already-decoded neighborhood alone (the encoder and decoder
-/// recompute identical weights with zero signaled bytes), and `predict_clamped`
-/// range-clamps it.
-///
-/// This is a strict superset of the fixed-predictor candidate set: when it does
-/// not lower a context's residual energy, the per-context analysis pass keeps a
-/// fixed predictor (or the per-plane `Weighted`), so it can never raise residual
-/// energy versus the pre-R8 model.
-fn predict_weighted_adaptive(n: &Neighbors) -> i32 {
-    // Three JPEG-XL weighted-predictor gradients (differences of the causal
-    // neighborhood), with TL as the reference corner.
-    let dL = n.l - n.tl; // horizontal gradient (L - TL)
-    let dT = n.t - n.tl; // vertical gradient (T - TL)
-    let dD = n.tl - n.tr; // diagonal gradient (TL - TR)
-
-    // Signed inverse-gradient weight in Q-`WSCALE` (range [1, 1<<WSCALE] in
-    // magnitude): `sign(d) * (1<<WSCALE) / (1 + |d|)`. Clamped to at least 1 so
-    // no direction is ever fully discarded.
-    const WSCALE: i32 = 8;
-    let w = |d: i32| -> i32 {
-        let a = d.unsigned_abs() as i32;
-        let sign = if d < 0 { -1i32 } else { 1i32 };
-        sign * (((1i32 << WSCALE) / (1 + a)).max(1))
-    };
-
-    let wL = w(dL);
-    let wT = w(dT);
-    let wTL = w(dD);
-
-    n.tl + (wL * (n.l - n.tl) + wT * (n.t - n.tl) + wTL * (n.tl - n.tr)) / (1 << WSCALE)
 }
 
 /// Predict a single sample with clamping to the plane range.
@@ -508,49 +435,11 @@ mod tests {
 
     #[test]
     fn r22_predictor_count_and_ids() {
-        // The fixed R2.2 bank occupies ids 0..=16 (17 predictors). The R8-A
-        // signaling-free `AdaptiveWeighted` predictor uses a high, non-contiguous
-        // id (200) so it never collides with the legacy `17 + j` Weighted
-        // codebook range; `PREDICTOR_COUNT` is the span used to size the
-        // per-predictor usage-count arrays (indexed by id), so it covers id 200.
-        assert!(PREDICTOR_COUNT > PredictorId::AdaptiveWeighted as usize);
-        for id in 0..=16u8 {
+        assert_eq!(PREDICTOR_COUNT, 17);
+        for id in 0..17u8 {
             assert!(PredictorId::from_u8(id).is_some(), "id {id} must map");
         }
-        assert!(PredictorId::from_u8(17).is_none(), "17 is reserved");
-        assert!(PredictorId::from_u8(200) == Some(PredictorId::AdaptiveWeighted));
-    }
-
-    #[test]
-    fn r8_adaptive_weighted_deterministic() {
-        // The R8-A predictor must be a pure, deterministic function of the causal
-        // neighborhood (the same neighbors the decoder has already reconstructed),
-        // so encoder and decoder recompute identical weights with zero signaled
-        // bytes. This asserts the function is well-defined and symmetric under the
-        // gradient construction used by libjxl's `Predictor::Weighted`.
-        let n = Neighbors {
-            l: 120,
-            t: 100,
-            tl: 110,
-            tr: 90,
-        };
-        let a = predict(PredictorId::AdaptiveWeighted, &n, None);
-        let b = predict(PredictorId::AdaptiveWeighted, &n, None);
-        assert_eq!(a, b, "adaptive weighted must be deterministic");
-        // All-positive weights with a positive sum guarantee the prediction is a
-        // weighted average of the neighbors and stays in their convex-ish span.
-        assert!(a >= n.tl.min(n.l).min(n.t).min(n.tr));
-        assert!(a <= n.tl.max(n.l).max(n.t).max(n.tr));
-
-        // Constant neighborhood -> prediction equals the neighbors (weights all
-        // equal, average is the value).
-        let c = Neighbors {
-            l: 77,
-            t: 77,
-            tl: 77,
-            tr: 77,
-        };
-        assert_eq!(predict(PredictorId::AdaptiveWeighted, &c, None), 77);
+        assert!(PredictorId::from_u8(17).is_none());
     }
 
     #[test]

@@ -107,21 +107,8 @@ pub struct ModelConfig {
 
 impl ModelConfig {
     /// Predictor for a plane/context pair.
-    ///
-    /// A map byte `>= 17` (and not the R8-A `AdaptiveWeighted` id) encodes the
-    /// legacy `Weighted` predictor with the per-plane codebook weight (the R7-A
-    /// per-context `17 + j` codebook bytes decode to this same predictor for
-    /// backward compatibility). The R8-A `AdaptiveWeighted` id (200) is a
-    /// deterministic-from-neighbors predictor carrying no weight.
     pub fn predictor(&self, plane: usize, context: usize) -> PredictorId {
-        let b = self.planes[plane].map[context];
-        if b == PredictorId::AdaptiveWeighted.to_u8() {
-            return PredictorId::AdaptiveWeighted;
-        }
-        if (b as usize) >= 17 {
-            return PredictorId::Weighted;
-        }
-        PredictorId::from_u8(b).unwrap_or(PredictorId::Med)
+        PredictorId::from_u8(self.planes[plane].map[context]).unwrap_or(PredictorId::Med)
     }
 
     pub fn weight_for(&self, plane: usize) -> Option<WeightVec> {
@@ -131,24 +118,6 @@ impl ModelConfig {
         } else {
             self.weight_codebook.get(idx as usize).copied()
         }
-    }
-
-    /// The per-context weight for a plane/context pair. The R8-A `AdaptiveWeighted`
-    /// predictor is deterministic from the neighborhood and carries no weight
-    /// (returns `None`). A legacy `17 + j` codebook byte (R7-A) resolves to the
-    /// codebook entry `j`; otherwise it falls back to the per-plane `weight_index`
-    /// (legacy `Weighted` byte 7) or `None` for fixed predictors. Encoder and
-    /// decoder both read this from the identical signaled model, so predictor/
-    /// weight lockstep is exact.
-    pub fn predictor_weight(&self, plane: usize, context: usize) -> Option<WeightVec> {
-        let b = self.planes[plane].map[context] as usize;
-        if b == PredictorId::AdaptiveWeighted.to_u8() as usize {
-            return None;
-        }
-        if b >= 17 && b < 17 + self.weight_codebook.len() {
-            return self.weight_codebook.get(b - 17).copied();
-        }
-        self.weight_for(plane)
     }
 }
 
@@ -192,12 +161,6 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         PredictorId::SubLTL,
         PredictorId::SubTLT,
         PredictorId::SubTTR,
-        // R8-A: signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
-        // Deterministic from the causal neighborhood, so it competes in the
-        // per-context min-|r| pass at zero added model cost; wherever it wins it
-        // lowers residual energy, where it does not the analysis keeps a fixed
-        // predictor, so it is a strict superset of the pre-R8 bank.
-        PredictorId::AdaptiveWeighted,
     ]
 }
 
@@ -280,42 +243,22 @@ pub fn analyze(
             weight_index = best;
         }
 
-        // Per-context predictor selection by summed |r| cost. Every candidate in
-        // `predictors` (including the R8-A `AdaptiveWeighted`, which is a fixed
-        // function of the neighborhood and carries no weight) competes; the
-        // analysis stores the byte of whichever minimizes the residual energy for
-        // that context. The per-plane `Weighted` candidate is handled specially
-        // (its weight is the single best per-plane codebook entry, signaled once
-        // per plane as `weight_index`), and is chosen per-context when it beats
-        // the best fixed predictor. This is a strict superset of the pre-R8 bank:
-        // adding `AdaptiveWeighted` can only lower residual energy, so a
-        // regression at the residual level is structurally impossible.
-        let mut ctx_fixed_cost: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
-        // Cost of the chosen per-plane `Weighted` weight (`weight_index`), signaled
-        // as the legacy `Weighted` byte 7. Compared against the best fixed predictor
-        // (and `AdaptiveWeighted`) so the per-context map keeps the cheapest.
-        let mut ctx_wplane_cost: Vec<u64> = vec![u64::MAX; context_count];
-        let pw_idx = weight_index as usize;
+        // Per-context predictor selection by cost.
+        let mut ctx_costs: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
         for y in 0..height {
             for x in 0..width {
                 let idx = y * width + x;
                 let nb = neighbors(plane, x, y, width, height);
                 let cid = cm.context_id(&nb, x, y);
+                let wv = if include_weighted {
+                    weight_codebook.get(weight_index as usize)
+                } else {
+                    None
+                };
                 let v = plane[idx] as i32;
                 for (k, &p) in predictors.iter().enumerate() {
-                    if p == PredictorId::Weighted {
-                        continue;
-                    }
-                    let pred = predict_clamped(p, &nb, None, range);
-                    ctx_fixed_cost[cid][k] += zigzag(v - pred) as u64;
-                }
-                if include_weighted {
-                    let pw = &weight_codebook[pw_idx];
-                    let pred = predict_clamped(PredictorId::Weighted, &nb, Some(pw), range);
-                    let c = zigzag(v - pred) as u64;
-                    if c < ctx_wplane_cost[cid] {
-                        ctx_wplane_cost[cid] = c;
-                    }
+                    let pred = predict_clamped(p, &nb, wv, range);
+                    ctx_costs[cid][k] += zigzag(v - pred) as u64;
                 }
             }
         }
@@ -323,23 +266,13 @@ pub fn analyze(
         for cid in 0..context_count {
             let mut best_k = 0usize;
             let mut best_c = u64::MAX;
-            for (k, &c) in ctx_fixed_cost[cid].iter().enumerate() {
-                if predictors[k] != PredictorId::Weighted && c < best_c {
+            for (k, &c) in ctx_costs[cid].iter().enumerate() {
+                if c < best_c {
                     best_c = c;
                     best_k = k;
                 }
             }
-            if include_weighted {
-                let wplane = ctx_wplane_cost[cid];
-                if wplane <= best_c {
-                    // Fall back to the proven per-plane weighted predictor.
-                    best_pred[cid] = PredictorId::Weighted.to_u8();
-                } else {
-                    best_pred[cid] = predictors[best_k].to_u8();
-                }
-            } else {
-                best_pred[cid] = predictors[best_k].to_u8();
-            }
+            best_pred[cid] = predictors[best_k].to_u8();
         }
         model
             .planes
@@ -358,13 +291,14 @@ pub fn analyze(
             let range = ranges[pi];
             let alphabet = Alphabet::for_range(range.min, range.max);
             let mut hist: Vec<Vec<u64>> = vec![vec![0u64; alphabet.size]; context_count];
+            let wv = model.weight_for(pi);
             for y in 0..height {
                 for x in 0..width {
                     let idx = y * width + x;
                     let nb = neighbors(plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y);
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), range);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), range);
                     let r = plane[idx] as i32 - pred;
                     hist[cid][zigzag(r) as usize] += 1;
                 }
@@ -444,6 +378,7 @@ pub fn build_capped_histograms(
     for (pi, plane) in planes.iter().enumerate() {
         let range = ranges[pi];
         let mut hist: Vec<Vec<u64>> = vec![vec![0u64; CAPPED_SYMBOLS]; model.context_count];
+        let wv = model.weight_for(pi);
         let area = width * height;
         for i in 0..area {
             let x = i % width;
@@ -451,7 +386,7 @@ pub fn build_capped_histograms(
             let nb = neighbors(plane, x, y, width, height);
             let cid = cm.context_id(&nb, x, y) % model.context_count;
             let p = model.predictor(pi, cid);
-            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), range);
+            let pred = predict_clamped(p, &nb, wv.as_ref(), range);
             let r = plane[i] as i32 - pred;
             let z = zigzag(r) as usize;
             let sym = z.min(CAPPED_ALPHABET);
@@ -636,26 +571,9 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         r.read_exact(&mut map)?;
         let mut wi = [0u8; 1];
         r.read_exact(&mut wi)?;
-        // Map bytes in `0..17` must be a valid `PredictorId`. Bytes `17..(17 +
-        // codebook_len)` are the legacy `Weighted`-codebook reserved range
-        // (R7-A-compatible) and decode to the `Weighted` predictor. The R8-A
-        // `AdaptiveWeighted` id (200) is a valid deterministic-from-neighbors
-        // predictor. Any other byte is invalid.
-        let codebook_len = default_weight_codebook().len();
-        let aw_id = PredictorId::AdaptiveWeighted.to_u8() as usize;
         for &p in &map {
-            let b = p as usize;
-            if b == aw_id {
-                continue;
-            }
-            if b < 17 {
-                if PredictorId::from_u8(p).is_none() {
-                    return Err(CodecError::InvalidStream(format!("bad predictor id {p}")));
-                }
-            } else if b >= 17 + codebook_len {
-                return Err(CodecError::InvalidStream(format!(
-                    "bad weighted predictor id {p}"
-                )));
+            if PredictorId::from_u8(p).is_none() {
+                return Err(CodecError::InvalidStream(format!("bad predictor id {p}")));
             }
         }
         planes.push(PlaneModel {
@@ -1051,10 +969,3 @@ mod tests {
         assert_eq!(tables.len(), 1);
     }
 }
-
-
-
-
-
-
-

@@ -49,7 +49,7 @@ fn cmarc_residual_context_of(
     height: usize,
     cm: &ContextModel,
     model: &ModelConfig,
-    _wv: Option<&WeightVec>,
+    wv: Option<&WeightVec>,
     range: &PlaneRange,
 ) -> usize {
     let coords: [(usize, usize); 3] = [
@@ -69,7 +69,7 @@ fn cmarc_residual_context_of(
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
         let np = model.predictor(pi, ncid);
-        let npred = predict_clamped(np, &nnb, model.predictor_weight(pi, ncid).as_ref(), *range);
+        let npred = predict_clamped(np, &nnb, wv, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
     residual_context(qs[0], qs[1], qs[2])
@@ -184,9 +184,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
     let mut decoded: Vec<Vec<i16>> = Vec::with_capacity(plane_count);
     for pi in 0..plane_count {
         let alphabet = sizes[pi];
-        // Per-context predictor weights are read directly from the model map
-        // (R7-A `17 + j` entries) via `model.predictor_weight`, so no shared
-        // per-plane weight is needed here.
+        let wv = model.weight_for(pi);
         let mut plane = vec![0i16; area];
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
@@ -210,7 +208,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
                         let recon = pred + r;
@@ -251,9 +249,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 // seam (`OBSIDIAN_M3_WP="1"`) matching the encoder; default OFF
                 // so the shipped path stays on proven M3-A.
                 let m3_wp = std::env::var("OBSIDIAN_M3_WP").ok().as_deref() == Some("1");
-                let mut wp: Vec<WeightVec> = (0..model.context_count)
-                    .map(|cid| model.predictor_weight(pi, cid).unwrap_or_else(WeightVec::unit))
-                    .collect();
+                let mut wp: Vec<WeightVec> = vec![wv.unwrap_or_else(WeightVec::unit); model.context_count];
                 let mut i = 0usize;
                 while i < area {
                     let is_match = fdec.get(&mut flag_model)?;
@@ -284,11 +280,10 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pw = model.predictor_weight(pi, cid);
                         let w = if m3_wp && matches!(p, PredictorId::Weighted) {
                             Some(&wp[cid])
                         } else {
-                            pw.as_ref()
+                            wv.as_ref()
                         };
                         let pred = predict_clamped(p, &nb, w, ranges[pi]);
                         let r = gr_read_symbol(&mut dbr, &mut gr[cid])?;
@@ -328,7 +323,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
                     let r_coded = gr_read_symbol(&mut br, &mut gr[cid])?;
@@ -359,7 +354,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
                         plane[idx] = (pred + r) as i16;
                     }
@@ -431,7 +426,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                         let sym = rdec.get(&mut tables[cid])?;
                         let r = if sym != CAPPED_ALPHABET {
                             unzigzag(sym as u32)
@@ -576,7 +571,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             i += len;
                         } else {
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
                                 &mut models,
@@ -603,7 +598,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
                                 &mut models,
@@ -635,7 +630,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                         let ql = if x > 0 {
                             quantize_residual(res_dec[i - 1])
                         } else {
@@ -657,7 +652,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 height,
                                 &cm,
                                 &model,
-                                model.predictor_weight(pi, cid).as_ref(),
+                                wv.as_ref(),
                                 &ranges[pi],
                             )
                         } else {
@@ -685,7 +680,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                     let predj = predict_clamped(
                                         pj,
                                         &nbj,
-                                        model.predictor_weight(pi, cidj).as_ref(),
+                                        wv.as_ref(),
                                         ranges[pi],
                                     );
                                     plane[j] = predj as i16;
@@ -738,7 +733,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let v = cmarc_cache_read(
                                 &mut dec,
                                 &mut models,
@@ -757,7 +752,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     &plane,
@@ -768,7 +763,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                     height,
                                     &cm,
                                     &model,
-                                    model.predictor_weight(pi, cid).as_ref(),
+                                    wv.as_ref(),
                                     &ranges[pi],
                                 )
                             } else {
@@ -805,7 +800,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
                     let sym = if use_static {
                         let table = static_tables[cid].as_mut().ok_or_else(|| {
                             CodecError::InvalidStream(format!("missing static table for context {cid}"))
@@ -892,9 +887,11 @@ mod tests {
     use super::*;
     use crate::encoder::{encode, encode_with, fuzz_gate, FuzzGen, roundtrip, EncodeOpts};
     use crate::model::ENTROPY_MODE_GR;
+    use std::sync::Mutex;
 
     // Serializes the two tests that flip the process-global `OBSIDIAN_CM` env
     // var, so they can't leak the setting into each other under `--test-threads`.
+    static CM_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     #[test]
     fn decode_matches_encode() {
@@ -990,7 +987,7 @@ mod tests {
         // With the OBSIDIAN_CM="1" seam the M2.5 context-mixing backend engages
         // (GR_CM flag set) and a flat image round-trips exactly, compressing to a
         // tiny stream. CM ships OFF by default, so this verifies the opt-in path.
-        let _lock = crate::ENV_LOCK.lock().unwrap();
+        let _lock = CM_ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_CM", "1");
         let mut img = Image::new(96, 96, Channels::Rgb).unwrap();
         for c in 0..3 {
@@ -1015,7 +1012,7 @@ mod tests {
         // GR_CM flag), so enabling CM must never silently change production
         // output. CM is opt-in precisely because it regresses ~0.5% on the
         // stationary residuals of photographic content.
-        let _lock = crate::ENV_LOCK.lock().unwrap();
+        let _lock = CM_ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_CM", "0");
         let mut img = Image::new(40, 40, Channels::Rgb).unwrap();
         for c in 0..3 {
@@ -1479,7 +1476,7 @@ mod tests {
         // force selection via a test-only seam and assert bit-exact round-trip plus
         // that the decoder reads entropy_mode == CARC_LZ (the match walk, not the
         // literal path).
-        let _lock = crate::ENV_LOCK.lock().unwrap();
+        let _lock = CM_ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_CARC_LZ_FORCE", "1");
         let cases: Vec<(u32, u32, Channels)> = vec![
             (256, 64, Channels::Gray),
