@@ -172,8 +172,13 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
     // (gradient vs JPEG-LS DIFF residual context), so R3-A ships only when it
     // actually wins on each image. See `obsidian/docs/architect-r3-residual-
     // context-blueprint.md` R3-A §4.
+    // R3-A per-image context auto-selection is ON by default: the encoder codes
+    // the CMARC plane with both the gradient context and the residual DIFF context
+    // and keeps the smaller (the never-expand net already guarantees GR wins if
+    // CMARC loses), so the residual-context gain is captured whenever it helps.
+    // Set `OBSIDIAN_CARC_RESIDUAL_CTX=0` to disable the second pass.
     let cmarc_residual_ctx_auto =
-        std::env::var("OBSIDIAN_CARC_RESIDUAL_CTX").ok().as_deref() == Some("1");
+        std::env::var("OBSIDIAN_CARC_RESIDUAL_CTX").ok().as_deref() != Some("0");
     encode_with(
         image,
         effort,

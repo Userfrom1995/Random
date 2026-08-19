@@ -1565,14 +1565,13 @@ impl<'a> RangeDec<'a> {
 ///    remainder). The per-bin models and `ctx` are mirrored, so no state is
 ///    signaled. See `obsidian/docs/architect-r3-residual-context-blueprint.md` R3-B.
 ///
-/// R3-A (corrected) bin allocation: the small-ticket zero/sign/remainder bins
-/// stay on the **gradient coding context `cid`** (which already specializes
-/// well), while the big-ticket **quotient** run is conditioned on the **residual
-/// DIFF context `rcid`** (`residual_context` of the neighbor residuals, the
-/// JPEG-LS DIFF mechanism). Conditioning only the quotient on `rcid` avoids
-/// starving the per-`(cid,bin)` remainder models that made the naive all-bins
-/// variant regress. When `cmarc_residual_ctx` is off, callers pass `rcid == cid`
-/// and the coder is byte-identical to the pre-R3-A path.
+/// R3-A (corrected) bin allocation: when R3-A is ON the whole residual is
+/// conditioned on the **residual DIFF context `rcid`** (`residual_context` of the
+/// neighbor residuals, the JPEG-LS DIFF mechanism) — zero/sign/quotient/remainder
+/// bins all key on `rcid`. This is the faithful R3-A (and how JPEG-LS conditions
+/// its QM coder), so the per-`(cid, bin)` models specialize on the local residual
+/// scale. When R3-A is OFF callers pass `rcid == cid`, so every bin keys on the
+/// gradient context and the coder is byte-identical to the pre-R3-A path.
 pub fn cmarc_write_residual(
     enc: &mut RangeEnc,
     models: &mut [BinModel],
@@ -1582,22 +1581,26 @@ pub fn cmarc_write_residual(
     r: i32,
 ) {
     let bins = cmarc_bins_per_ctx();
+    // When R3-A is active `rcid` is the residual DIFF context; otherwise it equals
+    // `cid` (gradient context). Use `rcid` for every bin so R3-A conditions the
+    // whole residual on the neighbor residuals, not just the quotient run.
+    let cc = rcid;
     let m = r.unsigned_abs();
     let is_zero = m == 0;
-    // Zero/sign flags on the gradient coding context `cid` (unchanged).
-    enc.put(&mut models[cid_bin(cid, bins, CMARC_BIN_ZERO)], is_zero);
+    // Zero/sign flags on the (residual) coding context `cc`.
+    enc.put(&mut models[cid_bin(cc, bins, CMARC_BIN_ZERO)], is_zero);
     if is_zero {
         ctx.adapt(0);
         return;
     }
-    enc.put(&mut models[cid_bin(cid, bins, CMARC_BIN_SIGN)], r < 0);
+    enc.put(&mut models[cid_bin(cc, bins, CMARC_BIN_SIGN)], r < 0);
     let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
     let q = (m >> k) as usize;
     let rem = (m & ((1u32 << k) - 1)) as u32;
     // Quotient unary run with run-POSITION-DEPENDENT bins (R3-B root-cause fix),
-    // conditioned on the residual DIFF context `rcid` (R3-A corrected): each run
-    // position gets its own adaptive bin selected per `rcid`, so the model learns
-    // the geometric quotient distribution predicted by the local residual context.
+    // conditioned on the residual DIFF context `rcid`: each run position gets its
+    // own adaptive bin so the model learns the geometric quotient distribution
+    // predicted by the local residual context.
     let mut pos = 0usize;
     for _ in 0..q {
         let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
@@ -1606,24 +1609,25 @@ pub fn cmarc_write_residual(
     }
     let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
     enc.put(&mut models[cid_bin(rcid, bins, bin)], true);
-    // Remainder: k MSB-first bits, each conditioned on the trailing window, on
-    // the gradient coding context `cid` (kept off the residual context so the
-    // per-`(cid,bin)` models stay well-fed).
+    // Remainder: k MSB-first bits, each conditioned on the trailing window. When
+    // R3-A is on this keys on the residual DIFF context `cc` (the local residual
+    // scale), exactly as the quotient does; when off `cc == cid` (gradient).
     let mut window: u32 = 0;
     for j in 0..k {
         let bit = (rem >> (k - 1 - j)) & 1 == 1;
         let state = (window & ((1 << CMARC_REM_WIN) - 1)) as usize;
         let bin = CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
-        enc.put(&mut models[cid_bin(cid, bins, bin)], bit);
+        enc.put(&mut models[cid_bin(cc, bins, bin)], bit);
         window = ((window << 1) | bit as u32) & ((1 << CMARC_REM_WIN) - 1);
     }
     ctx.adapt(m);
 }
 
 /// Read a signed residual coded by `cmarc_write_residual`, adapting the models
-/// and `ctx` identically. `cid` is the gradient coding context (zero/sign/
-/// remainder bins); `rcid` is the residual DIFF context (quotient bins). See the
-/// `cmarc_write_residual` doc comment for the R3-A-corrected bin allocation.
+/// and `ctx` identically. `cid` is the gradient coding context; `rcid` is the
+/// residual DIFF context. When R3-A is ON the whole residual was coded on `rcid`;
+/// when OFF `rcid == cid`. See the `cmarc_write_residual` doc comment for the
+/// R3-A-corrected bin allocation.
 pub fn cmarc_read_residual<'a>(
     dec: &mut RangeDec<'a>,
     models: &mut [BinModel],
@@ -1632,12 +1636,15 @@ pub fn cmarc_read_residual<'a>(
     rcid: usize,
 ) -> Result<i32, CodecError> {
     let bins = cmarc_bins_per_ctx();
-    let is_zero = dec.get(&mut models[cid_bin(cid, bins, CMARC_BIN_ZERO)])?;
+    // Mirror the encoder: `cc` is the context every bin keys on (residual DIFF
+    // context when R3-A is on, gradient context otherwise).
+    let cc = rcid;
+    let is_zero = dec.get(&mut models[cid_bin(cc, bins, CMARC_BIN_ZERO)])?;
     if is_zero {
         ctx.adapt(0);
         return Ok(0);
     }
-    let neg = dec.get(&mut models[cid_bin(cid, bins, CMARC_BIN_SIGN)])?;
+    let neg = dec.get(&mut models[cid_bin(cc, bins, CMARC_BIN_SIGN)])?;
     let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
     // Quotient: read ZERO bits until a stop-ONE, conditioned on `rcid`.
     let mut q: u32 = 0;
@@ -1656,7 +1663,7 @@ pub fn cmarc_read_residual<'a>(
     for j in 0..k {
         let state = (window & ((1 << CMARC_REM_WIN) - 1)) as usize;
         let bin = CMARC_BIN_REM + j * CMARC_REM_WIN_STATES + state;
-        let bit = dec.get(&mut models[cid_bin(cid, bins, bin)])?;
+        let bit = dec.get(&mut models[cid_bin(cc, bins, bin)])?;
         rem = (rem << 1) | bit as u32;
         window = ((window << 1) | bit as u32) & ((1 << CMARC_REM_WIN) - 1);
     }
