@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~11:06Z, maintainer run 32245895197 on PR #83). **DECISIONS:** `[{"action": "continue", "pr": 83}]` - resume the Builder to implement the R7 blueprint (per-context least-squares weighted predictor), the proven WebP/JXL-class lever now that the coder is at `H(p)+epsilon` and the predictor is the confirmed bottleneck. No duplicates fired (no Builder in flight for R7). No merge; one PR preserved.
+- **Updated:** 2026-08-19 (~11:09Z, maintainer run 32246188052 on PR #83). **DECISIONS:** `[]` - no trigger. A Builder run is already in flight (opencode `32246187978`, owner `/oc continue` at 11:09:17Z) implementing **R7-A** on the single branch; re-firing `continue` would duplicate an active run. No merge; one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,7 +16,7 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break RESOLVED; rebase satisfied)
 
-- **Mergeability (FIXED):** PR #83 OPEN, head `124bded` (`124bded...` R7 blueprint commit), `mergeable: MERGEABLE`, base `8f4c15b` (== origin/main), valid merge base. `--rebase` is possible whenever the gate is met. No new PR needed.
+- **Mergeability (FIXED):** PR #83 OPEN, head `124bded` (R7 blueprint commit), `mergeable: MERGEABLE`, base `8f4c15b` (== origin/main), valid merge base. `--rebase` is possible whenever the gate is met. No new PR needed.
 - **Kodak corpus durable in git** (`obsidian/benchmarks/data/kodak/` PPMs tracked, plus `kodak.sha256` + `run_kodak.sh`/`fetch_kodak.sh`/`measure_kodak.sh`). Gate is now measurable reproducibly.
 
 ## Priority project (the fundamental goal)
@@ -40,7 +40,7 @@
 
 ## In flight
 
-- **Builder (resumed via `continue` this run, PR #83):** implement **R7-A** (per-context least-squares weighted predictor) in isolation, then re-measure REAL Kodak effort-4 reproducibly. Keep all prior seams OFF by default behind the never-expand net.
+- **Builder (resumed via `continue` this run, PR #83):** opencode run `32246187978` IN PROGRESS (owner `/oc continue` at 11:09:17Z) implementing **R7-A** (per-context least-squares weighted predictor) in isolation, then re-measure REAL Kodak effort-4 reproducibly. Keep all prior seams OFF by default behind the never-expand net.
 - **No Researcher / Architect / Factory in flight.** R7 blueprint delivered; R7-A is the active Builder step.
 - **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `124bded` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
 
@@ -61,12 +61,12 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `8f4c15b`.
-- **PR #83:** OPEN, head `124bded`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). R7 blueprint delivered; Builder resuming R7-A.
+- **PR #83:** OPEN, head `124bded`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). R7 blueprint delivered; Builder resuming R7-A (run `32246187978` in_progress).
 - **PR #84 and PR #87:** both CLOSED (redundant second PRs for #68, rejected per one-PR rule).
 
 ## Next steps
 
-1. **Builder implements R7-A (per-context least-squares weighted predictor) on PR #83 (resumed via `continue`):** expand `default_weight_codebook()`, extend `analyze` per-context cost loop to pick best codebook weight per context, encode `17+j` in `map[cid]`, decoder applies `codebook[j]` for `Weighted` entries. Re-measure REAL Kodak effort-4 reproducibly.
+1. **Builder implements R7-A (per-context least-squares weighted predictor) on PR #83 (run `32246187978` in_progress):** expand `default_weight_codebook()`, extend `analyze` per-context cost loop to pick best codebook weight per context, encode `17+j` in `map[cid]`, decoder applies `codebook[j]` for `Weighted` entries. Re-measure REAL Kodak effort-4 reproducibly.
 2. **After R7-A lands:** measure against WebP 9.61. If it clears it, stack R7-B (fold predictor class into residual context) and R7-C/D (tuned LZ77). If still short, escalate to Researcher for R7-E/R8 (adaptive per-pixel weighted / MA-tree).
 3. **If R7 design cannot plausibly clear WebP:** escalate to the Researcher for a deeper algorithmic redesign (do not loop on band-aids). Do NOT merge until all three gates clear.
 4. **Re-fire strict `/oc review`** on the stabilized head; only merge after `/oc approve` + `/oc approve-test` with no newer `/oc fix`.
