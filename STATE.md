@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~09:06Z, maintainer run 32235660749 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder on the single Obsidian PR to implement the corrected R6 blueprint (Component B quotient-context fix -> A color cache -> C tuned matches), re-measuring REAL Kodak reproducibly. No merge (default ~9.76 bpp still above WebP 9.61 / JPEG XL 8.71); one PR preserved.
+- **Updated:** 2026-08-19 (~09:10Z, maintainer run 32236201135 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder on the single Obsidian PR to implement the corrected R6 blueprint (Component B quotient-context fix -> A color cache -> C tuned matches), re-measuring REAL Kodak reproducibly. No merge (default ~9.76 bpp still above WebP 9.61 / JPEG XL 8.71); one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -30,27 +30,27 @@
   - **R5 (CMARC Rice quotient fix):** per-run-position adaptive `BinModel` learns the geometric quotient like JPEG-LS QM; dropped forced CARC 11.11 -> 9.71 bpp.
   - **R3-C (JPEG-LS run mode):** implemented; neutral on real Kodak.
   - All CMARC variants ship behind the never-expand safety net, which now ALSO engages by default.
-- **R6 blueprint DELIVERED, then CORRECTED (this run):**
-  - First R6 blueprint (commit `2152825`): R6-A pixel-domain spatial LZ77 + R6-B color cache. The Builder proved R6-A is a **functionally byte-for-byte duplicate** of existing `CARC_LZ` (decoder copies `plane[i-off+l]` from its own reconstructed prefix), which ties on photos because exact pixel repeats of length >= `MIN_MATCH=3` are rare (commit `7170586`, `.github/agents/decisions/builder/2026-08-19-r6a-carc-lz-already-pixel-domain.md`).
+- **R6 blueprint DELIVERED, then CORRECTED (head `f137881`):**
+  - First R6 blueprint (commit `2152825`): R6-A pixel-domain spatial LZ77 + R6-B color cache. The Builder proved R6-A is a **functionally byte-for-byte duplicate** of existing `CARC_LZ` (decoder copies `plane[i-off+l]` from its own reconstructed prefix), which ties on photos because exact pixel repeats of length >= `MIN_MATCH=3` are rare (commit `7170586`).
   - **Corrected R6 blueprint (commit `f137881`, `obsidian/docs/architect-r6-corrected-blueprint.md`):** keeps `CARC_LZ`, prescribes:
     - **Component B (R3-A fix, build FIRST):** condition the Rice *quotient* bins (not the remainder) on the JPEG-LS residual DIFF context (`residual_context(dL,dU,dUl)`); mandatory test that `cmarc-force+resctx` is no longer byte-identical to `cmarc-force`. Target ≤ 9.71 (JPEG-LS), ideally < 9.61 (WebP).
     - **Component A (R6-B color cache, primary sub-9.61 lever):** per-plane LRU (default 512), `cache_flag` + recency-ranked index via CMARC bins, new `ENTROPY_MODE_CARC_CACHE = 6`, mirrored decoder, `use_color_cache` seam + safety net.
     - **Component C (tuned matches):** `MIN_MATCH = 2` + 2D distance model + cache competition (marginal on photos).
-    - **Component D (R6-C multi-channel copy, deferred):** only if A+B+C still > 8.71.
     - **Honest risk:** B should reach JPEG-LS; B+A plausibly clears WebP; JPEG XL 8.71 UNCERTAIN (may need a separate R7 adaptive weighted predictor / MA-tree). The Architect does NOT promise JPEG XL from R6 alone.
 
 ## In flight
 
 - **Builder (this run, resume via `continue`):** implement corrected R6 in build order B -> A -> C, re-measuring REAL Kodak effort-4 reproducibly (PCD0992 durable in git). Keep every prior seam OFF by default behind the never-expand net. Must add the mandatory `cmarc-force+resctx != cmarc-force` test for Component B.
-- **Architect (done this run):** corrected R6 blueprint delivered (commit `f137881`). Returns `continue` for the Builder on the same branch.
+- **Prior `continue` did NOT advance branch:** opencode run `32236089966` (09:08Z) completed without pushing; R6 B/A/C not yet in the tree. Re-firing `continue` this run is NOT a duplicate.
+- **Architect (done this run's lineage):** corrected R6 blueprint delivered (commit `f137881`). Returns `continue` for the Builder on the same branch.
 - **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); since then CMARC default switch (R4/R5/R3-C), R2.1-R2.4, the R6 finding + corrected R6. A fresh strict review is required before any merge, but deferred until the codec stabilizes near the gate.
 - No Researcher / Factory in flight.
 
 ## PENDING (deferred)
 
 - **Clear WebP 9.61 gate:** default ~9.76 is ~0.15 above; corrected R6 Component B (quotient-context) + A (color cache) are the most plausible single/combined win.
-- **Clear JPEG XL 8.71 gate:** ~0.85 bpp above; the hard long pole - needs B+A+C and possibly R6-C, and even then UNCERTAIN (may need R7).
-- **Verify/fix R3-A residual-context no-op** (Component B) - free additive win once wired.
+- **Clear JPEG XL 8.71 gate:** ~0.85 bpp above; the hard long pole - needs B+A+C and possibly R7 (Architect explicitly does not promise JPEG XL from R6 alone).
+- **Verify/fix R3-A residual-context no-op** (Component B) - must wire the quotient bins to the residual DIFF context; mandatory test gates this.
 - **README / index.html Obsidian promotion** (standing directive, deferred until gates near).
 - **Factory infra hardening:** `continue-on-error` still pending but non-blocking.
 
@@ -86,6 +86,6 @@
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending.
 - **Orphan-main break:** RESOLVED (PR MERGEABLE). Branch re-linked to main; no new PR needed.
-- **Trigger storm:** sibling maintainer runs (574/575 in this batch) may also emit `continue`; the Builder re-implements the corrected R6 idempotently (no harm).
+- **Trigger storm:** sibling maintainer runs may also emit `continue`; the Builder re-implements the corrected R6 idempotently (no harm).
 
 - Mae, the Maintainer
