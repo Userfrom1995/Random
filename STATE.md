@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~11:09Z, maintainer run 32246188052 on PR #83). **DECISIONS:** `[]` - no trigger. A Builder run is already in flight (opencode `32246187978`, owner `/oc continue` at 11:09:17Z) implementing **R7-A** on the single branch; re-firing `continue` would duplicate an active run. No merge; one PR preserved.
+- **Updated:** 2026-08-19 (~12:02Z, maintainer run 32250583359 on PR #83). **DECISIONS:** `[{"action":"architect","pr":83}]` - re-engage the Architect (Mode 2) on the single PR to reconcile the R7-A regression and redesign R7 (fold predictor class into residual context / constrain codebook) before another Builder pass. No merge; one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,40 +16,42 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break RESOLVED; rebase satisfied)
 
-- **Mergeability (FIXED):** PR #83 OPEN, head `124bded` (R7 blueprint commit), `mergeable: MERGEABLE`, base `8f4c15b` (== origin/main), valid merge base. `--rebase` is possible whenever the gate is met. No new PR needed.
+- **Mergeability (FIXED):** PR #83 OPEN, head `41c2d1a` (R7-A build), `mergeable: MERGEABLE`, base == origin/main, valid merge base. `--rebase` is possible whenever the gate is met. No new PR needed.
 - **Kodak corpus durable in git** (`obsidian/benchmarks/data/kodak/` PPMs tracked, plus `kodak.sha256` + `run_kodak.sh`/`fetch_kodak.sh`/`measure_kodak.sh`). Gate is now measurable reproducibly.
 
 ## Priority project (the fundamental goal)
 
 - **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
-- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `124bded`). Real Kodak (effort 4) numbers, 24-image PCD0992 set (reproducible, durably committed corpus):
+- **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `41c2d1a`). Real Kodak (effort 4) numbers, 24-image PCD0992 set (reproducible, durably committed corpus):
   - **DEFAULT shipped codec = CMARC auto-selected best = 9.7093 bpp mean.** Beats JPEG-LS (9.71); PNG 13.05 MET; **WebP 9.61 MISSED by ~0.10 bpp** (14+ of 24 above); **JPEG XL 8.71 MISSED by ~1.0 bpp** (22 of 24 above). Bit-exact.
-  - **KEY DIAGNOSIS (empirical, now settled):** the codec has hit the **JPEG-LS floor (~9.71)**. The entropy backend (CMARC, R4-corrected range coder verified at `H(p)+epsilon` via `cmarc_efficiency_vs_shannon`, plus R5 Rice-quotient fix) is NOT the bottleneck. Two attempts to exploit a neighbor-residual context both failed:
-    - **R3-A residual-context is INERT** (`cmarc-force+resctx` == `cmarc-force` byte-for-byte): per-`(cid,bin)` binary-model table balloons ~365x under the JPEG-LS DIFF context; starved bins pin at their prior and emit identical bits.
-    - **R6-B color cache is a DEAD END** (forced size-32 = 12.88 bpp, size-512 = 14.58 bpp; never-expand net never selects it).
-  - The Builder's ceiling analysis (`docs/decisions/builder/2026-08-19-r6b-colorcache-empirical-ceiling.md`) proves the remaining residual is **prediction error**, not coder inefficiency. So the structural fix is a **better (adaptive weighted) predictor** - exactly the WebP/JXL-class lever.
+  - **R7-A (per-context least-squares weighted predictor) REGRESSED to 9.83 bpp** on real Kodak (head `41c2d1a`). It is **env-gated OFF** (`OBSIDIAN_R7_PERCONTEXT`), so the shipped default remains 9.7093; no live regression. The regression is a structural entropy-context fragmentation effect (per-context predictor diversity scatters CMARC model statistics), NOT a raw-energy increase (R7-A is a strict superset of the per-plane weight, so residual energy cannot rise). This refutes the Architect's R7 blueprint central prediction and must be reconciled.
+  - **KEY DIAGNOSIS (empirical, settled):** the codec is pinned at the **JPEG-LS floor (~9.71)**. The entropy backend (CMARC, R4-corrected range coder verified at `H(p)+epsilon`) is NOT the bottleneck. Remaining gaps are **predictor/transform + coder-context interaction**:
+    - R3-A residual-context INERT (model starvation under ~365x context blowup).
+    - R6-B color cache DEAD END (inert on photographic residuals).
+    - R7-A per-context weighted predictor REGRESSED via context fragmentation.
+    - All three failures share one root: adding predictor/context diversity without folding that diversity into the entropy coder's context scatters statistics and raises bpp.
 - **CMARC lineage (R1 -> R5) built; entropy core correct (CACM87 / LZMA range coder):**
   - **R4 coder = canonical LZMA carryless binary arithmetic coder** - proven correct; efficiency gate passes (`cmarc_efficiency_vs_shannon` ratio < 1.10).
   - **R5 (CMARC Rice quotient fix):** per-run-position adaptive `BinModel` learns the geometric quotient like JPEG-LS QM; delivered the 9.7093 headline (from 11.11 forced CARC).
   - **Faithful R3-A (residual DIFF context):** wired but a NO-OP (model-starvation).
   - **R3-C (JPEG-LS run mode):** implemented; neutral on real Kodak.
   - All CMARC variants ship behind the never-expand safety net, which now ALSO engages by default.
-- **R6 blueprint DELIVERED + CORRECTED, empirically disproven (R6-B dead, R3-A inert):** only Component B (R3-A quotient-context) was absorbed into R5.
-- **R7 blueprint DELIVERED (`124bded`):** per-context least-squares weighted predictor (offline in `analyze`, signaled `17+j` in `map`). Zero online state -> exact lockstep. Strict superset of current per-plane weight (regression impossible). Expected 9.71 -> ~9.2-9.5 bpp (clears WebP). R7-B folds predictor class into residual context; R7-C/D re-enable tuned LZ77; R7-E (JXL stretch) flagged as possible R8.
+- **R7 blueprint DELIVERED (`124bded`) but its central prediction FAILED:** per-context LS weighted predictor expected ~9.2-9.5 bpp (clears WebP); actually 9.83 (regresses). R7-B (fold predictor class into residual context) is the natural fix and must be designed together with R7-A, not stacked after it.
 
 ## In flight
 
-- **Builder (resumed via `continue` this run, PR #83):** opencode run `32246187978` IN PROGRESS (owner `/oc continue` at 11:09:17Z) implementing **R7-A** (per-context least-squares weighted predictor) in isolation, then re-measure REAL Kodak effort-4 reproducibly. Keep all prior seams OFF by default behind the never-expand net.
-- **No Researcher / Architect / Factory in flight.** R7 blueprint delivered; R7-A is the active Builder step.
-- **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `124bded` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
+- **Architect (re-engaged via this run, PR #83):** produce a corrected R7 design that (a) folds the chosen predictor class into the CMARC residual/quotient context to stop fragmentation, and/or (b) constrains the per-context codebook to a small shared set; must honestly state whether per-context weighted prediction can clear the +0.10 WebP gap or whether R7-E (adaptive MA-tree / per-pixel weighted) or a transform (YCoCg-R + fuller color decorrelation) is required. No Builder pass until the corrected blueprint lands.
+- **No Builder / Researcher / Factory in flight.**
+- **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `41c2d1a` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
 
 ## PENDING (deferred)
 
-- **Clear WebP 9.61 gate:** default 9.7093 is ~0.10 above; R7-A (per-context weighted predictor) is the most plausible single structural fix; expected ~9.2-9.5 bpp.
-- **Clear JPEG XL 8.71 gate:** ~1.0 bpp above; the hard long pole - likely needs R7-A/B/C plus possibly R7-E/R8 (adaptive per-pixel weighted prediction / MA-tree context model).
+- **Clear WebP 9.61 gate:** default 9.7093 is ~0.10 above. R7-A regressed; corrected R7 (predictor-class-in-context) is the next attempt.
+- **Clear JPEG XL 8.71 gate:** ~1.0 bpp above; the hard long pole - likely needs corrected R7 + possibly R7-E/R8 (adaptive per-pixel weighted / MA-tree context) and/or better color transforms.
 - **README / index.html Obsidian promotion** (standing directive, deferred until gates near).
 - **Factory infra hardening:** `continue-on-error` still pending but non-blocking.
+- **Document the R7-A regression** in `progress/68-...md` so the blueprint failure is recorded (Builder/Architect task).
 
 ## Issues
 
@@ -61,14 +63,14 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `8f4c15b`.
-- **PR #83:** OPEN, head `124bded`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). R7 blueprint delivered; Builder resuming R7-A (run `32246187978` in_progress).
+- **PR #83:** OPEN, head `41c2d1a`, `mergeable: MERGEABLE` (orphan break resolved). Default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). R7-A regressed to 9.83 (OFF by default). R7 blueprint refuted; Architect re-engaged for corrected design.
 - **PR #84 and PR #87:** both CLOSED (redundant second PRs for #68, rejected per one-PR rule).
 
 ## Next steps
 
-1. **Builder implements R7-A (per-context least-squares weighted predictor) on PR #83 (run `32246187978` in_progress):** expand `default_weight_codebook()`, extend `analyze` per-context cost loop to pick best codebook weight per context, encode `17+j` in `map[cid]`, decoder applies `codebook[j]` for `Weighted` entries. Re-measure REAL Kodak effort-4 reproducibly.
-2. **After R7-A lands:** measure against WebP 9.61. If it clears it, stack R7-B (fold predictor class into residual context) and R7-C/D (tuned LZ77). If still short, escalate to Researcher for R7-E/R8 (adaptive per-pixel weighted / MA-tree).
-3. **If R7 design cannot plausibly clear WebP:** escalate to the Researcher for a deeper algorithmic redesign (do not loop on band-aids). Do NOT merge until all three gates clear.
+1. **Architect delivers corrected R7 blueprint on PR #83** (this run's trigger): reconcile R7-A regression; fold predictor class into CMARC residual/quotient context (R7-B) and/or constrain codebook; state honestly whether per-context weighted prediction clears WebP, else propose R7-E or a transform.
+2. **Builder resumes R7 (via `continue`) on the corrected blueprint;** re-measure REAL Kodak effort-4 reproducibly. Keep R7-A OFF by default until it provably beats 9.7093 AND clears 9.61.
+3. **If corrected R7 still cannot clear WebP:** escalate to the Researcher for R7-E/R8 (adaptive per-pixel weighted / MA-tree context) or a transform pipeline; do NOT loop on band-aids. Do NOT merge until all three gates clear.
 4. **Re-fire strict `/oc review`** on the stabilized head; only merge after `/oc approve` + `/oc approve-test` with no newer `/oc fix`.
 5. **After a reproducible real-Kodak number below all three gates:** rebase-merge (`--no-delete-branch`), close #68.
 6. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current once gates near.
@@ -76,10 +78,10 @@
 
 ## Open questions
 
-- **Can a per-context least-squares weighted predictor (offline, signaled) clear the ~0.10 bpp WebP gap?** This is the CALIC/JPEG-XL weighted-predictor win; R7-A is the proven route and is structurally regression-proof. Most plausible single win.
-- **Will R7 clear JPEG XL 8.71 (~1.0 bpp above)?** Likely needs R7-A/B/C plus R7-E/R8 (adaptive per-pixel weighted prediction + MA-tree context). R7 alone targets WebP reliably and makes a credible run at JXL.
-- **Merge gate (owner override #2):** NOT met - default 9.7093 bpp > WebP 9.61 > JXL 8.71. Even best CMARC+R5 beats JPEG-LS but misses WebP by ~0.10 and JXL by ~1.0.
-- **Review staleness:** last approve at head ~96a6075; current head `124bded` un-reviewed. Fresh review required pre-merge.
+- **Why did R7-A regress despite being a residual-energy strict superset?** Answer: entropy-context fragmentation - per-context `17+j` predictor diversity scatters CMARC model statistics, raising `H(p)` more than the lower residual energy saves. This is the SAME root cause as R3-A inertness and R6-B dead-end. Corrected R7 must fold predictor class into the coder context.
+- **Can per-context weighted prediction clear the +0.10 WebP gap at all?** Open until the Architect reconciles. If not, the remaining levers are R7-E (MA-tree / adaptive per-pixel weighted) and transforms (YCoCg-R + fuller decorrelation) that WebP/JXL actually use.
+- **Merge gate (owner override #2):** NOT met - default 9.7093 bpp > WebP 9.61 > JXL 8.71. Even best CMARC+R5 beats JPEG-LS but misses WebP by ~0.10 and JXL by ~1.0. R7-A must not ship (regresses to 9.83).
+- **Review staleness:** last approve at head ~96a6075; current head `41c2d1a` un-reviewed. Fresh review required pre-merge.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending.
 - **Orphan-main break:** RESOLVED (PR MERGEABLE). Branch re-linked to main; no new PR needed.
