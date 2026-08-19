@@ -43,9 +43,18 @@ pub enum PredictorId {
     SubLTL = 14,
     SubTLT = 15,
     SubTTR = 16,
+    /// R8-A: a signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
+    /// The weights are a deterministic inverse-gradient function of the already
+    /// decoded causal neighborhood, so the decoder recomputes identical weights
+    /// with zero signaled bytes. A high id keeps it clear of the `0..=16` bank
+    /// and the legacy `17 + j` Weighted-codebook reserved range (see `model.rs`).
+    AdaptiveWeighted = 200,
 }
 
-pub const PREDICTOR_COUNT: usize = 17;
+/// Upper bound on any `PredictorId` value + 1, used to size the per-predictor
+/// usage counts. The `AdaptiveWeighted` id (200) is the largest, so the table
+/// must span it.
+pub const PREDICTOR_COUNT: usize = 201;
 
 impl PredictorId {
     pub fn from_u8(v: u8) -> Option<PredictorId> {
@@ -67,6 +76,7 @@ impl PredictorId {
             14 => Some(PredictorId::SubLTL),
             15 => Some(PredictorId::SubTLT),
             16 => Some(PredictorId::SubTTR),
+            200 => Some(PredictorId::AdaptiveWeighted),
             _ => None,
         }
     }
@@ -94,6 +104,7 @@ impl PredictorId {
             PredictorId::SubLTL => "Sub(L,TL)",
             PredictorId::SubTLT => "Sub(TL,T)",
             PredictorId::SubTTR => "Sub(T,TR)",
+            PredictorId::AdaptiveWeighted => "AdaptiveWeighted",
         }
     }
 }
@@ -277,6 +288,7 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
         PredictorId::SubLTL => n.l - n.tl,
         PredictorId::SubTLT => n.tl - n.t,
         PredictorId::SubTTR => n.t - n.tr,
+        PredictorId::AdaptiveWeighted => predict_weighted_adaptive(n),
         PredictorId::Weighted => {
             let w = match w {
                 Some(w) => w,
@@ -320,6 +332,48 @@ fn weighted(n: &Neighbors, w: &WeightVec) -> i32 {
     let shift = w.shift as u32;
     let half = 1i32 << (shift - 1);
     (acc + half) >> shift
+}
+
+/// R8-A: signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
+///
+/// Each of the four causal neighbors `(L, T, TL, TR)` receives a soft
+/// inverse-gradient weight: a direction with a small local gradient (smooth,
+/// predictable) gets a large weight, a direction with a large gradient gets a
+/// small weight. The prediction is the exact integer average `dot(w, n) /
+/// sum(w)` (no shift drift), so it is a deterministic function of the already
+/// decoded neighborhood alone - the encoder and decoder recompute identical
+/// weights with zero signaled bytes, and `predict_clamped` range-clamps it.
+///
+/// This is a strict superset of the fixed-predictor candidate set: when it does
+/// not lower a context's residual energy, the per-context analysis pass keeps a
+/// fixed predictor (or the per-plane `Weighted`), so it can never raise residual
+/// energy versus the pre-R8 model.
+fn predict_weighted_adaptive(n: &Neighbors) -> i32 {
+    // Three causal gradients (differences of the causal neighborhood).
+    let gH = n.l - n.tl; // horizontal gradient
+    let gV = n.t - n.tl; // vertical gradient
+    let gD = n.tl - n.tr; // diagonal gradient
+
+    // Soft inverse-gradient weight: large |g| -> near-zero weight, small |g| ->
+    // large weight. Signed so the direction of the gradient is preserved before
+    // the floor; clamped to at least 1 so no direction is ever fully discarded
+    // and the weight sum stays strictly positive.
+    const WSCALE: i32 = 4;
+    const WMAX: i32 = 16;
+    let w = |g: i32| -> i32 {
+        let a = g.unsigned_abs() as i32;
+        let s = if g >= 0 { 1i32 } else { -1i32 };
+        let mag = ((1i32 << WSCALE) / (1 + a)).min(WMAX);
+        s * mag
+    };
+
+    let wL = w(gH).max(1);
+    let wT = w(gV).max(1);
+    let wTL = w(gD).max(1);
+    let wTR = w(-gD).max(1);
+
+    let sum = wL + wT + wTL + wTR; // always >= 4, positive
+    (wL * n.l + wT * n.t + wTL * n.tl + wTR * n.tr) / sum
 }
 
 /// Predict a single sample with clamping to the plane range.

@@ -108,12 +108,16 @@ pub struct ModelConfig {
 impl ModelConfig {
     /// Predictor for a plane/context pair.
     ///
-    /// R7-A: a map byte `>= 17` encodes the Weighted predictor with a
-    /// per-context codebook entry `j = byte - 17` (see `predictor_weight`),
-    /// so natural images get a locally-tuned linear predictor instead of one
-    /// shared per-plane weight.
+    /// A map byte `>= 17` (and not the R8-A `AdaptiveWeighted` id) encodes the
+    /// legacy `Weighted` predictor with the per-plane codebook weight (the R7-A
+    /// per-context `17 + j` codebook bytes decode to this same predictor for
+    /// backward compatibility). The R8-A `AdaptiveWeighted` id (200) is a
+    /// deterministic-from-neighbors predictor carrying no weight.
     pub fn predictor(&self, plane: usize, context: usize) -> PredictorId {
         let b = self.planes[plane].map[context];
+        if b == PredictorId::AdaptiveWeighted.to_u8() {
+            return PredictorId::AdaptiveWeighted;
+        }
         if (b as usize) >= 17 {
             return PredictorId::Weighted;
         }
@@ -129,13 +133,18 @@ impl ModelConfig {
         }
     }
 
-    /// The per-context weight for a plane/context pair. When the map byte is
-    /// `17 + j` (R7-A) the weight is the codebook entry `j`; otherwise it falls
-    /// back to the per-plane `weight_index` (legacy `Weighted` byte 7) or `None`
-    /// for fixed predictors. Encoder and decoder both read this from the
-    /// identical signaled model, so predictor/weight lockstep is exact.
+    /// The per-context weight for a plane/context pair. The R8-A `AdaptiveWeighted`
+    /// predictor is deterministic from the neighborhood and carries no weight
+    /// (returns `None`). A legacy `17 + j` codebook byte (R7-A) resolves to the
+    /// codebook entry `j`; otherwise it falls back to the per-plane `weight_index`
+    /// (legacy `Weighted` byte 7) or `None` for fixed predictors. Encoder and
+    /// decoder both read this from the identical signaled model, so predictor/
+    /// weight lockstep is exact.
     pub fn predictor_weight(&self, plane: usize, context: usize) -> Option<WeightVec> {
         let b = self.planes[plane].map[context] as usize;
+        if b == PredictorId::AdaptiveWeighted.to_u8() as usize {
+            return None;
+        }
         if b >= 17 && b < 17 + self.weight_codebook.len() {
             return self.weight_codebook.get(b - 17).copied();
         }
@@ -183,6 +192,12 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         PredictorId::SubLTL,
         PredictorId::SubTLT,
         PredictorId::SubTTR,
+        // R8-A: signaling-free adaptive weighted predictor (JPEG-XL / WebP-class).
+        // Deterministic from the causal neighborhood, so it competes in the
+        // per-context min-|r| pass at zero added model cost; wherever it wins it
+        // lowers residual energy, where it does not the analysis keeps a fixed
+        // predictor, so it is a strict superset of the pre-R8 bank.
+        PredictorId::AdaptiveWeighted,
     ]
 }
 
@@ -239,12 +254,6 @@ pub fn analyze(
 
     let predictors = predictors_for(effort);
     let include_weighted = predictors.contains(&PredictorId::Weighted);
-    // R7-A per-context codebook weights (map byte >= 17). Opt-in: it strictly
-    // shrinks residuals versus the per-plane weight, but the extra per-context
-    // entropy-model overhead makes it a net regression on photographic Kodak
-    // (the production per-plane `Weighted` predictor at byte 7 stays on by
-    // default). The M3-WP seam tests flip this on to exercise the feature.
-    let r7_percontext = std::env::var("OBSIDIAN_R7_PERCONTEXT").ok().as_deref() == Some("1");
 
     for (pi, plane) in planes.iter().enumerate() {
         let range = ranges[pi];
@@ -271,24 +280,20 @@ pub fn analyze(
             weight_index = best;
         }
 
-        // Per-context predictor selection by cost.
-        //
-        // R7-A: the Weighted candidate is evaluated against *every* codebook
-        // weight per context (not just the shared per-plane weight), and the
-        // cheapest codebook entry `j` is stored as `17 + j` in the map. This is a
-        // strict superset of the previous per-plane weight, so residual energy
-        // cannot increase; it specializes the linear predictor to each spatial
-        // context, which is the established CALIC / JPEG-XL weighted-predictor
-        // win over a single global weight.
+        // Per-context predictor selection by summed |r| cost. Every candidate in
+        // `predictors` (including the R8-A `AdaptiveWeighted`, which is a fixed
+        // function of the neighborhood and carries no weight) competes; the
+        // analysis stores the byte of whichever minimizes the residual energy for
+        // that context. The per-plane `Weighted` candidate is handled specially
+        // (its weight is the single best per-plane codebook entry, signaled once
+        // per plane as `weight_index`), and is chosen per-context when it beats
+        // the best fixed predictor. This is a strict superset of the pre-R8 bank:
+        // adding `AdaptiveWeighted` can only lower residual energy, so a
+        // regression at the residual level is structurally impossible.
         let mut ctx_fixed_cost: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
-        let mut ctx_w_cost: Vec<u64> = vec![u64::MAX; context_count];
-        let mut ctx_w_idx: Vec<u8> = vec![0u8; context_count];
-        // Cost of the single per-plane least-squares weight (`weight_index`): this is
-        // the proven-good "global" weighted predictor (clean R7 behavior, signaled as
-        // the legacy `Weighted` byte 7). R7-A only replaces it with a per-context
-        // codebook weight when that weight beats BOTH the best fixed predictor and
-        // this per-plane weight, so the chosen map is always a strict residual
-        // superset of the clean model (never-expand at the residual level).
+        // Cost of the chosen per-plane `Weighted` weight (`weight_index`), signaled
+        // as the legacy `Weighted` byte 7. Compared against the best fixed predictor
+        // (and `AdaptiveWeighted`) so the per-context map keeps the cheapest.
         let mut ctx_wplane_cost: Vec<u64> = vec![u64::MAX; context_count];
         let pw_idx = weight_index as usize;
         for y in 0..height {
@@ -305,14 +310,6 @@ pub fn analyze(
                     ctx_fixed_cost[cid][k] += zigzag(v - pred) as u64;
                 }
                 if include_weighted {
-                    for (j, w) in weight_codebook.iter().enumerate() {
-                        let pred = predict_clamped(PredictorId::Weighted, &nb, Some(w), range);
-                        let c = zigzag(v - pred) as u64;
-                        if c < ctx_w_cost[cid] {
-                            ctx_w_cost[cid] = c;
-                            ctx_w_idx[cid] = j as u8;
-                        }
-                    }
                     let pw = &weight_codebook[pw_idx];
                     let pred = predict_clamped(PredictorId::Weighted, &nb, Some(pw), range);
                     let c = zigzag(v - pred) as u64;
@@ -334,11 +331,7 @@ pub fn analyze(
             }
             if include_weighted {
                 let wplane = ctx_wplane_cost[cid];
-                if r7_percontext && ctx_w_cost[cid] < wplane && ctx_w_cost[cid] < best_c {
-                    // Per-context codebook weight beats both the per-plane weight
-                    // and the best fixed predictor: specialize (R7-A win).
-                    best_pred[cid] = 17 + ctx_w_idx[cid];
-                } else if wplane <= best_c {
+                if wplane <= best_c {
                     // Fall back to the proven per-plane weighted predictor.
                     best_pred[cid] = PredictorId::Weighted.to_u8();
                 } else {
@@ -643,11 +636,18 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         r.read_exact(&mut map)?;
         let mut wi = [0u8; 1];
         r.read_exact(&mut wi)?;
-        // R7-A: map bytes `17 + j` encode the Weighted predictor with codebook
-        // entry `j` (per-context least-squares weight). Accept those as valid.
+        // Map bytes in `0..17` must be a valid `PredictorId`. Bytes `17..(17 +
+        // codebook_len)` are the legacy `Weighted`-codebook reserved range
+        // (R7-A-compatible) and decode to the `Weighted` predictor. The R8-A
+        // `AdaptiveWeighted` id (200) is a valid deterministic-from-neighbors
+        // predictor. Any other byte is invalid.
         let codebook_len = default_weight_codebook().len();
+        let aw_id = PredictorId::AdaptiveWeighted.to_u8() as usize;
         for &p in &map {
             let b = p as usize;
+            if b == aw_id {
+                continue;
+            }
             if b < 17 {
                 if PredictorId::from_u8(p).is_none() {
                     return Err(CodecError::InvalidStream(format!("bad predictor id {p}")));
