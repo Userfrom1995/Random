@@ -147,16 +147,27 @@ impl Default for EncodeOpts {
 /// Encode an image at an effort level, returning the container bytes and stats.
 pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), CodecError> {
     let use_capped = std::env::var("OBSIDIAN_CAPPED").ok().as_deref() == Some("1");
-    let use_cmarc = std::env::var("OBSIDIAN_CARC").ok().as_deref() == Some("1");
+    // R1 CMARC: the production default now ENGAGES CMARC. Real Kodak (24-image
+    // PCD0992, effort 4) confirms CMARC wins versus the v1 GR backend
+    // (9.71 < 10.09 bpp) and the never-expand safety net guarantees it can never
+    // regress the file versus GR. Set `OBSIDIAN_CARC=0` to opt out.
+    let use_cmarc = std::env::var("OBSIDIAN_CARC").ok().as_deref() != Some("0");
     let use_carc_lz = std::env::var("OBSIDIAN_CARC_LZ").ok().as_deref() == Some("1");
     let use_carc_mix = std::env::var("OBSIDIAN_CARC_MIX").ok().as_deref() == Some("1");
     let use_carc_run = std::env::var("OBSIDIAN_CARC_RUN").ok().as_deref() == Some("1");
     let xchan = std::env::var("OBSIDIAN_XCHAN").ok();
-    let cross_channel = match xchan.as_deref() {
+    let mut cross_channel = match xchan.as_deref() {
         Some("0") => Some(false),
         Some("1") => Some(true),
         _ => None,
     };
+    // When CMARC is the production default, prefer the subtract-green decorrelation
+    // (R2.1): measured on Kodak it lowers CMARC's photographic residuals
+    // (9.76 -> 9.71 bpp). The safety net still guards against any expansion, and an
+    // explicit `OBSIDIAN_XCHAN` override is always honored.
+    if use_cmarc && cross_channel.is_none() {
+        cross_channel = Some(true);
+    }
     // R3-A: the residual-context seam enables per-image context auto-selection
     // (gradient vs JPEG-LS DIFF residual context), so R3-A ships only when it
     // actually wins on each image. See `obsidian/docs/architect-r3-residual-

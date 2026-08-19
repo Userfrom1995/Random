@@ -1148,11 +1148,12 @@ mod tests {
     }
 
     #[test]
-    fn cmarc_off_by_default_is_v1() {
-        // Without opting in, output stays on the v1 GR backend (entropy mode 0);
-        // CMARC is opt-in because its photographic gain is measured behind the
-        // never-expand safety net and the production default preserves the proven
-        // 10.16 bpp baseline until real Kodak confirms the win.
+    fn cmarc_default_engages_best_backend() {
+        // Real Kodak (24-image PCD0992, effort 4) confirms CMARC beats the v1 GR
+        // backend (9.71 < 10.09 bpp), so the production default now engages CMARC
+        // behind the never-expand safety net. The default must stay lossless and
+        // pick a valid entropy mode; an explicit `OBSIDIAN_CARC=0` opt-out must
+        // stay on v1 GR.
         let mut img = Image::new(40, 40, Channels::Rgb).unwrap();
         for c in 0..3 {
             for i in 0..img.area() {
@@ -1161,8 +1162,18 @@ mod tests {
         }
         let (bytes, _) = encode(&img, 4).unwrap();
         let (_h, model, _off) = inspect(&bytes).unwrap();
-        assert_eq!(model.entropy_mode, ENTROPY_MODE_GR, "CMARC must be off by default");
+        assert!(
+            model.entropy_mode == ENTROPY_MODE_GR || model.entropy_mode == ENTROPY_MODE_CARC,
+            "default must use a valid entropy mode"
+        );
         assert_eq!(decode(&bytes).unwrap(), img);
+        // Explicit opt-out stays on v1 GR and is still lossless.
+        std::env::set_var("OBSIDIAN_CARC", "0");
+        let (bytes0, _) = encode(&img, 4).unwrap();
+        let (_h0, model0, _off0) = inspect(&bytes0).unwrap();
+        assert_eq!(model0.entropy_mode, ENTROPY_MODE_GR, "OBSIDIAN_CARC=0 must disable CMARC");
+        std::env::remove_var("OBSIDIAN_CARC");
+        assert_eq!(decode(&bytes0).unwrap(), img);
     }
 
     #[test]
