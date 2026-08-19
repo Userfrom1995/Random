@@ -1564,16 +1564,27 @@ impl<'a> RangeDec<'a> {
 ///    + window_state` (the R2 cross-bit conditioning now over the small
 ///    remainder). The per-bin models and `ctx` are mirrored, so no state is
 ///    signaled. See `obsidian/docs/architect-r3-residual-context-blueprint.md` R3-B.
+///
+/// R3-A (corrected) bin allocation: the small-ticket zero/sign/remainder bins
+/// stay on the **gradient coding context `cid`** (which already specializes
+/// well), while the big-ticket **quotient** run is conditioned on the **residual
+/// DIFF context `rcid`** (`residual_context` of the neighbor residuals, the
+/// JPEG-LS DIFF mechanism). Conditioning only the quotient on `rcid` avoids
+/// starving the per-`(cid,bin)` remainder models that made the naive all-bins
+/// variant regress. When `cmarc_residual_ctx` is off, callers pass `rcid == cid`
+/// and the coder is byte-identical to the pre-R3-A path.
 pub fn cmarc_write_residual(
     enc: &mut RangeEnc,
     models: &mut [BinModel],
     ctx: &mut CarcCtx,
     cid: usize,
+    rcid: usize,
     r: i32,
 ) {
     let bins = cmarc_bins_per_ctx();
     let m = r.unsigned_abs();
     let is_zero = m == 0;
+    // Zero/sign flags on the gradient coding context `cid` (unchanged).
     enc.put(&mut models[cid_bin(cid, bins, CMARC_BIN_ZERO)], is_zero);
     if is_zero {
         ctx.adapt(0);
@@ -1583,18 +1594,21 @@ pub fn cmarc_write_residual(
     let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
     let q = (m >> k) as usize;
     let rem = (m & ((1u32 << k) - 1)) as u32;
-    // Quotient unary run with run-POSITION-DEPENDENT bins (R3-B root-cause fix):
-    // each run position gets its own adaptive bin so the model learns the
-    // geometric quotient distribution instead of paying ~-log2(P1) per bit.
+    // Quotient unary run with run-POSITION-DEPENDENT bins (R3-B root-cause fix),
+    // conditioned on the residual DIFF context `rcid` (R3-A corrected): each run
+    // position gets its own adaptive bin selected per `rcid`, so the model learns
+    // the geometric quotient distribution predicted by the local residual context.
     let mut pos = 0usize;
     for _ in 0..q {
         let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-        enc.put(&mut models[cid_bin(cid, bins, bin)], false);
+        enc.put(&mut models[cid_bin(rcid, bins, bin)], false);
         pos += 1;
     }
     let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-    enc.put(&mut models[cid_bin(cid, bins, bin)], true);
-    // Remainder: k MSB-first bits, each conditioned on the trailing window.
+    enc.put(&mut models[cid_bin(rcid, bins, bin)], true);
+    // Remainder: k MSB-first bits, each conditioned on the trailing window, on
+    // the gradient coding context `cid` (kept off the residual context so the
+    // per-`(cid,bin)` models stay well-fed).
     let mut window: u32 = 0;
     for j in 0..k {
         let bit = (rem >> (k - 1 - j)) & 1 == 1;
@@ -1607,12 +1621,15 @@ pub fn cmarc_write_residual(
 }
 
 /// Read a signed residual coded by `cmarc_write_residual`, adapting the models
-/// and `ctx` identically.
+/// and `ctx` identically. `cid` is the gradient coding context (zero/sign/
+/// remainder bins); `rcid` is the residual DIFF context (quotient bins). See the
+/// `cmarc_write_residual` doc comment for the R3-A-corrected bin allocation.
 pub fn cmarc_read_residual<'a>(
     dec: &mut RangeDec<'a>,
     models: &mut [BinModel],
     ctx: &mut CarcCtx,
     cid: usize,
+    rcid: usize,
 ) -> Result<i32, CodecError> {
     let bins = cmarc_bins_per_ctx();
     let is_zero = dec.get(&mut models[cid_bin(cid, bins, CMARC_BIN_ZERO)])?;
@@ -1622,12 +1639,12 @@ pub fn cmarc_read_residual<'a>(
     }
     let neg = dec.get(&mut models[cid_bin(cid, bins, CMARC_BIN_SIGN)])?;
     let k = (ctx.k() as usize).min(CMARC_REM_MAXK);
-    // Quotient: read ZERO bits until a stop-ONE.
+    // Quotient: read ZERO bits until a stop-ONE, conditioned on `rcid`.
     let mut q: u32 = 0;
     let mut pos = 0usize;
     loop {
         let bin = CMARC_BIN_Q + pos.min(CMARC_QCAP);
-        let b = dec.get(&mut models[cid_bin(cid, bins, bin)])?;
+        let b = dec.get(&mut models[cid_bin(rcid, bins, bin)])?;
         if b {
             break;
         }
@@ -2704,7 +2721,7 @@ mod tests {
         let mut enc = RangeEnc::new();
         for (i, &r) in residuals.iter().enumerate() {
             let cid = i % n;
-            cmarc_write_residual(&mut enc, &mut models, &mut ctxs[cid], cid, r);
+            cmarc_write_residual(&mut enc, &mut models, &mut ctxs[cid], cid, cid, r);
         }
         let bytes = enc.finish();
         let mut models2 = vec![BinModel::new(); n * cmarc_bins_per_ctx()];
@@ -2714,7 +2731,7 @@ mod tests {
         for i in 0..residuals.len() {
             let cid = i % n;
             got.push(
-                cmarc_read_residual(&mut dec, &mut models2, &mut ctxs2[cid], cid)
+                cmarc_read_residual(&mut dec, &mut models2, &mut ctxs2[cid], cid, cid)
                     .unwrap(),
             );
         }
@@ -2733,7 +2750,7 @@ mod tests {
         let mut enc = RangeEnc::new();
         for i in 0..2000 {
             let cid = i % n;
-            cmarc_write_residual(&mut enc, &mut models, &mut ctxs[cid], cid, 0);
+            cmarc_write_residual(&mut enc, &mut models, &mut ctxs[cid], cid, cid, 0);
         }
         let bytes = enc.finish();
         let mut models2 = vec![BinModel::new(); n * cmarc_bins_per_ctx()];
@@ -2741,7 +2758,7 @@ mod tests {
         let mut dec = RangeDec::new(&bytes).unwrap();
         for i in 0..2000 {
             let cid = i % n;
-            let r = cmarc_read_residual(&mut dec, &mut models2, &mut ctxs2[cid], cid)
+            let r = cmarc_read_residual(&mut dec, &mut models2, &mut ctxs2[cid], cid, cid)
                 .unwrap();
             assert_eq!(r, 0);
         }
@@ -2771,17 +2788,58 @@ mod tests {
         let mut ctx = CarcCtx::new();
         let mut enc = RangeEnc::new();
         for &r in &residuals {
-            cmarc_write_residual(&mut enc, &mut models, &mut ctx, 0, r);
+                cmarc_write_residual(&mut enc, &mut models, &mut ctx, 0, 0, r);
         }
         let bytes = enc.finish();
         let mut models2 = vec![BinModel::new(); cmarc_bins_per_ctx()];
         let mut ctx2 = CarcCtx::new();
         let mut dec = RangeDec::new(&bytes).unwrap();
         for (i, &er) in residuals.iter().enumerate() {
-            let g = cmarc_read_residual(&mut dec, &mut models2, &mut ctx2, 0).unwrap();
+            let g = cmarc_read_residual(&mut dec, &mut models2, &mut ctx2, 0, 0).unwrap();
             assert_eq!(g, er, "cmarc residual {} round-trip", i);
         }
         assert_eq!(models, models2, "CMARC models must stay mirrored");
+    }
+
+    #[test]
+    fn r3a_residual_context_changes_quotient_stream() {
+        // R3-A (corrected) verification gate: the quotient run is conditioned on
+        // the residual DIFF context `rcid`, so coding the SAME residuals with two
+        // DIFFERENT `rcid` assignments must produce DIFFERENT byte streams. This
+        // proves the residual context is genuinely wired into the coder (not a
+        // silent no-op), and that the decoder mirrors it (both decode identically
+        // to the source).
+        use crate::rans::{
+            BinModel, CarcCtx, RangeEnc, RangeDec, cmarc_write_residual, cmarc_read_residual,
+            cmarc_bins_per_ctx,
+        };
+        let residuals: Vec<i32> = vec![0, 3, -3, 100, -100, 4096, -4096, 7, -7, 2, -2, 255, -256, 13, -13];
+        // Context A: all residuals share rcid 0. Context B: alternate rcid 0 / 200
+        // (a high residual-DIFF context) so the quotient bins diverge.
+        let enc_a = |tag: usize| -> Vec<u8> {
+            let mut models = vec![BinModel::new(); cmarc_bins_per_ctx() * 365];
+            let mut ctxs: Vec<CarcCtx> = (0..365).map(|_| CarcCtx::new()).collect();
+            let mut enc = RangeEnc::new();
+            for (i, &r) in residuals.iter().enumerate() {
+                let rcid = if tag == 0 { 0 } else { if i % 2 == 0 { 0 } else { 200 } };
+                cmarc_write_residual(&mut enc, &mut models, &mut ctxs[rcid], 0, rcid, r);
+            }
+            enc.finish()
+        };
+        let a = enc_a(0);
+        let b = enc_a(1);
+        assert_ne!(a, b, "R3-A residual context must change the quotient stream");
+        // Both streams must round-trip to the same residuals (mirrored decode).
+        for (tag, bytes) in [(0usize, a), (1usize, b)] {
+            let mut models = vec![BinModel::new(); cmarc_bins_per_ctx() * 365];
+            let mut ctxs: Vec<CarcCtx> = (0..365).map(|_| CarcCtx::new()).collect();
+            let mut dec = RangeDec::new(&bytes).unwrap();
+            for (i, &er) in residuals.iter().enumerate() {
+                let rcid = if tag == 0 { 0 } else { if i % 2 == 0 { 0 } else { 200 } };
+                let g = cmarc_read_residual(&mut dec, &mut models, &mut ctxs[rcid], 0, rcid).unwrap();
+                assert_eq!(g, er, "R3-A tag {tag} residual {i} round-trip");
+            }
+        }
     }
 
     #[test]
@@ -3344,7 +3402,7 @@ mod tests {
             for _ in 0..n {
                 let r = laplace(&mut seed, b);
                 res.push(r);
-                cmarc_write_residual(&mut enc, &mut models, &mut ctx, 0, r);
+            cmarc_write_residual(&mut enc, &mut models, &mut ctx, 0, 0, r);
             }
             let bytes = enc.finish();
             let bits = bytes.len() as f64 * 8.0;
@@ -3354,7 +3412,7 @@ mod tests {
             let mut dec = RangeDec::new(&bytes).unwrap();
             let mut ok = true;
             for &er in &res {
-                let gr = cmarc_read_residual(&mut dec, &mut models2, &mut ctx2, 0)
+                let gr = cmarc_read_residual(&mut dec, &mut models2, &mut ctx2, 0, 0)
                     .unwrap();
                 if gr != er { ok = false; break; }
             }

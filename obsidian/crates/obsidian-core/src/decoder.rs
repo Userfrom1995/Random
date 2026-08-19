@@ -511,7 +511,10 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         }
                     }
                 }
-                let mut ctxs: Vec<CarcCtx> = (0..model.context_count)
+                // Size the per-context `CarcCtx` state for the full `nctx`
+                // (which includes the residual DIFF contexts when R3-A is on), so
+                // `ctxs[rcid]` is always in bounds.
+                let mut ctxs: Vec<CarcCtx> = (0..nctx)
                     .map(|_| CarcCtx::new())
                     .collect();
                 if is_lz {
@@ -679,6 +682,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 &mut dec,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                             )?;
                             plane[i] = (pred + r) as i16;
@@ -689,6 +693,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 &mut dec,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                             )?;
                             plane[i] = (pred + r) as i16;
@@ -724,6 +729,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 &mut dec,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                             )?;
                             plane[idx] = (pred + r) as i16;

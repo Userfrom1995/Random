@@ -1264,6 +1264,7 @@ fn code_planes(
                                 &mut enc,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                                 res[i],
                             );
@@ -1274,6 +1275,7 @@ fn code_planes(
                                 &mut enc,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                                 res[i],
                             );
@@ -1313,6 +1315,7 @@ fn code_planes(
                                 &mut enc,
                                 &mut models,
                                 &mut ctxs[rcid],
+                                cid,
                                 rcid,
                                 r,
                             );
