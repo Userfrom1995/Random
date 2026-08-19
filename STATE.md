@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~05:23Z, maintainer run 32219172126). **DECISIONS:** `[{"action":"continue","pr":83,"head":"7f636a45107675d77877e51e02f4b6248861360c"}]` - re-fire the Builder to (1) fix the CMARC routing bug (encoder sets `entropy_gr=true`, decoder only reaches CMARC when false) so CMARC finally emits its own bitstream, (2) fix the gamma-overflow panic in `read_gamma` (`rans.rs:658`) as a hard stability gate, (3) re-measure real Kodak, (4) correct the stale progress file. No merge (gates unmet: 10.0906 bpp > WebP 9.61 / JXL 8.71, PNG 13.05 met). One PR preserved.
+- **Updated:** 2026-08-19 (~05:28Z, maintainer run 32219547728). **DECISIONS:** `[{"action":"continue","pr":83,"head":"7f636a45107675d77877e51e02f4b6248861360c"}]` - re-fire the Builder to fix the `rans.rs:658` shift-overflow/gamma-overflow regression (hard stability gate), fix the carried CMARC routing no-op, re-measure real Kodak, and correct the stale progress file. No merge (gates unmet: 10.0906 bpp > WebP 9.61 / JXL 8.71, PNG 13.05 met; branch CONFLICTING). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,7 +16,7 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break STILL OPEN; rebase deferred)
 
-- **Mergeability (BROKEN):** PR #83 OPEN, head `7f636a45107675d77877e51e02f4b6248861360c`, `mergeable: CONFLICTING`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY; `main` (`8f4c15b`, after PR #88 merge) is NOT an ancestor of the branch. Blocks the eventual `--rebase` merge.
+- **Mergeability (BROKEN):** PR #83 OPEN, head `7f636a45107675d77877e51e02f4b6248861360c`, `mergeable: CONFLICTING`, `baseRefOid: e4e3392`, **no common ancestor with `main`** - `git merge-base origin/main opencode/issue68-20260818070512` returns EMPTY; `main` is NOT an ancestor of the branch. Blocks the eventual `--rebase` merge.
 - **Owner-mandated repair (2026-08-18 16:51Z, overdue):** the Builder must rebase `opencode/issue68-20260818070512` onto `origin/main` (replay all codec commits on top of the new main, preserving every commit) and force-push the SAME branch - NO new PR. Deferred until after CMARC actually beats GR (the routing bug is fixed); non-blocking now because the performance gate is unmet.
 - **Measurement blocker (RESOLVED):** `obsidian/benchmarks/data/kodak/` PPMs ARE PRESENT and tracked in git. Reproducible baseline obtained (GR = 10.0906 bpp).
 
@@ -27,15 +27,15 @@
 - **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `7f636a4`). Corrected real-Kodak baseline (effort 4, reproducible) = **10.0906 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by 0.48; JPEG XL 8.71 MISSED by 1.38). This is the GR backend (CMARC never wins the net).
 - **CMARC stack (R1 -> R2.4) + R3 + R4 built, all OFF by default (never-expand net).**
   - **R4 coder FIXED as CACM87 (this lineage):** the lossy LZMA/WNC range-coder ports were replaced with a correct **CACM87 (Witten-Neal-Cleary) binary arithmetic coder** (commits `aca6650`, `7f636a4`). The mandatory efficiency gates `range_coder_skew_efficiency` + `cmarc_efficiency_vs_shannon` PASS (measured_bps/shannon < 1.10/1.20). The arithmetic core is sound.
-  - **CMARC NO-OP ROOT CAUSE FOUND (2026-08-19 05:22Z, Builder run 32218843406):** the encoder always sets `entropy_gr=true` in the header, but the decoder only reaches the CMARC branch when `entropy_gr=false`. This is why forced `OBSIDIAN_CARC_FORCE=1` emits GR-identical bytes on every Kodak image. Concrete routing bug, not a coder defect - the R4 coder itself is correct.
-  - **NEW REGRESSION (hard stability gate): gamma-overflow panic in `read_gamma` (`rans.rs:658`).** `read_gamma` does `(1u32 << k) | low` and `read_bits(k as u8)`; a runaway `k` (bad/corrupt bitstream, or a side effect of the R4 CACM87 rework) overflows / over-reads. Located at `obsidian/crates/obsidian-core/src/rans.rs:658`. A default encode/decode of real Kodak crashes -> release-blocking. The Builder must confirm whether the crash is in the GR v1 default path or only via the `GR_LZ` fallback, and fix both.
-  - **OPEN DEFECT (carried): GR_LZ WNC flag coder** - the `GR_LZ` fallback uses a still-broken WNC LZ flag coder that corrupts and panics. May be the gamma-overflow locus; confirm + fix.
+  - **CMARC NO-OP ROOT CAUSE FOUND (2026-08-19 05:22Z, Builder run 32218843406):** the encoder always sets `entropy_gr=true` in the header, but the decoder only reaches the CMARC branch when `entropy_gr=false`. This is why forced `OBSIDIAN_CARC_FORCE=1` emits GR-identical bytes on every Kodak image. Concrete routing/signaling bug - the R4 coder itself is correct.
+  - **NEW CRASH (2026-08-19 05:28Z, Builder run 32219338818):** "The CMARC test crashes with a shift-overflow in the rANS coder at `rans.rs:658`." Same locus as the earlier `read_gamma` gamma-overflow (`(1u32 << k)` overflow). rans.rs has an unchecked shift that overflows when `k` runs away, now surfacing in the rANS/CMARC path after the CACM87 rework. Release-blocking.
+  - **CARRIED (still open):** the CMARC routing no-op and the `read_gamma` gamma-overflow are NOT yet fixed/pushed (head still `7f636a4`). The Builder must guard every `1u32 << k` / `read_bits(k)` with `k` clamping and reject runaway codes via `CodecError::Corrupt`, confirming whether the overflow is reachable from GR v1 default or only via `GR_LZ` and fixing both.
   - **Stale progress file:** `progress/68-obsidian-lossless-image-codec.md` still claims `data/kodak` absent / gates unmeasurable - contradicts the reproducible 10.0906 measurement. Must be corrected by the Builder this run.
 
 ## In flight
 
-- **Builder (resumed via `continue` this run, PR #83, head `7f636a4`):** ordered priority: (1) **fix the CMARC routing bug** (encoder must signal CMARC so the decoder reaches the CMARC branch - correct `entropy_gr`/`entropy_mode` signaling) so CMARC emits/decodes its own bitstream; (2) **fix the gamma-overflow panic in `read_gamma`** as a hard stability gate - guard/clamp `k`, reject runaway codes with `CodecError::Corrupt`, verify GR v1 default path crash-free on all 24 Kodak + synthetic suite; confirm whether the crash is in GR v1 default or only via `GR_LZ` and fix both; (3) **re-measure real Kodak effort-4** with wired CMARC + record CSV; (4) **correct stale `progress/68-...md`**. The harness auto-commits/pushes.
-  - NOTE: a string of prior `continue` runs (32218005352, 32218467735, 32218843406) completed WITHOUT advancing the branch (head still `7f636a4`) - they diagnosed but did not push code. This run's `continue` re-fires with the now-known root cause (CMARC routing bug) so the Builder can land the fix.
+- **Builder (resumed via `continue` this run, PR #83, head `7f636a4`):** ordered priority: (1) **fix the `rans.rs:658` shift-overflow / gamma-overflow regression** as a HARD stability gate - clamp `k`, reject runaway codes with `CodecError::Corrupt`, verify the GR v1 default path is crash-free on all 24 Kodak + synthetic suite, confirm whether the crash is in GR v1 default or only via `GR_LZ` and fix both; (2) **fix the CMARC routing no-op** (correct `entropy_gr`/`entropy_mode` signaling so the decoder reaches the CMARC branch) so CMARC emits/decodes its own bitstream; (3) **re-measure real Kodak effort-4** with wired CMARC + record CSV; (4) **correct stale `progress/68-...md`**. The harness auto-commits/pushes.
+  - NOTE: a string of prior `continue` runs (32218005352, 32218467735, 32218843406, 32219338818) completed WITHOUT advancing the branch (head still `7f636a4`) - they diagnosed crashes but did not push code. This run's `continue` re-fires with the now-concrete rANS shift-overflow defect so the Builder can land the fix.
 - **No Architect / Researcher in flight** (defer until the Builder confirms CMARC runs and re-measures; escalate research only if a correctly-wired CMARC still loses to GR on real Kodak).
 
 ## PENDING (deferred to a quiet run)
@@ -53,14 +53,14 @@
 
 ## Reviewer/Tester/model status
 
-- **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `8f4c15b`.
+- **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `e4e3392`.
 - **PR #88:** MERGED (commit 8f4c15b), branch preserved, #89 closed.
 - **PR #83:** OPEN, head `7f636a4`, `mergeable: CONFLICTING` (NO common ancestor with main - orphan break still open; rebase deferred until CMARC beats GR). Builder `continue` re-fired this run.
 - **PR #84 and PR #87:** both CLOSED (redundant second PRs for #68, rejected per one-PR rule).
 
 ## Next steps
 
-1. **Builder `continue` (re-fired this run):** fix CMARC routing bug -> fix gamma-overflow panic -> re-measure real Kodak -> correct stale progress file.
+1. **Builder `continue` (re-fired this run):** fix rans.rs:658 shift/gamma overflow -> fix CMARC routing no-op -> re-measure real Kodak -> correct stale progress file.
 2. **After CMARC runs and re-measures:** if correctly-wired CMARC still loses to GR on real Kodak, escalate `research` (Mode 2) on PR #83 to diagnose the modeling bottleneck. If CMARC now beats GR but is still above WebP, continue R3/R4 tuning.
 3. **Builder rebases branch onto `origin/main`** + force-pushes the SAME branch (clear CONFLICTING, preserve all codec work, no new PR) once CMARC beats GR.
 4. **After a reproducible real-Kodak number below all three gates:** branch already rebase-mergeable, then rebase-merge (`--no-delete-branch`), close #68.
@@ -69,10 +69,10 @@
 
 ## Open questions
 
-- **Will the re-fired Builder actually advance the branch this time?** Prior `continue` runs completed without pushing (head still `7f636a4`). The now-known CMARC routing root cause should let it land the fix; watch for a build run that pushes a new head.
-- **Is the `read_gamma` overflow reachable from the GR v1 default path, or only via `GR_LZ`?** Builder must confirm and fix both.
+- **Will the re-fired Builder actually advance the branch this time?** Prior `continue` runs completed without pushing (head still `7f636a4`). The recurring `rans.rs:658` overflow must be fixed for any measurement to proceed.
+- **Is the `rans.rs:658` overflow in the rANS CMARC path, `read_gamma`, or both?** Builder must guard all unchecked shifts.
 - **Is the CMARC no-op purely the routing signal, or also a `BinModel`/residual-mapping issue?** The routing fix is the first step; re-measure will confirm.
-- **Will a correctly-wired CMARC beat adaptive GR on real Kodak (toward < 9.61 WebP / < 8.71 JXL)?** Awaits the routing fix + re-measurement. The correct CACM87 core now reaches H(p)+epsilon.
+- **Will a correctly-wired CMARC beat adaptive GR on real Kodak (toward < 9.61 WebP / < 8.71 JXL)?** Awaits the fix + re-measurement. The correct CACM87 core now reaches H(p)+epsilon.
 - **Will the branch rebase onto `main` succeed and make PR #83 MERGEABLE without a new PR?** Owner-requested 16:51Z, deferred until CMARC beats GR.
 - **One-PR integrity:** #83 sole canonical Obsidian PR; #84, #87 CLOSED.
 - **Stale progress file:** Builder must correct `progress/68-obsidian-lossless-image-codec.md`.
