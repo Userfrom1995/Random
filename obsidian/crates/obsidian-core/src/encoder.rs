@@ -139,6 +139,16 @@ pub struct EncodeOpts {
     /// CARC_LZ, CARC_MIX, CARC_CACHE}. See `obsidian/docs/architect-r6-corrected-
     /// blueprint.md` Component A.
     pub carc_cache: Option<bool>,
+    /// R10-B CFL (chroma-from-luma) scale per plane. `Some(vec)` where each
+    /// entry is `None` (no CFL) or `Some(s in 0..=7)`; `None` (default) lets the
+    /// encoder pick scales greedily behind the never-expand safety net. Scale 0
+    /// is the identity, so CFL is a strict superset and cannot regress.
+    pub cfl_scale: Option<Vec<Option<u8>>>,
+    /// R10-A Squeeze (recursive group transform) level per plane. `Some(vec)`
+    /// with `0` meaning a single band (no Squeeze) and `L >= 1` meaning `L`
+    /// recursive splits; `None` (default) lets the encoder pick levels greedily
+    /// behind the never-expand safety net.
+    pub squeeze_levels: Option<Vec<u8>>,
 }
 
 impl Default for EncodeOpts {
@@ -153,6 +163,8 @@ impl Default for EncodeOpts {
             cmarc_residual_ctx_auto: false,
             cmarc_run: None,
             carc_cache: None,
+            cfl_scale: None,
+            squeeze_levels: None,
         }
     }
 }
@@ -206,6 +218,8 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
             cmarc_residual_ctx_auto,
             cmarc_run: Some(use_carc_run),
             carc_cache: Some(use_carc_cache),
+            cfl_scale: None,
+            squeeze_levels: None,
         },
     )
 }
@@ -544,370 +558,90 @@ pub fn encode_with(
     // Coding pass (shared by the initial attempt, any safety-net re-code, and the
     // guard re-code). The CMARC branch runs when `use_cmarc` is set.
     let start = std::time::Instant::now();
-    let mut coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, gr_m2, gr_cm, gr_lz, use_capped, m3_wp, use_cmarc, false, false, false)?;
-    // M3-A safety net: the match layer must *never* expand the file. Exact
-    // back-references are rare on photographic/noise residuals, so the per-pixel
-    // flag stream plus short false matches would only add overhead there. Compare
-    // the gr_lz candidate against the v1 GR candidate (gr_m2 with both modes off,
-    // which is byte-identical to v1 GR) and keep whichever is smaller. The header
-    // flag then reflects the winner, so the decoder enters the matching backend
-    // only when it actually helped.
-    if gr_lz && !gr_cm {
-        let v1_coded = code_planes(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, true, false, false, false, m3_wp, false, false, false, false)?;
-        let lz_total: usize = coded.streams.iter().map(|s| s.len()).sum();
-        let v1_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
-        if lz_total > v1_total {
-            coded = v1_coded;
-            gr_lz = false;
-            gr_m2 = true;
-        }
-    }
-    // R1 CMARC safety net: the CMARC backend must *never* expand the file versus
-    // the v1 GR backend. CMARC codes each residual as a per-`(cid, bin)` binary
-    // range coder stream that costs `H(p) + epsilon`; the SINGLE-K GR symbol
-    // coder costs `H(p) + O(1)`. On photographic content CMARC wins; on adversarial
-    // (e.g. pure noise, where context carries no information) GR is near-optimal and
-    // CMARC's per-bin warm-up can tie or narrowly lose. So we keep whichever plan
-    // is smaller and signal the winner via `entropy_mode`. This guarantees no
-    // regression versus the production v1 GR backend, satisfying the merge gate.
-    if use_cmarc {
-        // The model's best non-CMARC candidate is what would ship if CMARC were
-        // off. We must beat THAT, not just plain v1 GR, otherwise enabling CMARC
-        // would regress the file versus the production backend selection.
-        let mut v1_coded = code_planes(
-            coding_planes,
-            &ranges,
-            &sizes,
-            width,
-            height,
-            &model,
-            entropy_gr,
-            orig_gr_m2,
-            orig_gr_cm,
-            orig_gr_lz,
-            false,
-            m3_wp,
-            false,
-            false,
-            false,
-            false,
-        )?;
-        // Mirror the M3-A never-expand net so the candidate reflects the model's
-        // actual choice between gr_lz and plain GR.
-        let mut v1_gr_lz = orig_gr_lz;
-        if orig_gr_lz && !orig_gr_cm {
-            let lz_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
-            let plain = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                true,
-                false,
-                false,
-                false,
-                m3_wp,
-                false,
-                false,
-                false,
-                false,
-            )?;
-            let plain_total: usize = plain.streams.iter().map(|s| s.len()).sum();
-            if lz_total > plain_total {
-                v1_coded = plain;
-                v1_gr_lz = false;
-            }
-        }
-        let mut cm_total: usize = coded.streams.iter().map(|s| s.len()).sum();
-        let v1_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
-        // R3-A per-image context auto-selection (`OBSIDIAN_CARC_RESIDUAL_CTX` seam).
-        // The CMARC pass above used the gradient coding context. When the seam is
-        // on, also code the plane with the JPEG-LS DIFF residual context and keep
-        // whichever CMARC context (gradient or residual) is smaller per image. The
-        // winning choice is recorded in `model.cmarc_residual_ctx` so the decoder
-        // mirrors it. R3-A can therefore never expand the file versus gradient-
-        // context CMARC (which itself is gated by the GR never-expand net below), so
-        // a regression can never ship. See `obsidian/docs/architect-r3-residual-
-        // context-blueprint.md` R3-A §4.
-        if opts.cmarc_residual_ctx_auto {
-            // `coded` (gradient context) is the baseline; `cm_total` is its size.
-            let gradient_total = cm_total;
-            model.cmarc_residual_ctx = true;
-            let res_coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                false,
-                false,
-                false,
-                false,
-                m3_wp,
-                true,
-                false,
-                false,
-                false,
-            )?;
-            model.cmarc_residual_ctx = false;
-            let res_total: usize = res_coded.streams.iter().map(|s| s.len()).sum();
-            if res_total < gradient_total {
-                coded = res_coded;
-                cm_total = res_total;
-                model.cmarc_residual_ctx = true;
-            }
-        }
-        // R3-C run mode: try the run-length coder on near-constant regions and
-        // keep it only when it is the smallest CMARC candidate (gradient or
-        // residual context). The winning choice is recorded in `model.cmarc_run`
-        // so the decoder mirrors it. Because the run coder only fires on genuine
-        // runs (>= CMARC_RUN_MIN zero-residual pixels), and this branch compares
-        // against the current best CMARC total, run mode can never expand the
-        // file versus the CMARC candidate it replaces. See blueprint R3-C.
-        if use_carc_run {
-            let pre_run_total = cm_total;
-            model.cmarc_run = true;
-            let run_coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                orig_gr_m2,
-                orig_gr_cm,
-                orig_gr_lz,
-                false,
-                m3_wp,
-                true,
-                false,
-                false,
-                false,
-            )?;
-            model.cmarc_run = false;
-            let run_total: usize = run_coded.streams.iter().map(|s| s.len()).sum();
-            if run_total < pre_run_total || force_carc_run {
-                coded = run_coded;
-                cm_total = run_total;
-                model.cmarc_run = true;
-            }
-        }
-        // Start from the best of {GR, CMARC-literal}; the LZ candidate (below)
-        // only replaces this if it is strictly smaller still.
-        let mut best_mode = if force_carc || force_carc_run || cm_total <= v1_total {
-            ENTROPY_MODE_CARC
-        } else {
-            ENTROPY_MODE_GR
-        };
-        let mut best_coded = if force_carc || force_carc_run || cm_total <= v1_total {
-            coded
-        } else {
-            v1_coded
-        };
-        let mut best_gr_cm = if force_carc || force_carc_run || cm_total <= v1_total {
-            orig_gr_cm
-        } else {
-            false
-        };
-        let mut best_gr_lz = if force_carc || force_carc_run || cm_total <= v1_total { false } else { v1_gr_lz };
-        let mut best_gr_m2 = if force_carc || force_carc_run || cm_total <= v1_total { false } else { orig_gr_m2 };
-        // R2.3 CMARC-LZ: try the match layer (flag/length/offset are CMARC bins,
-        // literals are the CMARC residual). Never-expand invariant: it is kept
-        // only when it is the smallest of {GR, CMARC, CARC_LZ}, otherwise the
-        // literal CMARC or v1 GR candidate ships (no file expansion).
-        if use_carc_lz {
-            let lz_coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                false,
-                false,
-                false,
-                false,
-                m3_wp,
-                true,
-                true,
-                false,
-                false,
-            )?;
-            let lz_total: usize = lz_coded.streams.iter().map(|s| s.len()).sum();
-            if force_carc_lz || lz_total < cm_total.min(v1_total) {
-                best_mode = ENTROPY_MODE_CARC_LZ;
-                best_coded = lz_coded;
-                best_gr_cm = false;
-                best_gr_lz = false;
-                best_gr_m2 = false;
-            }
-        }
-        // R2.4 CMARC-MIX: try the logistic-mixed backend (per-`(cid, bin)` model
-        // blended with a per-`bin` coarse model via a learned logistic weight).
-        // Never-expand invariant: it is kept only when it is the smallest of
-        // {GR, CMARC, CARC_LZ, CARC_MIX}; otherwise the previously-best candidate
-        // ships. Mixing probability estimates beats the best single model, so this
-        // is the final R2 gate-clearing stage (JPEG XL). See
-        // `obsidian/docs/architect-cmarc-blueprint.md` section 5.4.
-        if use_cmarc_mix {
-            let mix_coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                false,
-                false,
-                false,
-                false,
-                m3_wp,
-                true,
-                false,
-                true,
-                false,
-            )?;
-            let mix_total: usize = mix_coded.streams.iter().map(|s| s.len()).sum();
-            let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
-            if force_carc_mix || mix_total < best_total {
-                best_mode = ENTROPY_MODE_CARC_MIX;
-                best_coded = mix_coded;
-                best_gr_cm = false;
-                best_gr_lz = false;
-                best_gr_m2 = false;
-            }
-        }
-        // R6-B color cache (Component A): try the per-plane LRU cache candidate and
-        // keep it only when it is the smallest of {GR, CMARC, CARC_LZ, CARC_MIX,
-        // CARC_CACHE}. The cache is NOT combined with R3-A residual context or run
-        // mode (its residual region uses the gradient coding context), so we force
-        // those flags off for the cache candidate and restore them afterward.
-        // Never-expand invariant: the cache replaces the current best only when
-        // strictly smaller, so a regression can never ship. See blueprint R6.
-        if use_carc_cache {
-            let save_rc = model.cmarc_residual_ctx;
-            let save_run = model.cmarc_run;
-            let save_cache = model.cmarc_use_color_cache;
-            // Engage the cache for THIS candidate only (it is the flag code_planes
-            // reads to switch the per-plane LRU on). Restore all three afterward so
-            // the earlier-selected candidate's flags are untouched if cache loses.
-            model.cmarc_residual_ctx = false;
-            model.cmarc_run = false;
-            model.cmarc_use_color_cache = true;
-            let cache_coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                false,
-                false,
-                false,
-                false,
-                m3_wp,
-                true,
-                false,
-                false,
-                true,
-            )?;
-            model.cmarc_residual_ctx = save_rc;
-            model.cmarc_run = save_run;
-            model.cmarc_use_color_cache = save_cache;
-            let cache_total: usize = cache_coded.streams.iter().map(|s| s.len()).sum();
-            let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
-            if force_carc_cache || cache_total < best_total {
-                best_coded = cache_coded;
-                best_mode = ENTROPY_MODE_CARC_CACHE;
-                model.cmarc_use_color_cache = true;
-                model.cmarc_residual_ctx = false;
-                model.cmarc_run = false;
-                best_gr_cm = false;
-                best_gr_lz = false;
-                best_gr_m2 = false;
-            }
-        }
-        coded = best_coded;
-        model.entropy_mode = best_mode;
-        gr_cm = best_gr_cm;
-        gr_lz = best_gr_lz;
-        gr_m2 = best_gr_m2;
-    } else if use_capped {
-        model.entropy_mode = ENTROPY_MODE_CAPPED;
+    // R10: Squeeze (recursive group transform) + CFL (chroma-from-luma) selection
+    // behind the never-expand safety net. We build banded plane lists for the
+    // baseline (no transform) and for the candidate transforms, code each via
+    // `code_banded`, and keep whichever yields the smallest container. CFL scale
+    // 0 is identity and Squeeze level 0 is a single band, so each transform is a
+    // strict superset and the net can only ever pick one that does not expand.
+    let n_planes = coding_planes.len();
+    let identity_dims: Vec<(usize, usize)> = vec![(width, height); n_planes];
+    let identity_parent: Vec<usize> = (0..n_planes).collect();
+
+    // Test/measurement seams: force CFL and/or Squeeze on regardless of probes.
+    let force_cfl = std::env::var("OBSIDIAN_CFL_FORCE").ok().as_deref() == Some("1");
+    let force_sq = std::env::var("OBSIDIAN_SQ_FORCE").ok().as_deref() == Some("1");
+
+    // Honor explicit per-plane overrides from `EncodeOpts`; otherwise pick CFL
+    // scales and Squeeze levels greedily via cheap per-plane probes.
+    let (mut cfl_choice, mut sq_choice) = if opts.cfl_scale.is_some() && opts.squeeze_levels.is_some() {
+        (opts.cfl_scale.clone().unwrap(), opts.squeeze_levels.clone().unwrap())
     } else {
-        model.entropy_mode = ENTROPY_MODE_GR;
-    }
-    if use_static && !use_capped {
-        // Capture the backend already chosen by the never-expand safety net so the
-        // (possible) re-code below reproduces the same backend, not the original
-        // `use_cmarc` flag. Re-creating `model` via `default_model` resets
-        // `entropy_mode` (and must not silently switch the on-disk backend).
-        let chosen_mode = model.entropy_mode;
-        let chosen_rc = model.cmarc_residual_ctx;
-        let payload_total: usize = coded.streams.iter().map(|s| s.len()).sum();
-        let fixed_overhead = HEADER_LEN + 4 + 4 * coding_planes.len();
-        let mut frac_model_bytes = Vec::new();
-        write_model(&mut frac_model_bytes, &model)?;
-        let frac = frac_model_bytes.len() as f64
-            / (frac_model_bytes.len() + payload_total + fixed_overhead) as f64;
-        if frac > MODEL_SIZE_FRACTION {
-            // The static model dominates the output: fall back to a simpler
-            // model (one global context per plane, no static tables) and
-            // re-code. The roundtrip stays exact because the decoder consumes
-            // the serialized (fallback) model.
-            model = default_model(coding_planes, &context, &codebook);
-            model.transform = if palette.is_some() {
-                TransformChoice::None
-            } else {
-                transform
-            };
-            model.palette = palette.clone();
-            // Preserve the R3-A context the safety net already chose (gradient or
-            // JPEG-LS DIFF residual) so the re-code matches the serialized model.
-            model.cmarc_residual_ctx = chosen_rc;
-            model.entropy_mode = chosen_mode;
-            use_capped = false;
-            // R6-B: preserve the cache flag when the model-size guard re-codes, so the
-            // re-code reproduces the exact backend the never-expand net chose.
-            let chosen_cache = model.cmarc_use_color_cache;
-            model.cmarc_use_color_cache = false;
-            let (rc_cmarc, rc_carc_lz, rc_carc_mix, rc_carc_cache) = match chosen_mode {
-                ENTROPY_MODE_CARC => (true, false, false, false),
-                ENTROPY_MODE_CARC_LZ => (true, true, false, false),
-                ENTROPY_MODE_CARC_MIX => (true, false, true, false),
-                ENTROPY_MODE_CARC_CACHE => (true, false, false, true),
-                _ => (false, false, false, false),
-            };
-            coded = code_planes(
-                coding_planes,
-                &ranges,
-                &sizes,
-                width,
-                height,
-                &model,
-                entropy_gr,
-                false,
-                false,
-                false,
-                use_capped,
-                m3_wp,
-                rc_cmarc,
-                rc_carc_lz,
-                rc_carc_mix,
-                rc_carc_cache,
-            )?;
-            model.cmarc_use_color_cache = chosen_cache;
+        choose_transforms(coding_planes, &ranges, &sizes, width, height, &model, entropy_gr, m3_wp, use_cmarc)?
+    };
+    if force_cfl {
+        for c in 1..n_planes {
+            if cfl_choice[c].is_none() {
+                cfl_choice[c] = Some(1);
+            }
         }
     }
+    if force_sq {
+        let mx = crate::transforms::max_squeeze_levels(width, height);
+        sq_choice = vec![mx; n_planes];
+    }
+
+    // Config C: original codec (no CFL, no Squeeze).
+    let (coded_c, model_c, gcm_c, glz_c, gm2_c) = code_banded(
+        coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes,
+        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
+        use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
+    )?;
+    // Config B: CFL applied, no Squeeze.
+    let (cfl_planes_b, cfl_dims_b, cfl_parent_b) =
+        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &vec![0u8; n_planes]);
+    let mut model_b = model.clone();
+    model_b.cfl_scale = cfl_choice.clone();
+    let (coded_b, model_b2, gcm_b, glz_b, gm2_b) = code_banded(
+        &cfl_planes_b, &cfl_dims_b, &cfl_parent_b, coding_planes, &palette, transform, &ranges, &sizes,
+        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
+        use_static, use_capped, gr_cm, gr_lz, gr_m2, model_b,
+    )?;
+    // Config A: CFL applied and Squeeze applied.
+    let (cfl_planes_a, cfl_dims_a, cfl_parent_a) =
+        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &sq_choice);
+    let mut model_a = model.clone();
+    model_a.cfl_scale = cfl_choice.clone();
+    model_a.squeeze_levels = sq_choice.clone();
+    let (coded_a, model_a2, gcm_a, glz_a, gm2_a) = code_banded(
+        &cfl_planes_a, &cfl_dims_a, &cfl_parent_a, coding_planes, &palette, transform, &ranges, &sizes,
+        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
+        use_static, use_capped, gr_cm, gr_lz, gr_m2, model_a,
+    )?;
+
+    // Never-expand net: keep the smallest container (model + payload + per-stream
+    // length fields + header). CFL/Squeeze ship only when they actually win.
+    let total_c = config_total(&model_c, &coded_c.streams);
+    let total_b = config_total(&model_b2, &coded_b.streams);
+    let total_a = config_total(&model_a2, &coded_a.streams);
+    let winner = if total_a <= total_b && total_a <= total_c {
+        (coded_a, model_a2, gcm_a, glz_a, gm2_a)
+    } else if total_b <= total_c {
+        (coded_b, model_b2, gcm_b, glz_b, gm2_b)
+    } else {
+        (coded_c, model_c, gcm_c, glz_c, gm2_c)
+    };
+    let coded = winner.0;
+    model = winner.1;
+    gr_cm = winner.2;
+    gr_lz = winner.3;
+    gr_m2 = winner.4;
     // Serialize the model now that `entropy_mode` (and any `cmarc_priors`) is
     // finalized.
     let mut model_bytes = Vec::new();
@@ -1108,8 +842,8 @@ fn code_planes(
     coding_planes: &[Vec<i16>],
     ranges: &[PlaneRange],
     sizes: &[usize],
-    width: usize,
-    height: usize,
+    dims: &[(usize, usize)],
+    parent: &[usize],
     model: &ModelConfig,
     entropy_gr: bool,
     gr_m2: bool,
@@ -1126,9 +860,16 @@ fn code_planes(
     let mut chosen_counts = [0usize; PREDICTOR_COUNT];
     let mut streams: Vec<Vec<u8>> = Vec::with_capacity(coding_planes.len());
     for pi in 0..coding_planes.len() {
+        // R10: each coding "plane" may actually be a Squeeze sub-band with its
+        // own `(w, h)`. The band's own geometry drives the raster scan and
+        // neighbor lookups; everything that indexes the model/range (predictor,
+        // alphabet, weight table, capped histogram) uses `parent[pi]`, the
+        // original plane this band belongs to, so bands share the parent plane's
+        // context model.
+        let (width, height) = dims[pi];
         let alphabet = sizes[pi];
-        let wv = model.weight_for(pi);
-        let wtree = model.weighted_tree_for(pi);
+        let wv = model.weight_for(parent[pi]);
+        let wtree = model.weighted_tree_for(parent[pi]);
         if entropy_gr {
             // Design A: per-context adaptive Golomb-Rice. Forward raster order;
             // both sides adapt `k` from the decoded symbols (mirrored state), so
@@ -1249,7 +990,7 @@ fn code_planes(
                                     &mut models[slot + CMARC_LZ_FLAG],
                                     false,
                                 );
-                                let p = model.predictor(pi, cid);
+                                let p = model.predictor(parent[pi], cid);
                                 let pred =
                                     predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                                 let r = buf[i] as i32 - pred;
@@ -1281,7 +1022,7 @@ fn code_planes(
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor(parent[pi], cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
                             cmarc_mix_write_residual(
@@ -1318,13 +1059,13 @@ fn code_planes(
                         let y = i / width;
                         let nb = neighbors(plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor(parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
                                 plane,
-                                pi,
+                                parent[pi],
                                 x,
                                 y,
                                 width,
@@ -1388,7 +1129,7 @@ fn code_planes(
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor(parent[pi], cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let v = coding_planes[pi][idx] as i32;
                             let r = v - pred;
@@ -1399,7 +1140,7 @@ fn code_planes(
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     &coding_planes[pi],
-                                    pi,
+                                    parent[pi],
                                     x,
                                     y,
                                     width,
@@ -1457,7 +1198,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor(parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let k = cms[cid].k_current();
@@ -1527,7 +1268,7 @@ fn code_planes(
                             let y = i / width;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor(parent[pi], cid);
                             let w = if m3_wp && matches!(p, PredictorId::Weighted) {
                                 Some(&wp[cid])
                             } else {
@@ -1588,7 +1329,7 @@ fn code_planes(
                     let is_run = use_run && matches!(old_pv, Some(pv) if pv == val);
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor(parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
@@ -1641,7 +1382,7 @@ fn code_planes(
                 // first symbols of each context (the fix for the old adaptive
                 // rANS expansion), and both sides use identical fixed tables so
                 // the round-trip is exact without any mirrored adaptation.
-                let mut tables: Vec<RansTable> = cap_hist[pi]
+                let mut tables: Vec<RansTable> = cap_hist[parent[pi]]
                     .iter()
                     .map(|opt| {
                         let mut hist = vec![0u32; CAPPED_SYMBOLS];
@@ -1673,7 +1414,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor(parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let z = zigzag(r) as usize;
@@ -1710,7 +1451,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor(parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
@@ -1723,7 +1464,7 @@ fn code_planes(
             let mut enc = RansEncoder::new();
             if let Some(static_hist) = &model.static_histograms {
             let built = build_static_tables(static_hist, sizes);
-            let mut tables = built.into_iter().nth(pi).unwrap();
+            let mut tables = built.into_iter().nth(parent[pi]).unwrap();
             for y in (0..height).rev() {
                 for x in (0..width).rev() {
                     let idx = y * width + x;
@@ -1735,7 +1476,7 @@ fn code_planes(
                         .ok_or_else(|| {
                             CodecError::InvalidStream(format!("no static table for context {cid}"))
                         })?;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor(parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     enc.put(zigzag(r) as usize, table);
@@ -1758,7 +1499,7 @@ fn code_planes(
                     let idx = y * width + x;
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor(parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let sym = zigzag(r) as usize;
@@ -1773,7 +1514,7 @@ fn code_planes(
                     let idx = y * width + x;
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor(parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let packed = plan[idx];
@@ -1794,6 +1535,565 @@ fn code_planes(
 }
 
 /// Encode then decode, returning the reconstructed image for the fidelity gate.
+
+/// Total serialized container size estimate for a candidate config, used by the
+/// never-expand net to pick the smallest of {baseline, CFL, CFL+Squeeze}.
+fn config_total(model: &ModelConfig, streams: &[Vec<u8>]) -> usize {
+    let mut mb = Vec::new();
+    // `write_model` cannot fail for an already-built model; size estimate only.
+    let _ = write_model(&mut mb, model);
+    let mut total = HEADER_LEN;
+    total += 4 + mb.len() + 4; // model length field + model bytes + model crc
+    for s in streams {
+        total += 4 + s.len();
+    }
+    total
+}
+
+/// R10: build the banded coding-plane list for a (CFL scale, Squeeze level)
+/// choice. CFL is applied in the original plane space (chroma plane `c` has
+/// `round(s * luma / 8)` subtracted, luma = plane 0, scale 0 = identity), then
+/// each plane is split by Squeeze into post-order sub-bands. Returns the bands,
+/// their `(w, h)`, and the owning original plane index of each band.
+fn build_banded(
+    base: &[Vec<i16>],
+    ranges: &[PlaneRange],
+    width: usize,
+    height: usize,
+    cfl_scale: &[Option<u8>],
+    squeeze_levels: &[u8],
+) -> (Vec<Vec<i16>>, Vec<(usize, usize)>, Vec<usize>) {
+    let n = base.len();
+    let mut planes: Vec<Vec<i16>> = base.to_vec();
+    // R10-B CFL subtract (pre-Squeeze).
+    for c in 1..n {
+        if let Some(s) = cfl_scale.get(c).copied().flatten() {
+            let rmin = ranges[c].min as i32;
+            let rmax = ranges[c].max as i32;
+            for i in 0..planes[c].len() {
+                let pred = crate::transforms::cfl_predict(s, planes[0][i] as i32, rmin, rmax);
+                planes[c][i] = (planes[c][i] as i32 - pred) as i16;
+            }
+        }
+    }
+    // R10-A Squeeze split (post-order).
+    let mut banded: Vec<Vec<i16>> = Vec::new();
+    let mut dims: Vec<(usize, usize)> = Vec::new();
+    let mut parent: Vec<usize> = Vec::new();
+    for p in 0..n {
+        let levels = squeeze_levels.get(p).copied().unwrap_or(0);
+        if levels == 0 {
+            banded.push(planes[p].clone());
+            dims.push((width, height));
+            parent.push(p);
+        } else {
+            for (data, bw, bh) in crate::transforms::squeeze(&planes[p], width, height, levels) {
+                banded.push(data);
+                dims.push((bw, bh));
+                parent.push(p);
+            }
+        }
+    }
+    (banded, dims, parent)
+}
+
+/// Cheap single-config cost probe for one (already-banded) plane list.
+fn probe_cost(
+    planes: &[Vec<i16>],
+    dims: &[(usize, usize)],
+    parent_val: usize,
+    model: &ModelConfig,
+    entropy_gr: bool,
+    m3_wp: bool,
+    use_cmarc: bool,
+) -> Result<usize, CodecError> {
+    // R10: probe each band against its own value range (sub-bands / CFL residuals
+    // can exceed the original plane range), so the cost estimate matches the real
+    // coder.
+    let parent = vec![parent_val; dims.len()];
+    let mut br: Vec<PlaneRange> = Vec::with_capacity(planes.len());
+    let mut bs: Vec<usize> = Vec::with_capacity(planes.len());
+    for p in planes {
+        let mut lo = i32::MAX;
+        let mut hi = i32::MIN;
+        for &v in p {
+            let v = v as i32;
+            if v < lo {
+                lo = v;
+            }
+            if v > hi {
+                hi = v;
+            }
+        }
+        br.push(PlaneRange { min: lo, max: hi });
+        bs.push((hi - lo + 1) as usize);
+    }
+    let coded = code_planes(
+        planes, &br, &bs, dims, &parent, model, entropy_gr, true, false, false, false,
+        m3_wp, use_cmarc, false, false, false,
+    )?;
+    Ok(coded.streams.iter().map(|s| s.len()).sum())
+}
+
+/// Greedy per-plane CFL scale + Squeeze level selection via cheap per-plane
+/// probes. Each chroma plane keeps the CFL scale (0..=7, 0 = off) with the
+/// smallest coding cost; each plane keeps the Squeeze level (0..=max) with the
+/// smallest cost, measured with the already-chosen CFL scale applied.
+fn choose_transforms(
+    base: &[Vec<i16>],
+    ranges: &[PlaneRange],
+    _sizes: &[usize],
+    width: usize,
+    height: usize,
+    model: &ModelConfig,
+    entropy_gr: bool,
+    m3_wp: bool,
+    use_cmarc: bool,
+) -> Result<(Vec<Option<u8>>, Vec<u8>), CodecError> {
+    let n = base.len();
+    let mut cfl_choice: Vec<Option<u8>> = vec![None; n];
+    for c in 1..n {
+        let mut best_scale: Option<u8> = None;
+        let mut best_cost = usize::MAX;
+        for s in 0u8..=7 {
+            let scale = if s == 0 { None } else { Some(s) };
+            let mut probe = base.to_vec();
+            if let Some(sv) = scale {
+                let rmin = ranges[c].min as i32;
+                let rmax = ranges[c].max as i32;
+                for i in 0..probe[c].len() {
+                    let pred = crate::transforms::cfl_predict(sv, probe[0][i] as i32, rmin, rmax);
+                    probe[c][i] = (probe[c][i] as i32 - pred) as i16;
+                }
+            }
+            let dims = vec![(width, height)];
+            let cost = probe_cost(&probe[c..c + 1], &dims, c, model, entropy_gr, m3_wp, use_cmarc)?;
+            if cost < best_cost {
+                best_cost = cost;
+                best_scale = scale;
+            }
+        }
+        cfl_choice[c] = best_scale;
+    }
+    let max_l = crate::transforms::max_squeeze_levels(width, height);
+    let mut sq_choice: Vec<u8> = vec![0u8; n];
+    for p in 0..n {
+        let mut best_level = 0u8;
+        let mut best_cost = usize::MAX;
+        for l in 0..=max_l {
+            let mut probe = base.to_vec();
+            if let Some(sv) = cfl_choice[p] {
+                let rmin = ranges[p].min as i32;
+                let rmax = ranges[p].max as i32;
+                for i in 0..probe[p].len() {
+                    let pred = crate::transforms::cfl_predict(sv, probe[0][i] as i32, rmin, rmax);
+                    probe[p][i] = (probe[p][i] as i32 - pred) as i16;
+                }
+            }
+            let bands = if l == 0 {
+                vec![(probe[p].clone(), width, height)]
+            } else {
+                crate::transforms::squeeze(&probe[p], width, height, l)
+            };
+            let planes: Vec<Vec<i16>> = bands.iter().map(|b| b.0.clone()).collect();
+            let dims: Vec<(usize, usize)> = bands.iter().map(|b| (b.1, b.2)).collect();
+            let cost = probe_cost(&planes, &dims, p, model, entropy_gr, m3_wp, use_cmarc)?;
+            if cost < best_cost {
+                best_cost = cost;
+                best_level = l;
+            }
+        }
+        sq_choice[p] = best_level;
+    }
+    Ok((cfl_choice, sq_choice))
+}
+
+fn code_banded(
+    banded_coding_planes: &[Vec<i16>],
+    banded_dims: &[(usize, usize)],
+    banded_parent: &[usize],
+    base_coding_planes: &[Vec<i16>],
+    palette: &Option<Palette>,
+    transform: TransformChoice,
+    _ranges: &[PlaneRange],
+    _sizes: &[usize],
+    context: &ContextParams,
+    codebook: &[WeightVec],
+    entropy_gr: bool,
+    m3_wp: bool,
+    use_cmarc: bool,
+    use_carc_lz: bool,
+    use_cmarc_mix: bool,
+    use_carc_run: bool,
+    use_carc_cache: bool,
+    cmarc_residual_ctx_auto: bool,
+    force_carc: bool,
+    force_carc_lz: bool,
+    force_carc_mix: bool,
+    force_carc_run: bool,
+    force_carc_cache: bool,
+    orig_gr_cm: bool,
+    orig_gr_lz: bool,
+    orig_gr_m2: bool,
+    use_static: bool,
+    use_capped_in: bool,
+    gr_cm_in: bool,
+    gr_lz_in: bool,
+    gr_m2_in: bool,
+    model_in: ModelConfig,
+) -> Result<(CodedPlanes, ModelConfig, bool, bool, bool), CodecError> {
+    let mut use_capped = use_capped_in;
+    let mut gr_cm = gr_cm_in;
+    let mut gr_lz = gr_lz_in;
+    let mut gr_m2 = gr_m2_in;
+    let mut model = model_in;
+    // R10: each Squeeze sub-band (and each CFL-pre-subtracted plane) carries its
+    // own value range; the entropy coder clamps/reconstructs against that range.
+    let band_ranges: Vec<PlaneRange> = banded_coding_planes
+        .iter()
+        .map(|b| {
+            let mut lo = i32::MAX;
+            let mut hi = i32::MIN;
+            for &v in b {
+                let v = v as i32;
+                if v < lo { lo = v; }
+                if v > hi { hi = v; }
+            }
+            PlaneRange { min: lo, max: hi }
+        })
+        .collect();
+    let band_sizes: Vec<usize> = band_ranges
+        .iter()
+        .map(|r| (r.max - r.min + 1) as usize)
+        .collect();
+    model.band_ranges = band_ranges.clone();
+    let mut coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent, &model, entropy_gr, gr_m2, gr_cm, gr_lz, use_capped, m3_wp, use_cmarc, false, false, false)?;
+    // M3-A safety net: the match layer must *never* expand the file. Exact
+    // back-references are rare on photographic/noise residuals, so the per-pixel
+    // flag stream plus short false matches would only add overhead there. Compare
+    // the gr_lz candidate against the v1 GR candidate (gr_m2 with both modes off,
+    // which is byte-identical to v1 GR) and keep whichever is smaller. The header
+    // flag then reflects the winner, so the decoder enters the matching backend
+    // only when it actually helped.
+    if gr_lz && !gr_cm {
+        let v1_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent, &model, entropy_gr, true, false, false, false, m3_wp, false, false, false, false)?;
+        let lz_total: usize = coded.streams.iter().map(|s| s.len()).sum();
+        let v1_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
+        if lz_total > v1_total {
+            coded = v1_coded;
+            gr_lz = false;
+            gr_m2 = true;
+        }
+    }
+    // R1 CMARC safety net: the CMARC backend must *never* expand the file versus
+    // the v1 GR backend. CMARC codes each residual as a per-`(cid, bin)` binary
+    // range coder stream that costs `H(p) + epsilon`; the SINGLE-K GR symbol
+    // coder costs `H(p) + O(1)`. On photographic content CMARC wins; on adversarial
+    // (e.g. pure noise, where context carries no information) GR is near-optimal and
+    // CMARC's per-bin warm-up can tie or narrowly lose. So we keep whichever plan
+    // is smaller and signal the winner via `entropy_mode`. This guarantees no
+    // regression versus the production v1 GR backend, satisfying the merge gate.
+    if use_cmarc {
+        // The model's best non-CMARC candidate is what would ship if CMARC were
+        // off. We must beat THAT, not just plain v1 GR, otherwise enabling CMARC
+        // would regress the file versus the production backend selection.
+        let mut v1_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+            &model,
+            entropy_gr,
+            orig_gr_m2,
+            orig_gr_cm,
+            orig_gr_lz,
+            false,
+            m3_wp,
+            false,
+            false,
+            false,
+            false,
+        )?;
+        // Mirror the M3-A never-expand net so the candidate reflects the model's
+        // actual choice between gr_lz and plain GR.
+        let mut v1_gr_lz = orig_gr_lz;
+        if orig_gr_lz && !orig_gr_cm {
+            let lz_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
+            let plain = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                true,
+                false,
+                false,
+                false,
+                m3_wp,
+                false,
+                false,
+                false,
+                false,
+            )?;
+            let plain_total: usize = plain.streams.iter().map(|s| s.len()).sum();
+            if lz_total > plain_total {
+                v1_coded = plain;
+                v1_gr_lz = false;
+            }
+        }
+        let mut cm_total: usize = coded.streams.iter().map(|s| s.len()).sum();
+        let v1_total: usize = v1_coded.streams.iter().map(|s| s.len()).sum();
+        // R3-A per-image context auto-selection (`OBSIDIAN_CARC_RESIDUAL_CTX` seam).
+        // The CMARC pass above used the gradient coding context. When the seam is
+        // on, also code the plane with the JPEG-LS DIFF residual context and keep
+        // whichever CMARC context (gradient or residual) is smaller per image. The
+        // winning choice is recorded in `model.cmarc_residual_ctx` so the decoder
+        // mirrors it. R3-A can therefore never expand the file versus gradient-
+        // context CMARC (which itself is gated by the GR never-expand net below), so
+        // a regression can never ship. See `obsidian/docs/architect-r3-residual-
+        // context-blueprint.md` R3-A §4.
+        if cmarc_residual_ctx_auto {
+            // `coded` (gradient context) is the baseline; `cm_total` is its size.
+            let gradient_total = cm_total;
+            model.cmarc_residual_ctx = true;
+            let res_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                true,
+                false,
+                false,
+                false,
+            )?;
+            model.cmarc_residual_ctx = false;
+            let res_total: usize = res_coded.streams.iter().map(|s| s.len()).sum();
+            if res_total < gradient_total {
+                coded = res_coded;
+                cm_total = res_total;
+                model.cmarc_residual_ctx = true;
+            }
+        }
+        // R3-C run mode: try the run-length coder on near-constant regions and
+        // keep it only when it is the smallest CMARC candidate (gradient or
+        // residual context). The winning choice is recorded in `model.cmarc_run`
+        // so the decoder mirrors it. Because the run coder only fires on genuine
+        // runs (>= CMARC_RUN_MIN zero-residual pixels), and this branch compares
+        // against the current best CMARC total, run mode can never expand the
+        // file versus the CMARC candidate it replaces. See blueprint R3-C.
+        if use_carc_run {
+            let pre_run_total = cm_total;
+            model.cmarc_run = true;
+            let run_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                orig_gr_m2,
+                orig_gr_cm,
+                orig_gr_lz,
+                false,
+                m3_wp,
+                true,
+                false,
+                false,
+                false,
+            )?;
+            model.cmarc_run = false;
+            let run_total: usize = run_coded.streams.iter().map(|s| s.len()).sum();
+            if run_total < pre_run_total || force_carc_run {
+                coded = run_coded;
+                cm_total = run_total;
+                model.cmarc_run = true;
+            }
+        }
+        // Start from the best of {GR, CMARC-literal}; the LZ candidate (below)
+        // only replaces this if it is strictly smaller still.
+        let mut best_mode = if force_carc || force_carc_run || cm_total <= v1_total {
+            ENTROPY_MODE_CARC
+        } else {
+            ENTROPY_MODE_GR
+        };
+        let mut best_coded = if force_carc || force_carc_run || cm_total <= v1_total {
+            coded
+        } else {
+            v1_coded
+        };
+        let mut best_gr_cm = if force_carc || force_carc_run || cm_total <= v1_total {
+            orig_gr_cm
+        } else {
+            false
+        };
+        let mut best_gr_lz = if force_carc || force_carc_run || cm_total <= v1_total { false } else { v1_gr_lz };
+        let mut best_gr_m2 = if force_carc || force_carc_run || cm_total <= v1_total { false } else { orig_gr_m2 };
+        // R2.3 CMARC-LZ: try the match layer (flag/length/offset are CMARC bins,
+        // literals are the CMARC residual). Never-expand invariant: it is kept
+        // only when it is the smallest of {GR, CMARC, CARC_LZ}, otherwise the
+        // literal CMARC or v1 GR candidate ships (no file expansion).
+        if use_carc_lz {
+            let lz_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                true,
+                true,
+                false,
+                false,
+            )?;
+            let lz_total: usize = lz_coded.streams.iter().map(|s| s.len()).sum();
+            if force_carc_lz || lz_total < cm_total.min(v1_total) {
+                best_mode = ENTROPY_MODE_CARC_LZ;
+                best_coded = lz_coded;
+                best_gr_cm = false;
+                best_gr_lz = false;
+                best_gr_m2 = false;
+            }
+        }
+        // R2.4 CMARC-MIX: try the logistic-mixed backend (per-`(cid, bin)` model
+        // blended with a per-`bin` coarse model via a learned logistic weight).
+        // Never-expand invariant: it is kept only when it is the smallest of
+        // {GR, CMARC, CARC_LZ, CARC_MIX}; otherwise the previously-best candidate
+        // ships. Mixing probability estimates beats the best single model, so this
+        // is the final R2 gate-clearing stage (JPEG XL). See
+        // `obsidian/docs/architect-cmarc-blueprint.md` section 5.4.
+        if use_cmarc_mix {
+            let mix_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                true,
+                false,
+                true,
+                false,
+            )?;
+            let mix_total: usize = mix_coded.streams.iter().map(|s| s.len()).sum();
+            let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
+            if force_carc_mix || mix_total < best_total {
+                best_mode = ENTROPY_MODE_CARC_MIX;
+                best_coded = mix_coded;
+                best_gr_cm = false;
+                best_gr_lz = false;
+                best_gr_m2 = false;
+            }
+        }
+        // R6-B color cache (Component A): try the per-plane LRU cache candidate and
+        // keep it only when it is the smallest of {GR, CMARC, CARC_LZ, CARC_MIX,
+        // CARC_CACHE}. The cache is NOT combined with R3-A residual context or run
+        // mode (its residual region uses the gradient coding context), so we force
+        // those flags off for the cache candidate and restore them afterward.
+        // Never-expand invariant: the cache replaces the current best only when
+        // strictly smaller, so a regression can never ship. See blueprint R6.
+        if use_carc_cache {
+            let save_rc = model.cmarc_residual_ctx;
+            let save_run = model.cmarc_run;
+            let save_cache = model.cmarc_use_color_cache;
+            // Engage the cache for THIS candidate only (it is the flag code_planes
+            // reads to switch the per-plane LRU on). Restore all three afterward so
+            // the earlier-selected candidate's flags are untouched if cache loses.
+            model.cmarc_residual_ctx = false;
+            model.cmarc_run = false;
+            model.cmarc_use_color_cache = true;
+            let cache_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                true,
+                false,
+                false,
+                true,
+            )?;
+            model.cmarc_residual_ctx = save_rc;
+            model.cmarc_run = save_run;
+            model.cmarc_use_color_cache = save_cache;
+            let cache_total: usize = cache_coded.streams.iter().map(|s| s.len()).sum();
+            let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
+            if force_carc_cache || cache_total < best_total {
+                best_coded = cache_coded;
+                best_mode = ENTROPY_MODE_CARC_CACHE;
+                model.cmarc_use_color_cache = true;
+                model.cmarc_residual_ctx = false;
+                model.cmarc_run = false;
+                best_gr_cm = false;
+                best_gr_lz = false;
+                best_gr_m2 = false;
+            }
+        }
+        coded = best_coded;
+        model.entropy_mode = best_mode;
+        gr_cm = best_gr_cm;
+        gr_lz = best_gr_lz;
+        gr_m2 = best_gr_m2;
+    } else if use_capped {
+        model.entropy_mode = ENTROPY_MODE_CAPPED;
+    } else {
+        model.entropy_mode = ENTROPY_MODE_GR;
+    }
+    if use_static && !use_capped {
+        // Capture the backend already chosen by the never-expand safety net so the
+        // (possible) re-code below reproduces the same backend, not the original
+        // `use_cmarc` flag. Re-creating `model` via `default_model` resets
+        // `entropy_mode` (and must not silently switch the on-disk backend).
+        let chosen_mode = model.entropy_mode;
+        let chosen_rc = model.cmarc_residual_ctx;
+        let payload_total: usize = coded.streams.iter().map(|s| s.len()).sum();
+        let fixed_overhead = HEADER_LEN + 4 + 4 * base_coding_planes.len();
+        let mut frac_model_bytes = Vec::new();
+        write_model(&mut frac_model_bytes, &model)?;
+        let frac = frac_model_bytes.len() as f64
+            / (frac_model_bytes.len() + payload_total + fixed_overhead) as f64;
+        if frac > MODEL_SIZE_FRACTION {
+            // The static model dominates the output: fall back to a simpler
+            // model (one global context per plane, no static tables) and
+            // re-code. The roundtrip stays exact because the decoder consumes
+            // the serialized (fallback) model.
+            model = default_model(base_coding_planes, &context, &codebook);
+            model.transform = if palette.is_some() {
+                TransformChoice::None
+            } else {
+                transform
+            };
+            model.palette = palette.clone();
+            // Preserve the R3-A context the safety net already chose (gradient or
+            // JPEG-LS DIFF residual) so the re-code matches the serialized model.
+            model.cmarc_residual_ctx = chosen_rc;
+            model.entropy_mode = chosen_mode;
+            use_capped = false;
+            // R6-B: preserve the cache flag when the model-size guard re-codes, so the
+            // re-code reproduces the exact backend the never-expand net chose.
+            let chosen_cache = model.cmarc_use_color_cache;
+            model.cmarc_use_color_cache = false;
+            let (rc_cmarc, rc_carc_lz, rc_carc_mix, rc_carc_cache) = match chosen_mode {
+                ENTROPY_MODE_CARC => (true, false, false, false),
+                ENTROPY_MODE_CARC_LZ => (true, true, false, false),
+                ENTROPY_MODE_CARC_MIX => (true, false, true, false),
+                ENTROPY_MODE_CARC_CACHE => (true, false, false, true),
+                _ => (false, false, false, false),
+            };
+            coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                use_capped,
+                m3_wp,
+                rc_cmarc,
+                rc_carc_lz,
+                rc_carc_mix,
+                rc_carc_cache,
+            )?;
+            model.cmarc_use_color_cache = chosen_cache;
+        }
+    }
+    Ok((coded, model, gr_cm, gr_lz, gr_m2))
+}
+
 pub fn roundtrip(
     image: &Image,
     effort: u8,
@@ -2413,6 +2713,198 @@ mod tests {
             model.entropy_mode,
             ENTROPY_MODE_GR,
             "default codec stays on v1 GR"
+        );
+    }
+
+    #[test]
+    fn r10a_squeeze_inverse_reconstructs() {
+        // R10-A: Squeeze sub-bands must invert to the exact input plane.
+        let w = 32usize;
+        let h = 24usize;
+        let mut plane = vec![0i16; w * h];
+        for i in 0..w * h {
+            plane[i] = ((i % 17) as i32 - 8) as i16;
+        }
+        let levels = crate::transforms::max_squeeze_levels(w, h).min(3);
+        let squeezed = crate::transforms::squeeze(&plane, w, h, levels);
+        let back = crate::transforms::unsqueeze(&squeezed, w, h, levels);
+        assert_eq!(back, plane, "squeeze/unsqueeze must reconstruct exactly");
+    }
+
+    #[test]
+    fn r10a_squeeze_roundtrip_bit_exact() {
+        // R10-A: forcing Squeeze must round-trip bit-exactly and signal the levels.
+        // A checkerboard has large pixel-level detail but constant sub-bands under
+        // Squeeze (LL = mid-gray, every detail band = a constant +/-value), so
+        // Squeeze is the winning (smallest) config and the banded decode path is
+        // exercised.
+        let mut img = Image::new(256, 256, Channels::Rgb).unwrap();
+        for c in 0..3u8 {
+            for y in 0..256usize {
+                for x in 0..256usize {
+                    img.planes[c as usize][y * 256 + x] = if (x + y) % 2 == 0 { 0 } else { 255 };
+                }
+            }
+        }
+        let max_lv = crate::transforms::max_squeeze_levels(256, 256).min(2);
+        for levels in 1..=max_lv {
+            let k = levels as u8;
+            let (bytes, _stats) = encode_with(
+                &img,
+                4,
+                EncodeOpts {
+                    squeeze_levels: Some(vec![k, k, k]),
+                    cfl_scale: Some(vec![None, None, None]),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let (_h, model, _off) = inspect(&bytes).unwrap();
+            assert_eq!(model.squeeze_levels, vec![k, k, k], "squeeze_levels must be signaled");
+            let back = decode(&bytes).unwrap();
+            assert_eq!(back, img, "squeeze level {} roundtrip must be bit-exact", levels);
+        }
+    }
+
+    #[test]
+    fn r10b_cfl_roundtrip_bit_exact() {
+        // R10-B: build RGB pixels whose YCoCg-R color differences (Co, Cg) already
+        // equal the CFL prediction `round(s * Y / 8)`, so the post-transform CFL
+        // residual is ~0 and CFL strictly wins the never-expand net (exercising the
+        // CFL decode path). Round-trip must be bit-exact.
+        let mk = |s: u8| -> Image {
+            let mut img = Image::new(256, 256, Channels::Rgb).unwrap();
+            for i in 0..img.area() {
+                // Keep Y in [0, 240) so the inverse transform stays within 8 bits.
+                let y = ((i as u32 * 3) % 240) as i32;
+                let pred = crate::transforms::cfl_predict(s, y, 0, 255);
+                let (r, g, b) = crate::color::ycocgr_inverse(y, pred, pred);
+                img.planes[0][i] = (r.clamp(0, 255)) as u8;
+                img.planes[1][i] = (g.clamp(0, 255)) as u8;
+                img.planes[2][i] = (b.clamp(0, 255)) as u8;
+            }
+            img
+        };
+        for s in [1u8, 2] {
+            let img = mk(s);
+            let (bytes, _stats) = encode_with(
+                &img,
+                4,
+                EncodeOpts {
+                    cfl_scale: Some(vec![None, Some(s), Some(s)]),
+                    squeeze_levels: Some(vec![0, 0, 0]),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let (_h, model, _off) = inspect(&bytes).unwrap();
+            assert_eq!(model.cfl_scale, vec![None, Some(s), Some(s)], "cfl_scale must be signaled");
+            let back = decode(&bytes).unwrap();
+            assert_eq!(back, img, "cfl scale {} roundtrip must be bit-exact", s);
+        }
+    }
+
+    #[test]
+    fn r10b_cfl_scale_zero_is_identity() {
+        // R10-B: CFL scale 0 is the identity; the stream must still round-trip
+        // and the decoder must not perturb chroma.
+        let mut img = Image::new(64, 48, Channels::Rgb).unwrap();
+        for c in 0..3u8 {
+            for i in 0..img.area() {
+                img.planes[c as usize][i] = (i as u8).wrapping_mul(3).wrapping_add(c);
+            }
+        }
+        let (bytes, _stats) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                cfl_scale: Some(vec![None, Some(0), Some(0)]),
+                squeeze_levels: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let back = decode(&bytes).unwrap();
+        assert_eq!(back, img, "cfl scale 0 must roundtrip bit-exact (identity)");
+    }
+
+    #[test]
+    fn r10ab_squeeze_cfl_roundtrip_bit_exact() {
+        // R10-A + R10-B combined must round-trip bit-exactly. Checkerboard luma
+        // (Squeeze-friendly) with chroma = round(luma * s / 8) (CFL-friendly) so
+        // both transforms win the never-expand net and both decode paths run.
+        // Luma is a smooth ramp (Squeeze-friendly once transformed); the chroma
+        // planes are built so their YCoCg-R differences equal the CFL prediction
+        // (CFL-friendly), so config A (Squeeze + CFL) is selected and decoded.
+        let build = |s: u8| -> Image {
+            let mut img = Image::new(256, 256, Channels::Rgb).unwrap();
+            for i in 0..img.area() {
+                let y = ((i as u32 * 3) % 240) as i32;
+                let pred = crate::transforms::cfl_predict(s, y, 0, 255);
+                let (r, g, b) = crate::color::ycocgr_inverse(y, pred, pred);
+                img.planes[0][i] = (r.clamp(0, 255)) as u8;
+                img.planes[1][i] = (g.clamp(0, 255)) as u8;
+                img.planes[2][i] = (b.clamp(0, 255)) as u8;
+            }
+            img
+        };
+        let k = crate::transforms::max_squeeze_levels(256, 256).min(2) as u8;
+        for s in [1u8, 2] {
+            let img = build(s);
+            let (bytes, _stats) = encode_with(
+                &img,
+                4,
+                EncodeOpts {
+                    squeeze_levels: Some(vec![k, k, k]),
+                    cfl_scale: Some(vec![None, Some(s), Some(s)]),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let back = decode(&bytes).unwrap();
+            assert_eq!(back, img, "combined squeeze+cfl (s={}) roundtrip must be bit-exact", s);
+        }
+    }
+
+    #[test]
+    fn r10a_squeeze_never_expands_vs_plain() {
+        // R10-A: on smooth content forcing Squeeze must not enlarge the stream
+        // versus the no-transform baseline (the never-expand guarantee).
+        let mut img = Image::new(64, 48, Channels::Rgb).unwrap();
+        for c in 0..3u8 {
+            for y in 0..48usize {
+                for x in 0..64usize {
+                    img.planes[c as usize][y * 64 + x] =
+                        (x as u8).wrapping_add(y as u8).wrapping_add(c * 10);
+                }
+            }
+        }
+        let k = crate::transforms::max_squeeze_levels(64, 48).min(2) as u8;
+        let (sq, _s) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                squeeze_levels: Some(vec![k, k, k]),
+                cfl_scale: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let (plain, _p) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                squeeze_levels: Some(vec![0, 0, 0]),
+                cfl_scale: None,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            sq.len() <= plain.len() + 1,
+            "squeeze must not expand vs plain: sq={} plain={}",
+            sq.len(),
+            plain.len()
         );
     }
 }

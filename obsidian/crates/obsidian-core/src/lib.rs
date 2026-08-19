@@ -22,6 +22,7 @@ pub mod model;
 pub mod ppm;
 pub mod predict;
 pub mod rans;
+pub mod transforms;
 
 pub use decoder::decode;
 pub use encoder::{encode, roundtrip, fuzz_gate, EncodeStats};

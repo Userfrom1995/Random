@@ -15,6 +15,7 @@ use crate::model::{
     ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
 use crate::predict::{neighbors, predict_clamped, PredictorId, WLeaf, WeightVec, M3_WP_GAIN};
+use crate::transforms::{cfl_predict, squeeze_band_layout, unsqueeze};
 use crate::rans::{
     RansDecoder, RansTable, BitReader, GrState, GR_K_INIT, gr_read_symbol, read_gamma,
     gr_adapt_bias, CmState, gr_read_symbol_k, read_match, CAPPED_SYMBOLS, CAPPED_ALPHABET,
@@ -162,9 +163,12 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
     let eff_channels = if model.palette.is_some() { Channels::Gray } else { eff_channels };
     let _ = eff_channels;
 
-    // Payload: per-plane lengths then streams.
+    // Payload: `total_bands` lengths then streams (one per Squeeze sub-band).
     let plane_count = sizes.len();
-    let mut lens = vec![0u32; plane_count];
+    let total_bands: usize = (0..plane_count)
+        .map(|c| squeeze_band_layout(width, height, model.squeeze_levels[c]).len())
+        .sum();
+    let mut lens = vec![0u32; total_bands];
     let mut lbuf = [0u8; 4];
     for l in lens.iter_mut() {
         cur.read_exact(&mut lbuf)?;
@@ -172,7 +176,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
     }
     let payload_start = cur.position() as usize;
     let mut stream_start = payload_start;
-    let mut payloads: Vec<&[u8]> = Vec::with_capacity(plane_count);
+    let mut payloads: Vec<&[u8]> = Vec::with_capacity(total_bands);
     for l in &lens {
         let end = stream_start
             .checked_add(*l as usize)
@@ -191,17 +195,28 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
 
     // Decode planes.
     let mut decoded: Vec<Vec<i16>> = Vec::with_capacity(plane_count);
-    for pi in 0..plane_count {
-        let alphabet = sizes[pi];
-        let wv = model.weight_for(pi);
-        let wtree = model.weighted_tree_for(pi);
-        let mut plane = vec![0i16; area];
+fn decode_plane_into(
+    plane: &mut [i16],
+    payload: &[u8],
+    width: usize,
+    height: usize,
+    range: PlaneRange,
+    alphabet: usize,
+    sizes: &[usize],
+    pi: usize,
+    model: &ModelConfig,
+    header: &Header,
+    cm: &ContextModel,
+) -> Result<(), CodecError> {
+    let wv = model.weight_for(pi);
+    let wtree = model.weighted_tree_for(pi);
+
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
             // Both sides adapt `k` from the decoded symbols, so no model bytes
             // are needed for the entropy state. Any shortfall (truncated stream)
             // surfaces as `InvalidStream` from the bit reader, never a panic.
-            let mut br = BitReader::new(payloads[pi]);
+            let mut br = BitReader::new(payload);
             let mut gr: Vec<GrState> = (0..model.context_count)
                 .map(|_| GrState::new(GR_K_INIT))
                 .collect();
@@ -218,7 +233,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
                         let recon = pred + r;
@@ -235,17 +250,17 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 // decoder's own already-reconstructed buffer, so it stays bit-exact
                 // by induction. Matched pixels never update the GR state.
                 let area = width * height;
-                if payloads[pi].len() < 4 {
+                if payload.len() < 4 {
                     return Err(CodecError::InvalidStream("GR_LZ plane too short".into()));
                 }
                 let flag_len = u32::from_le_bytes([
-                    payloads[pi][0], payloads[pi][1], payloads[pi][2], payloads[pi][3],
+                    payload[0], payload[1], payload[2], payload[3],
                 ]) as usize;
-                if 4 + flag_len > payloads[pi].len() {
+                if 4 + flag_len > payload.len() {
                     return Err(CodecError::InvalidStream("GR_LZ flag section truncated".into()));
                 }
-                let flag_bytes = &payloads[pi][4..4 + flag_len];
-                let data_bytes = &payloads[pi][4 + flag_len..];
+                let flag_bytes = &payload[4..4 + flag_len];
+                let data_bytes = &payload[4 + flag_len..];
                 let mut dbr = BitReader::new(data_bytes);
                 // M3-A match-flag coder: correct CACM87 RangeDec over its own
                 // byte buffer, replacing the broken WNC BinDec. The flag model
@@ -295,7 +310,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         } else {
                             wv.as_ref()
                         };
-                        let pred = predict_clamped(p, &nb, w, wtree, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, w, wtree, range);
                         let r = gr_read_symbol(&mut dbr, &mut gr[cid])?;
                         plane[i] = (pred + r) as i16;
                         if m3_wp && matches!(p, PredictorId::Weighted) {
@@ -333,11 +348,11 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
-                    let pred_b = ranges[pi].clamp(pred + bias);
+                    let pred_b = range.clamp(pred + bias);
                     let r_coded = gr_read_symbol(&mut br, &mut gr[cid])?;
-                    let recon = ranges[pi].clamp(pred_b + r_coded);
+                    let recon = range.clamp(pred_b + r_coded);
                     plane[idx] = recon as i16;
                     let val = recon;
                     // Bias adaptation on the raw residual (dead-zone guarded),
@@ -364,7 +379,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
                         plane[idx] = (pred + r) as i16;
                     }
@@ -378,27 +393,27 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 // symbol the full residual is read from the separate escape bit
                 // section. Both tables and the escape GrState adapt in raster
                 // order, identical to the encoder, so the round-trip is exact.
-                if payloads[pi].len() < 8 {
+                if payload.len() < 8 {
                     return Err(CodecError::InvalidStream("Capped plane too short".into()));
                 }
                 let rans_len = u32::from_le_bytes([
-                    payloads[pi][0], payloads[pi][1], payloads[pi][2], payloads[pi][3],
+                    payload[0], payload[1], payload[2], payload[3],
                 ]) as usize;
-                if 4 + rans_len + 4 > payloads[pi].len() {
+                if 4 + rans_len + 4 > payload.len() {
                     return Err(CodecError::InvalidStream("Capped rANS section truncated".into()));
                 }
-                let rans_bytes = &payloads[pi][4..4 + rans_len];
+                let rans_bytes = &payload[4..4 + rans_len];
                 let esc_off = 4 + rans_len;
                 let esc_len = u32::from_le_bytes([
-                    payloads[pi][esc_off],
-                    payloads[pi][esc_off + 1],
-                    payloads[pi][esc_off + 2],
-                    payloads[pi][esc_off + 3],
+                    payload[esc_off],
+                    payload[esc_off + 1],
+                    payload[esc_off + 2],
+                    payload[esc_off + 3],
                 ]) as usize;
-                if esc_off + 4 + esc_len > payloads[pi].len() {
+                if esc_off + 4 + esc_len > payload.len() {
                     return Err(CodecError::InvalidStream("Capped escape section truncated".into()));
                 }
-                let esc_bytes = &payloads[pi][esc_off + 4..];
+                let esc_bytes = &payload[esc_off + 4..];
                 let mut rdec = RansDecoder::new(rans_bytes)?;
                 // Rebuild the identical static rANS tables from the signaled capped
                 // histograms (same construction as the encoder); `get` leaves static
@@ -436,7 +451,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let sym = rdec.get(&mut tables[cid])?;
                         let r = if sym != CAPPED_ALPHABET {
                             unzigzag(sym as u32)
@@ -469,18 +484,18 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 // stays bit-exact by induction (its prefix equals the encoder's
                 // source prefix at every position). See
                 // `obsidian/docs/architect-cmarc-blueprint.md` section 5.3.
-                if payloads[pi].len() < 4 {
+                if payload.len() < 4 {
                     return Err(CodecError::InvalidStream("CMARC plane too short".into()));
                 }
                 let cm_len = u32::from_le_bytes([
-                    payloads[pi][0], payloads[pi][1], payloads[pi][2], payloads[pi][3],
+                    payload[0], payload[1], payload[2], payload[3],
                 ]) as usize;
-                if 4 + cm_len > payloads[pi].len() {
+                if 4 + cm_len > payload.len() {
                     return Err(CodecError::InvalidStream("CMARC section truncated".into()));
                 }
-                let cm_bytes = &payloads[pi][4..4 + cm_len];
+                let cm_bytes = &payload[4..4 + cm_len];
                 let mut dec = RangeDec::new(cm_bytes)?;
-                let mag_bits = cmarc_mag_bits((ranges[pi].max - ranges[pi].min) as u32);
+                let mag_bits = cmarc_mag_bits((range.max - range.min) as u32);
                 let is_lz = model.entropy_mode == ENTROPY_MODE_CARC_LZ;
                 let is_mix = model.entropy_mode == ENTROPY_MODE_CARC_MIX;
                 // R6-B: the cache mode uses its own bin layout (flag + gamma + the
@@ -598,7 +613,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             i += len;
                         } else {
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
                                 &mut models,
@@ -625,7 +640,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
                                 &mut models,
@@ -653,7 +668,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
@@ -667,7 +682,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                 &model,
                                 wv.as_ref(),
                                 wtree,
-                                &ranges[pi],
+                                &range,
                             )
                         } else {
                             cid
@@ -706,8 +721,8 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     // `obsidian/docs/architect-r6-corrected-blueprint.md` Component A.
                     let mut cache = ColorCache::new(
                         CARC_CACHE_SIZE,
-                        ranges[pi].min as i32,
-                        ranges[pi].max as i32,
+                        range.min as i32,
+                        range.max as i32,
                     );
                     for y in 0..height {
                         for x in 0..width {
@@ -715,7 +730,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let v = cmarc_cache_read(
                                 &mut dec,
                                 &mut models,
@@ -734,7 +749,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     &plane,
@@ -747,7 +762,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                                     &model,
                                     wv.as_ref(),
                                     wtree,
-                                    &ranges[pi],
+                                    &range,
                                 )
                             } else {
                                 cid
@@ -765,11 +780,11 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 }
             }
         else {
-            let mut dec = RansDecoder::new(payloads[pi])?;
+            let mut dec = RansDecoder::new(payload)?;
             let mut adaptive_tables: Vec<RansTable> = Vec::new();
             let mut static_tables: Vec<Option<RansTable>> = Vec::new();
             if let Some(hist) = &model.static_histograms {
-                let built = build_static_tables(hist, &sizes);
+                let built = build_static_tables(hist, sizes);
                 static_tables = built.into_iter().nth(pi).unwrap();
             } else {
                 adaptive_tables = (0..model.context_count)
@@ -783,7 +798,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                     let sym = if use_static {
                         let table = static_tables[cid].as_mut().ok_or_else(|| {
                             CodecError::InvalidStream(format!("missing static table for context {cid}"))
@@ -797,7 +812,42 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                 }
             }
         }
-        decoded.push(plane);
+    Ok(())
+}
+
+    // R10: decode banded planes (Squeeze sub-bands) then unsqueeze, then add
+    // back CFL. `total_bands` streams are stored in plane-major order; each
+    // original plane contributes `squeeze_band_layout(...).len()` bands.
+    let mut band_cursor = 0usize;
+    for c in 0..plane_count {
+        let layout = squeeze_band_layout(width, height, model.squeeze_levels[c]);
+        let mut bands: Vec<(Vec<i16>, usize, usize)> = Vec::with_capacity(layout.len());
+        for &(bw, bh) in &layout {
+            let payload = payloads[band_cursor];
+            let mut band = vec![0i16; bw * bh];
+            // R10: each band carries its own value range (sub-bands / CFL planes
+            // can exceed the original plane range), so decode against the band's
+            // range, falling back to the per-plane range for legacy streams.
+            let band_range = if model.band_ranges.is_empty() {
+                ranges[c]
+            } else {
+                model.band_ranges[band_cursor]
+            };
+            let band_alphabet = (band_range.max - band_range.min + 1) as usize;
+            decode_plane_into(&mut band, payload, bw, bh, band_range, band_alphabet, &sizes, c, &model, &header, &cm)?;
+            bands.push((band, bw, bh));
+            band_cursor += 1;
+        }
+        let mut full = unsqueeze(&bands, width, height, model.squeeze_levels[c]);
+        // R10-B CFL inverse: add the scaled luma prediction back to chroma planes.
+        if let Some(s) = model.cfl_scale[c] {
+            let rmin = ranges[c].min as i32;
+            let rmax = ranges[c].max as i32;
+            for i in 0..full.len() {
+                full[i] = (full[i] as i32 + cfl_predict(s, decoded[0][i] as i32, rmin, rmax)) as i16;
+            }
+        }
+        decoded.push(full);
     }
 
     // Inverse transform.
@@ -1249,6 +1299,8 @@ mod tests {
                 cross_channel: Some(false),
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: false,
+                cfl_scale: None,
+                squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(true),
             },
@@ -1279,6 +1331,8 @@ mod tests {
                 cross_channel: Some(false),
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: false,
+                cfl_scale: None,
+                squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(false),
             },
@@ -1312,6 +1366,8 @@ mod tests {
                 cross_channel: Some(false),
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: false,
+                cfl_scale: None,
+                squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(true),
             },
@@ -1345,6 +1401,8 @@ mod tests {
                     cross_channel: Some(false),
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
+                cfl_scale: None,
+                squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
                 },
@@ -1376,6 +1434,8 @@ mod tests {
                     cross_channel: Some(false),
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
+                cfl_scale: None,
+                squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
                 },
@@ -1408,6 +1468,8 @@ mod tests {
                 cross_channel: Some(false),
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: true,
+                cfl_scale: None,
+                squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
             },

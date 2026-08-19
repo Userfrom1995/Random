@@ -57,6 +57,7 @@ pub const ENTROPY_MODE_CARC_MIX: u8 = 4;
 pub const ENTROPY_MODE_CARC_CACHE: u8 = 6;
 
 /// The complete signaled model.
+#[derive(Clone)]
 pub struct ModelConfig {
     pub transform: TransformChoice,
     /// R2.1 cross-channel subtract-green decorrelation (`R'=R-G, G'=G, B'=B-G`)
@@ -115,6 +116,27 @@ pub struct ModelConfig {
     /// and decoder read it from the model, so lockstep is exact with zero online
     /// state.
     pub weighted_wc_table: Option<Vec<Option<Vec<WLeaf>>>>,
+    /// R10-A JPEG XL-class Squeeze (recursive group transform) level per plane.
+    /// `0` (the default) means the plane is coded as a single band (no Squeeze);
+    /// a value `L >= 1` means the plane is split recursively `L` times into
+    /// sub-bands before coding. Signal in the model section; both sides read it
+    /// so no extra header bits are needed. Chosen per plane by the never-expand
+    /// safety net, so enabling Squeeze can never regress the file.
+    pub squeeze_levels: Vec<u8>,
+    /// R10-B chroma-from-luma (CFL) scale per plane. `None` (the default, and the
+    /// value for the luma plane) means no CFL; `Some(s)` with `s in 0..=7` means
+    /// the chroma plane is pre-subtracted by `round(s * luma / 8)` before coding
+    /// and added back on decode. Scale 0 is the identity, so CFL is a strict
+    /// superset and provably cannot regress. Signal in the model section; both
+    /// sides read it so lockstep is exact.
+    pub cfl_scale: Vec<Option<u8>>,
+    /// R10: per-band value range. A Squeeze sub-band (or CFL-pre-subtracted
+    /// plane) can hold values outside the original plane's `[min, max]`, so each
+    /// coded band is clamped/reconstructed against its OWN range. Indexed by
+    /// band (stream) order, which matches `squeeze_band_layout` plane-major.
+    /// Length is `total_bands`; empty only for legacy streams (decoder falls
+    /// back to the per-plane range).
+    pub band_ranges: Vec<PlaneRange>,
 }
 
 impl ModelConfig {
@@ -223,6 +245,7 @@ pub fn analyze(
     weight_codebook: &[WeightVec],
     entropy_gr: bool,
 ) -> ModelConfig {
+    let n_planes = planes.len();
     let context_count = context.context_count();
     let cm = ContextModel::new(*context);
     let mut model = ModelConfig {
@@ -241,6 +264,9 @@ pub fn analyze(
         cmarc_run: false,
         cmarc_use_color_cache: false,
         weighted_wc_table: None,
+        squeeze_levels: vec![0u8; n_planes],
+        cfl_scale: vec![None; n_planes],
+        band_ranges: Vec::new(),
     };
 
     let predictors = predictors_for(effort);
@@ -418,6 +444,7 @@ pub fn default_model(
     context: &ContextParams,
     weight_codebook: &[WeightVec],
 ) -> ModelConfig {
+    let n_planes = planes.len();
     let context_count = 1;
     let planes: Vec<PlaneModel> = planes
         .iter()
@@ -442,6 +469,9 @@ pub fn default_model(
         cmarc_run: false,
         cmarc_use_color_cache: false,
         weighted_wc_table: None,
+        squeeze_levels: vec![0u8; n_planes],
+        cfl_scale: vec![None; n_planes],
+        band_ranges: Vec::new(),
     }
 }
 
@@ -644,6 +674,31 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
                 }
             }
         }
+    }
+    // R10-A Squeeze levels and R10-B CFL scales, appended last (after the
+    // weighted-tree table) so every legacy reader that stops earlier still parses
+    // the model body. Lengths are implied by `alphabet_sizes.len()` (= plane
+    // count), so no length prefix is needed; both the encoder (writer) and the
+    // decoder (reader) always process these trailing bytes in the same build.
+    for &lvl in &m.squeeze_levels {
+        w.write_all(&[lvl])?;
+    }
+    for &scale in &m.cfl_scale {
+        // `0xFF` encodes `None`; otherwise the 3-bit scale `s in 0..=7`.
+        let byte = match scale {
+            Some(s) => s,
+            None => 0xFF,
+        };
+        w.write_all(&[byte])?;
+    }
+    // R10 per-band value ranges, appended after the CFL scales (still last) so
+    // every legacy reader that stops earlier still parses the model body. Length
+    // is NOT implied by plane count (it equals `total_bands`), so a u32 count
+    // prefixes the `(min as i16, max as i16)` pairs in band/stream order.
+    w.write_all(&(m.band_ranges.len() as u32).to_le_bytes())?;
+    for r in &m.band_ranges {
+        w.write_all(&r.min.to_le_bytes())?;
+        w.write_all(&r.max.to_le_bytes())?;
     }
     Ok(())
 }
@@ -929,6 +984,40 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         return Err(CodecError::InvalidStream("bad weighted-tree flag".into()));
     };
 
+    // R10-A Squeeze levels and R10-B CFL scales, appended last in `write_model`.
+    // `plane_count` (= `alphabet_sizes.len()`) gives the exact number of trailing
+    // bytes, so no length prefix is needed.
+    let mut squeeze_levels: Vec<u8> = Vec::with_capacity(plane_count);
+    for _ in 0..plane_count {
+        let mut b = [0u8; 1];
+        r.read_exact(&mut b)?;
+        squeeze_levels.push(b[0]);
+    }
+    let mut cfl_scale: Vec<Option<u8>> = Vec::with_capacity(plane_count);
+    for _ in 0..plane_count {
+        let mut b = [0u8; 1];
+        r.read_exact(&mut b)?;
+        cfl_scale.push(if b[0] == 0xFF { None } else { Some(b[0]) });
+    }
+
+    // R10 per-band value ranges (see `write_model`): a u32 count followed by
+    // `(min as i16, max as i16)` pairs in band/stream order. An empty vector is
+    // only produced by legacy writers; this build always emits it.
+    let mut br_len = [0u8; 4];
+    r.read_exact(&mut br_len)?;
+    let br_len = u32::from_le_bytes(br_len) as usize;
+    let mut band_ranges: Vec<PlaneRange> = Vec::with_capacity(br_len);
+    for _ in 0..br_len {
+        let mut mn = [0u8; 4];
+        r.read_exact(&mut mn)?;
+        let mut mx = [0u8; 4];
+        r.read_exact(&mut mx)?;
+        band_ranges.push(PlaneRange {
+            min: i32::from_le_bytes(mn),
+            max: i32::from_le_bytes(mx),
+        });
+    }
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -945,6 +1034,9 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         cmarc_run,
         cmarc_use_color_cache,
         weighted_wc_table,
+        squeeze_levels,
+        cfl_scale,
+        band_ranges,
     })
 }
 
