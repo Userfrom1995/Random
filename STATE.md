@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~12:21Z, maintainer run 32252203249 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83},{"action":"factory","issue":68}]` - resume the Builder on the single PR to finish R8 (R8-A edits in, tests pending), and dispatch the Factory to durably re-link `main` to the branch and stop the recurring orphan-`main` rewrites. No merge; one PR preserved.
+- **Updated:** 2026-08-19 (~12:26Z, maintainer run 32252638191 on PR #83). **DECISIONS:** `[]` - redundant `/oc maintainer` trigger; both the Builder `continue` (run 32252637972, pending) and the Factory (run 32252628750, in_progress) are already active from the prior run + owner's direct `/oc continue`. No duplicate triggers fired.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,7 +16,7 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break RE-OPENED - 4th recurrence)
 
-- **Mergeability (BROKEN):** `main` = `8f4c15b` (single orphan commit, "factory: harden build loop against 60-min timeout work loss", no parent). Branch root = `75e2eaa` ("builder: rebuild Obsidian codec crate (R0-R5 CMARC program) onto main", orphan, no parent) + 19 commits -> head `ebcc6b5`. `git merge-base origin/main <branch>` is EMPTY. GitHub still reports `MERGEABLE` but `gh pr merge --rebase` would fail. `--rebase` is impossible until the Factory re-links.
+- **Mergeability (BROKEN):** `main` = `8f4c15b` (single orphan commit, no parent). Branch root = `75e2eaa` (orphan) + 19 commits -> head `ebcc6b5`. `git merge-base origin/main <branch>` is EMPTY. GitHub reports `MERGEABLE` but `gh pr merge --rebase` would fail. `--rebase` is impossible until the Factory re-links.
 - **Root cause of the recurrence:** (a) main keeps getting force-rewritten to a fresh orphan commit; (b) the Builder's "rebuild onto main" step creates an orphan root instead of basing the branch on `origin/main`. A one-off rebase will not hold while main is rewritten again.
 - **Kodak corpus durable in git** (`obsidian/benchmarks/data/kodak/` PPMs tracked, plus `kodak.sha256` + `run_kodak.sh`/`fetch_kodak.sh`/`measure_kodak.sh`). Gate is measurable reproducibly.
 
@@ -41,8 +41,8 @@
 
 ## In flight
 
-- **Builder (this run's `continue` trigger, PR #83):** finish R8-A (fix tests, remove dead R7 env), re-measure REAL Kodak effort-4 reproducibly. Keep R7-A OFF by default until R8 provably beats 9.7094 AND clears 9.61.
-- **Factory (this run's `factory` trigger, issue #68):** durably re-link `main` to the branch (rebase branch onto `origin/main` so `main` becomes an ancestor; preserve R8 work at `ebcc6b5`) AND fix the root cause so the orphan-`main` rewrite stops recurring (stop force-pushing orphan main; make the Builder's "rebuild onto main" step actually base on `origin/main`).
+- **Builder (opencode run 32252637972, pending - owner `/oc continue` 12:25:56Z, PR #83):** finish R8-A (fix tests, remove dead R7 env), re-measure REAL Kodak effort-4 reproducibly. Keep R7-A OFF by default until R8 provably beats 9.7094 AND clears 9.61.
+- **Factory (opencode Factory run 32252628750, in_progress - dispatched prior run 32252203249, issue #68):** durably re-link `main` to the branch (rebase branch onto `origin/main` so `main` becomes an ancestor; preserve R8 work at `ebcc6b5`) AND fix the root cause so the orphan-`main` rewrite stops recurring.
 - **No Architect / Researcher in flight.**
 - **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `ebcc6b5` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
 
@@ -69,8 +69,8 @@
 
 ## Next steps
 
-1. **Builder finishes R8 (via `continue`, this run's trigger) on PR #83:** fix R8-A tests, remove dead R7 env, re-measure REAL Kodak effort-4 reproducibly. Keep R7-A OFF by default until R8 provably beats 9.7094 AND clears 9.61.
-2. **Factory re-links `main` to the branch + stops the recurrence:** rebase branch onto `origin/main`; fix the main-push/orphan-rebuild root cause so `--rebase` stays possible.
+1. **Builder finishes R8 (opencode run 32252637972, in flight) on PR #83:** fix R8-A tests, remove dead R7 env, re-measure REAL Kodak effort-4 reproducibly. Keep R7-A OFF by default until R8 provably beats 9.7094 AND clears 9.61.
+2. **Factory re-links `main` to the branch + stops the recurrence (opencode Factory run 32252628750, in flight):** rebase branch onto `origin/main`; fix the main-push/orphan-rebuild root cause so `--rebase` stays possible.
 3. **If R8 still cannot clear WebP:** escalate to the Researcher for R7-E/R8 variants (adaptive per-pixel weighted / MA-tree) or a transform pipeline (YCoCg-R + fuller decorrelation); do NOT loop on band-aids. Do NOT merge until all three gates clear.
 4. **Re-fire strict `/oc review`** on the stabilized head; only merge after `/oc approve` + `/oc approve-test` with no newer `/oc fix`.
 5. **After a reproducible real-Kodak number below all three gates:** rebase-merge (`--no-delete-branch`), close #68.
@@ -81,7 +81,7 @@
 - **Can the signaling-free R8 adaptive weighted predictor clear the +0.10 WebP gap without the R7-A fragmentation?** The design removes the `17+j` signaling that caused the regression. Expected ~9.5-9.6 bpp. If it still fragments, the remaining levers are R7-E (MA-tree / adaptive per-pixel weighted) and transforms (YCoCg-R + fuller decorrelation) that WebP/JXL actually use.
 - **Can Obsidian clear JPEG XL 8.71 (~1.0 bpp above)?** Likely needs R8 + tighter color transforms; treat as the hard long pole.
 - **Merge gate (owner override #2):** NOT met - default 9.7094 bpp > WebP 9.61 > JXL 8.71. Even best CMARC+R5 beats JPEG-LS but misses WebP by ~0.10 and JXL by ~1.0. R7-A must not ship (regresses to 9.83).
-- **Orphan-main break (4th recurrence):** `main` = `8f4c15b` orphan; branch = `75e2eaa` orphan -> `ebcc6b5`. `git merge-base` empty. Factory must re-link AND fix the recurrence root cause (orphan main-push + orphan Builder "rebuild onto main"). Non-blocking now (gate unmet) but must be fixed before merge.
+- **Orphan-main break (4th recurrence):** `main` = `8f4c15b` orphan; branch = `75e2eaa` orphan -> `ebcc6b5`. `git merge-base` empty. Factory (run 32252628750) must re-link AND fix the recurrence root cause (orphan main-push + orphan Builder "rebuild onto main"). Non-blocking now (gate unmet) but must be fixed before merge.
 - **Review staleness:** last approve at head ~96a6075; current head `ebcc6b5` un-reviewed. Fresh review required pre-merge.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending; orphan-main recurrence is the live issue.
