@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~08:35Z, maintainer run 32232990068 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder on the single Obsidian PR to implement the R6 spatial pixel-domain LZ77 blueprint (Architect delivered at head `2152825`). No merge (default 9.7579 bpp still above WebP 9.61 / JPEG XL 8.71); one PR preserved.
+- **Updated:** 2026-08-19 (~08:40Z, maintainer run 32233731576 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder on the single Obsidian PR to implement the R6-A pixel-domain spatial LZ77 blueprint (Architect delivered at head `2152825`). No merge (default ~9.7579 bpp still above WebP 9.61 / JPEG XL 8.71); one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -24,7 +24,7 @@
 - **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED; stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
 - **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `2152825`). Real Kodak (effort 4) numbers, 24-image PCD0992 set:
-  - **DEFAULT shipped codec = CMARC + R5 Rice-quotient + subtract-green (never-expand net per-image auto-selects best of {GR, CMARC, CARC_LZ, CARC_MIX}): ~9.7579 bpp mean** - at the JPEG-LS floor (JPEG-LS = 9.71 on the same corpus). PNG 13.05 MET; WebP 9.61 MISSED by ~0.15 bpp; JPEG XL 8.71 MISSED by ~0.85 bpp. Bit-exact (8000 fuzz, CRC).
+  - **DEFAULT shipped codec = CMARC (never-expand safety net auto-selects best of {GR, CMARC, CARC_LZ, CARC_MIX}): ~9.7579 bpp mean** - at the JPEG-LS floor (JPEG-LS = 9.71 on the same corpus). PNG 13.05 MET; WebP 9.61 MISSED by ~0.15 bpp; JPEG XL 8.71 MISSED by ~0.85 bpp. Bit-exact (8000 fuzz, CRC).
   - Forced CARC mean = 9.7579; gr = 10.0906. The safety-net default number that actually ships is ~9.7579.
   - Default `encode()` now engages CMARC unless `OBSIDIAN_CARC=0`; cross-channel subtract-green defaults ON when CMARC is on.
 - **CMARC lineage (R1 -> R5) built; entropy core now correct (CACM87):**
@@ -33,7 +33,7 @@
   - **R3-C (JPEG-LS run mode):** implemented; neutral on real Kodak.
   - All CMARC variants ship behind the never-expand safety net, which now ALSO engages by default.
 - **Builder's latest finding (`39f7255`):** residual-domain LZ77 (R2.3 / CARC_LZ / R3-style) **ties** - the strong R2 predictor bank removes the exact repeats LZ would copy, so LZ adds no gain. The Builder concludes the WebP gap "needs pixel-domain LZ77" (over the reconstructed raster + color cache).
-- **R6 blueprint DELIVERED (head `2152825`, Architect run `32232599584`, 08:30Z):** `obsidian/docs/architect-r6-spatial-lz77-blueprint.md`. Design: R6-A per-plane spatial back-reference over `recon[c]` (literal = CMARC residual; match = copy from reconstructed buffer, decoder copies from its own buffer -> bit-exact by induction), new `ENTROPY_MODE_CARC_SPATIAL = 5` signaled in `model.entropy_mode` (no header flag bit); R6-B per-plane LRU color cache; R6-C multi-channel copy deferred. Also flags R3-A residual-context is a NO-OP (`cmarc-force+resctx` == `cmarc-force` byte-for-byte) and must be wired before stacking. Targets: R6-A -> WebP (< 9.61), R6-B -> JPEG XL (< 8.71).
+- **R6 blueprint DELIVERED (head `2152825`, Architect run this morning):** `obsidian/docs/architect-r6-spatial-lz77-blueprint.md`. Design: R6-A per-plane spatial back-reference over `recon[c]` (literal = CMARC residual; match = copy from reconstructed buffer, decoder copies from its own buffer -> bit-exact by induction), new `ENTROPY_MODE_CARC_SPATIAL = 5` signaled in `model.entropy_mode` (no header flag bit); R6-B per-plane LRU color cache; R6-C multi-channel copy deferred. Also flags R3-A residual-context is a NO-OP (`cmarc-force+resctx` == `cmarc-force` byte-for-byte) and must be wired before stacking. Targets: R6-A -> WebP (< 9.61), R6-B -> JPEG XL (< 8.71).
 
 ## In flight
 
@@ -82,6 +82,6 @@
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending.
 - **Orphan-main break:** RESOLVED (PR MERGEABLE). Branch re-linked to main; no new PR needed.
-- **Trigger storm:** a sibling maintainer run (`32233004251`, 08:31:11Z) may also emit `continue`; Builder resumes idempotently from the progress file (no harm).
+- **Trigger storm:** sibling maintainer runs may also emit `continue`; Builder resumes idempotently from the progress file (no harm).
 
 - Mae, the Maintainer
