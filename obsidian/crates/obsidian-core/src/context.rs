@@ -259,52 +259,61 @@ pub fn quantize_residual(d: i32) -> usize {
     }
 }
 
-/// Lazily-initialized 2D sign-symmetry LUT for the residual context. Maps each
-/// `(q_l, q_u)` bucket pair (9x9 = 81 raw) to a dense id in `0..41`. The JPEG-LS
-/// DIFF context is sign-symmetric: negating both neighbor residuals
-/// (`(q_l, q_u)` -> `(8 - q_l, 8 - q_u)`) lands in the same context. The
-/// top-left diagonal is dropped (the predictor still uses it), so the context is
-/// 2D and well-centered. Computed once and shared across all planes.
-static RC2_LUT: std::sync::OnceLock<[u8; 81]> = std::sync::OnceLock::new();
+/// Lazily-initialized 3D sign-symmetry LUT for the residual DIFF context (R3-A).
+/// Maps each `(q_l, q_u, q_ul)` bucket triple (9x9x9 = 729 raw) to a dense id in
+/// `0..365` using JPEG-LS-style sign symmetry: negating all three neighbor
+/// residuals (`(q_l,q_u,q_ul)` -> `(8-q_l,8-q_u,8-q_ul)`) lands in the same
+/// context. This is the faithful JPEG-LS DIFF context (365 contexts) built from
+/// the causal neighbor *residuals* rather than the pixel gradient, which is the
+/// proven differentiator that lets a context arithmetic coder beat the single-k
+/// GR symbol coder. The 3D form (including the up-left diagonal) is strictly
+/// finer than the earlier 2D (41-context) form and lets the per-`(cid, bin)`
+/// binary models specialize on the local residual scale the way JPEG-LS's QM
+/// coder does. Computed once and shared across all planes.
+static RC3_LUT: std::sync::OnceLock<[u16; 729]> = std::sync::OnceLock::new();
 
-fn rc2_lut() -> &'static [u8; 81] {
-    RC2_LUT.get_or_init(|| {
-        let mut map = [255u8; 81];
+fn rc3_lut() -> &'static [u16; 729] {
+    RC3_LUT.get_or_init(|| {
+        let mut map = [u16::MAX; 729];
         let mut next = 0u16;
-        for q_l in 0..9u8 {
-            for q_u in 0..9u8 {
-                let raw = q_l as usize * 9 + q_u as usize;
-                if map[raw] != 255 {
-                    continue;
+        for q1 in 0..9u8 {
+            for q2 in 0..9u8 {
+                for q3 in 0..9u8 {
+                    let raw = q1 as usize * 81 + q2 as usize * 9 + q3 as usize;
+                    if map[raw] != u16::MAX {
+                        continue;
+                    }
+                    // Canonical (minimal) tuple of the sign-symmetry orbit
+                    // {(q1,q2,q3), (8-q1,8-q2,8-q3)}.
+                    let a = (q1, q2, q3);
+                    let b = (8 - q1, 8 - q2, 8 - q3);
+                    let (k0, k1, k2) = if a <= b { a } else { b };
+                    let key = k0 as usize * 81 + k1 as usize * 9 + k2 as usize;
+                    if map[key] == u16::MAX {
+                        map[key] = next as u16;
+                        next += 1;
+                    }
+                    map[raw] = map[key];
                 }
-                // Canonical (minimal) tuple of the sign-symmetry orbit
-                // {(q_l, q_u), (8 - q_l, 8 - q_u)}.
-                let a = (q_l, q_u);
-                let b = (8 - q_l, 8 - q_u);
-                let (k0, k1) = if a <= b { a } else { b };
-                let key = k0 as usize * 9 + k1 as usize;
-                if map[key] == 255 {
-                    map[key] = next as u8;
-                    next += 1;
-                }
-                map[raw] = map[key];
             }
         }
-        debug_assert_eq!(next, 41);
+        debug_assert_eq!(next, 365);
         map
     })
 }
 
-/// R3-A residual-context id in `0..CMARC_RESIDUAL_CONTEXTS` from the two causal
-/// neighbor residuals `d_l` (left) and `d_u` (up). Border/missing neighbors are
-/// represented by `d = 0` (the JPEG-LS neutral state), so the top-left pixel and
-/// any flat region map to context `0`. The result is sign-symmetric (negating
-/// both residuals maps to the same context). The `d_ul` (up-left) diagonal is
-/// kept in the signature for call-site symmetry but is intentionally ignored.
-pub fn residual_context(d_l: i32, d_u: i32, _d_ul: i32) -> usize {
-    let q_l = quantize_residual(d_l).min(8);
-    let q_u = quantize_residual(d_u).min(8);
-    rc2_lut()[q_l * 9 + q_u] as usize
+/// R3-A residual-context id in `0..CMARC_RESIDUAL_CONTEXTS` from the three causal
+/// neighbor residuals `d_l` (left), `d_u` (up), and `d_ul` (up-left). Border or
+/// missing neighbors are represented by `d = 0` (the JPEG-LS neutral state), so
+/// the top-left pixel and any flat region map to context `0`. The quantization is
+/// sign-symmetric on magnitudes (negating every neighbor residual leaves the
+/// context unchanged because `quantize` is magnitude-based), which keeps the
+/// table small and well-adapted. Returns a context id in `0..365`.
+pub fn residual_context(d_l: i32, d_u: i32, d_ul: i32) -> usize {
+    let q1 = quantize_residual(d_l).min(8);
+    let q2 = quantize_residual(d_u).min(8);
+    let q3 = quantize_residual(d_ul).min(8);
+    rc3_lut()[q1 as usize * 81 + q2 as usize * 9 + q3 as usize] as usize
 }
 
 #[cfg(test)]
@@ -326,7 +335,7 @@ mod tests {
             for d_u in -300..=300 {
                 for d_ul in -300..=300 {
                     let c = residual_context(d_l, d_u, d_ul);
-                    assert!(c < 41, "cid out of range: {c}");
+                    assert!(c < 365, "cid out of range: {c}");
                     let neg = residual_context(-d_l, -d_u, -d_ul);
                     assert_eq!(
                         c, neg,
@@ -345,7 +354,7 @@ mod tests {
         // Every bucket pair maps to a valid dense id.
         for q_l in 0..9 {
             for q_u in 0..9 {
-                assert!(residual_context(q_l as i32, q_u as i32, 0) < 41);
+                assert!(residual_context(q_l as i32, q_u as i32, 0) < 365);
             }
         }
     }

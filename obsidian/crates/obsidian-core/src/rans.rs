@@ -1257,7 +1257,7 @@ pub fn cmarc_run_read_gamma<'a>(
 
 /// Number of distinct R3-A residual DIFF contexts (2-neighbor, sign-symmetric,
 /// 0..41). The 9x9 = 81 raw `(q_l, q_u)` buckets collapse to 41 dense ids.
-pub const CMARC_RESIDUAL_CONTEXTS: usize = 41;
+pub const CMARC_RESIDUAL_CONTEXTS: usize = 365;
 
 #[inline]
 fn cid_bin(cid: usize, bins_per_ctx: usize, bin: usize) -> usize {
