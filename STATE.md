@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~14:17Z, maintainer run 32263157758, after the R9-A build report). **DECISIONS:** `continue` on PR #83 - resume the Builder to implement R9-B (context-tree `WeightedTree` predictor, the JPEG XL lever; also targets WebP). No duplicate trigger (no Builder/Architect/Researcher in flight). R9-A confirmed dormant on photographic Kodak (0/24 images select LZ); codec plateaus at the ~9.71 bpp architectural ceiling. WebP/JPEG XL gates still unmet.
+- **Updated:** 2026-08-19 (~14:29Z, maintainer run 32264025501, owner event on PR #83). **DECISIONS:** `continue` on PR #83 - resume the Builder to implement R9-B (context-tree `WeightedTree` predictor, the JPEG XL lever; also targets WebP). No duplicate trigger (no Builder/Architect/Researcher in flight; R9-A build confirmed landed at head `01c286d`). R9-A confirmed dormant on photographic Kodak (0/24 images select LZ); codec plateaus at the ~9.71 bpp architectural ceiling. WebP/JPEG XL gates still unmet.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
