@@ -112,32 +112,53 @@ pub struct WeightVec {
 /// The default weight codebook searched by the analysis pass for the Weighted
 /// predictor (effort >= 4). Sums are chosen around 16 so `shift = 4` gives a
 /// near-unit scaling.
+///
+/// R7-A expands the codebook well beyond the original 16 entries: the diagonal
+/// `(wl, wt)` family is augmented with small off-diagonal `(wtl, wtr)` correction
+/// terms and alternate `shift` values (3, 4, 5). The analysis pass picks the best
+/// codebook weight *per spatial context* (signaled as `17 + j` in the predictor
+/// map), so the codec gets a near-least-squares linear predictor everywhere
+/// instead of one shared per-plane weight. All entries are generated
+/// deterministically so the encoder and decoder agree without signaling them.
 pub fn default_weight_codebook() -> Vec<WeightVec> {
-    let v = |wl: i16, wt: i16, wtl: i16, wtr: i16| WeightVec {
+    let v = |wl: i16, wt: i16, wtl: i16, wtr: i16, shift: u8| WeightVec {
         wl,
         wt,
         wtl,
         wtr,
-        shift: 4,
+        shift,
     };
-    vec![
-        v(8, 8, 0, 0),
-        v(10, 6, 0, 0),
-        v(6, 10, 0, 0),
-        v(12, 4, 0, 0),
-        v(4, 12, 0, 0),
-        v(9, 9, -2, 0),
-        v(11, 7, -2, 0),
-        v(7, 11, -2, 0),
-        v(8, 8, 0, -2),
-        v(10, 6, 0, -2),
-        v(6, 10, 0, -2),
-        v(9, 9, -2, -2),
-        v(12, 8, -4, 0),
-        v(8, 12, -4, 0),
-        v(14, 6, -4, 0),
-        v(6, 14, -4, 0),
-    ]
+    let mut out: Vec<WeightVec> = Vec::new();
+    // Base diagonal, shift 4, wl + wt = 16.
+    let diag = [
+        (8, 8),
+        (10, 6),
+        (6, 10),
+        (12, 4),
+        (4, 12),
+        (14, 2),
+        (2, 14),
+        (16, 0),
+        (0, 16),
+    ];
+    for (wl, wt) in diag {
+        out.push(v(wl, wt, 0, 0, 4));
+    }
+    // Diagonal plus small off-diagonal correction terms. `predict_weighted`
+    // scales by `(acc + half) >> shift` and assumes the weights sum to
+    // `2^shift == 16`, so every correction must keep `wl + wt + wtl + wtr == 16`.
+    // We use antisymmetric pairs (`wtr = -wtl`) so the total never drifts.
+    for (wl, wt) in [(8, 8), (10, 6), (6, 10), (12, 4), (4, 12)] {
+        for wtl in [-2i16, -1, 1, 2] {
+            out.push(v(wl, wt, wtl, -wtl, 4));
+        }
+    }
+    // Diagonal with alternate shift values for sharper / softer scaling.
+    for (wl, wt) in [(8, 8), (10, 6), (6, 10), (12, 4), (4, 12)] {
+        out.push(v(wl, wt, 0, 0, 3));
+        out.push(v(wl, wt, 0, 0, 5));
+    }
+    out
 }
 
 /// Compute the causal neighborhood for pixel `(x, y)` in a `width x height`

@@ -10,6 +10,11 @@
 //! See `docs/algorithmic-spec.md` and `docs/architecture.md` for the full
 //! specification. This crate is intentionally zero-dependency (std only).
 
+/// Serializes every test that reads or mutates a global `OBSIDIAN_*` env var,
+/// so parallel tests never pollute each other's production-default assumptions
+/// (e.g. `static_tables_model_size_guard` asserting a small default-env bpp).
+pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub mod color;
 pub mod context;
 pub mod crc32;

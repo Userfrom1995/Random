@@ -1069,7 +1069,7 @@ fn cmarc_residual_context_of(
     height: usize,
     cm: &ContextModel,
     model: &ModelConfig,
-    wv: Option<&WeightVec>,
+    _wv: Option<&WeightVec>,
     range: &PlaneRange,
 ) -> usize {
     let coords: [(usize, usize); 3] = [
@@ -1089,7 +1089,7 @@ fn cmarc_residual_context_of(
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
         let np = model.predictor(pi, ncid);
-        let npred = predict_clamped(np, &nnb, wv, *range);
+        let npred = predict_clamped(np, &nnb, model.predictor_weight(pi, ncid).as_ref(), *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
     residual_context(qs[0], qs[1], qs[2])
@@ -1123,7 +1123,9 @@ fn code_planes(
     let mut streams: Vec<Vec<u8>> = Vec::with_capacity(coding_planes.len());
     for pi in 0..coding_planes.len() {
         let alphabet = sizes[pi];
-        let wv = model.weight_for(pi);
+        // Per-context predictor weights are read directly from the model map
+        // (R7-A `17 + j` entries) via `model.predictor_weight`, so no shared
+        // per-plane weight is needed here.
         if entropy_gr {
             // Design A: per-context adaptive Golomb-Rice. Forward raster order;
             // both sides adapt `k` from the decoded symbols (mirrored state), so
@@ -1226,7 +1228,7 @@ fn code_planes(
                                 );
                                 let p = model.predictor(pi, cid);
                                 let pred =
-                                    predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                                    predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                                 let r = buf[i] as i32 - pred;
                                 cmarc_lz_write_literal(
                                     &mut enc,
@@ -1257,7 +1259,7 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
                             cmarc_mix_write_residual(
                                 &mut enc,
@@ -1291,7 +1293,7 @@ fn code_planes(
                             let cidp = cm.context_id(&nb, xx, yy) % model.context_count;
                             let pp = model.predictor(pi, cidp);
                             let predp =
-                                predict_clamped(pp, &nb, wv.as_ref(), ranges[pi]);
+                                predict_clamped(pp, &nb, model.predictor_weight(pi, cidp).as_ref(), ranges[pi]);
                             let rp = coding_planes[pi][idx] as i32 - predp;
                             res[idx] = rp;
                             let ql = if xx > 0 {
@@ -1325,7 +1327,7 @@ fn code_planes(
                                 height,
                                 &cm,
                                 model,
-                                wv.as_ref(),
+                                model.predictor_weight(pi, cid).as_ref(),
                                 &ranges[pi],
                             )
                         } else {
@@ -1400,7 +1402,7 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                            let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                             let v = coding_planes[pi][idx] as i32;
                             let r = v - pred;
                             // R3-A coding-context selection (unchanged by cache mode).
@@ -1417,7 +1419,7 @@ fn code_planes(
                                     height,
                                     &cm,
                                     model,
-                                    wv.as_ref(),
+                                    model.predictor_weight(pi, cid).as_ref(),
                                     &ranges[pi],
                                 )
                             } else {
@@ -1468,7 +1470,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let k = cms[cid].k_current();
                         gr_write_symbol_k(&mut bw, r, k);
@@ -1498,10 +1500,13 @@ fn code_planes(
                 let mut head: Vec<i32> = vec![-1; 1 << hash_bits];
                 let mut prev: Vec<i32> = vec![-1; area];
                 // M3-B: per-context weight table for the self-correcting weighted
-                // predictor. Seeded from the per-plane codebook weight; the
-                // Weighted predictor's contexts are then refined online (mirrored
-                // SGD) during this pass so encode and decode stay in lockstep.
-                let mut wp: Vec<WeightVec> = vec![wv.unwrap_or_else(WeightVec::unit); model.context_count];
+                // predictor. Seeded from the per-context signaled weight (R7-A);
+                // the Weighted predictor's contexts are then refined online
+                // (mirrored SGD) during this pass so encode and decode stay in
+                // lockstep.
+                let mut wp: Vec<WeightVec> = (0..model.context_count)
+                    .map(|cid| model.predictor_weight(pi, cid).unwrap_or_else(WeightVec::unit))
+                    .collect();
                 // M3-A match-flag coder: the correct CACM87 binary range coder
                 // (RangeEnc owns its byte buffer), replacing the broken WNC
                 // BinEnc. The flag stream is `[flag_len u32 LE][flag_bytes]`,
@@ -1536,10 +1541,11 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor(pi, cid);
+                            let pw = model.predictor_weight(pi, cid);
                             let w = if m3_wp && matches!(p, PredictorId::Weighted) {
                                 Some(&wp[cid])
                             } else {
-                                wv.as_ref()
+                                pw.as_ref()
                             };
                             let pred = predict_clamped(p, &nb, w, ranges[pi]);
                             let r = coding_planes[pi][i] as i32 - pred;
@@ -1597,7 +1603,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
                     let r_coded = val - pred_b;
@@ -1682,7 +1688,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let z = zigzag(r) as usize;
                         let sym = z.min(CAPPED_ALPHABET);
@@ -1719,7 +1725,7 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
                         chosen_counts[p.to_u8() as usize] += 1;
@@ -1744,7 +1750,7 @@ fn code_planes(
                             CodecError::InvalidStream(format!("no static table for context {cid}"))
                         })?;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     enc.put(zigzag(r) as usize, table);
                     chosen_counts[p.to_u8() as usize] += 1;
@@ -1767,7 +1773,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let sym = zigzag(r) as usize;
                     let (f, c) = tables[cid].lookup(sym);
@@ -1782,7 +1788,7 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor(pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                    let pred = predict_clamped(p, &nb, model.predictor_weight(pi, cid).as_ref(), ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let packed = plan[idx];
                     let total = (packed & FREQ_MASK) as u32;
@@ -1926,12 +1932,13 @@ pub fn fuzz_gate(count: usize, efforts: &[u8]) -> Result<usize, CodecError> {
 mod tests {
     use super::*;
     use crate::decoder::{decode, inspect};
-    use std::sync::Mutex;
 
     // Serializes the two tests that flip the process-global `OBSIDIAN_M3_WP`
     // env var, so they can't leak the setting into each other (or into the
     // parallel M2/CM seam tests) under `--test-threads`.
-    static WP_ENV_LOCK: Mutex<()> = Mutex::new(());
+    // Single global lock serializing every test that reads or mutates a global
+    // `OBSIDIAN_*` env var lives at the crate root (`crate::ENV_LOCK`) so both
+    // the encoder and decoder test modules share it.
 
     #[test]
     fn effort0_roundtrip_small() {
@@ -2078,6 +2085,9 @@ mod tests {
         // static model. The model-size guard must fall back to a simpler
         // single-context adaptive model so the model section stays within
         // MODEL_SIZE_FRACTION of the total output (roundtrip stays exact).
+        // Hold the M3-WP env lock so this test does not run concurrently with
+        // the M3-WP seam tests that mutate the global `OBSIDIAN_M3_WP` var.
+        let _wp_lock = crate::ENV_LOCK.lock().unwrap();
         let mut img = Image::new(512, 400, Channels::Rgb).unwrap();
         for c in 0..3 {
             for y in 0..400usize {
@@ -2130,8 +2140,9 @@ mod tests {
         // when opted in on BOTH sides (the `OBSIDIAN_M3_WP="1"` seam). The
         // per-context weight table is mirrored, so encode and decode stay in
         // lockstep with zero signaled weight bytes.
-        let _lock = WP_ENV_LOCK.lock().unwrap();
+        let _lock = crate::ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_M3_WP", "1");
+        std::env::set_var("OBSIDIAN_R7_PERCONTEXT", "1");
         let mut img = Image::new(200, 150, Channels::Rgb).unwrap();
         // Locally-linear content (so the Weighted predictor is selected and the
         // online correction has something to converge on): a smooth ramp plus a
@@ -2150,6 +2161,7 @@ mod tests {
             assert_eq!(back, img, "M3-B roundtrip failed at effort {e}");
         }
         std::env::remove_var("OBSIDIAN_M3_WP");
+        std::env::remove_var("OBSIDIAN_R7_PERCONTEXT");
     }
 
     #[test]
@@ -2161,7 +2173,7 @@ mod tests {
         // inequality holds. M3-B is an opt-in seam, so it is enabled for BOTH the
         // encode and the decode of the `lz_wp` stream.
         use crate::decoder::decode;
-        let _lock = WP_ENV_LOCK.lock().unwrap();
+        let _lock = crate::ENV_LOCK.lock().unwrap();
         let mut img = Image::new(256, 192, Channels::Rgb).unwrap();
         for c in 0..3 {
             for y in 0..192usize {
@@ -2177,12 +2189,14 @@ mod tests {
         let (v1, _) = encode(&img, 0).unwrap();
         // LZ with M3-B on (seam set for both encode and decode below).
         std::env::set_var("OBSIDIAN_M3_WP", "1");
-        let (lz_wp, stats_wp) = encode(&img, 4).unwrap();
+        std::env::set_var("OBSIDIAN_R7_PERCONTEXT", "1");
+        let (lz_wp, _stats_wp) = encode(&img, 4).unwrap();
         let back_wp = decode(&lz_wp).unwrap();
         std::env::set_var("OBSIDIAN_M3_WP", "0");
-        let (lz_nwp, stats_nwp) = encode(&img, 4).unwrap();
+        let (lz_nwp, _stats_nwp) = encode(&img, 4).unwrap();
         let back_nwp = decode(&lz_nwp).unwrap();
         std::env::remove_var("OBSIDIAN_M3_WP");
+        std::env::remove_var("OBSIDIAN_R7_PERCONTEXT");
 
         assert_eq!(back_wp, img, "M3-B on: roundtrip mismatch");
         assert_eq!(back_nwp, img, "M3-B off: roundtrip mismatch");
@@ -2192,11 +2206,8 @@ mod tests {
         // M3-B-on and M3-B-off LZ candidates.
         assert!(lz_wp.len() <= v1.len() + 4, "LZ+WP expanded vs v1");
         assert!(lz_nwp.len() <= v1.len() + 4, "LZ (no WP) expanded vs v1");
-        eprintln!(
-            "M3-B synth proxy (256x192 RGB, effort 4): v1={:.3} bpp ({} B), lz_no_wp={:.3} ({} B), lz_wp={:.3} ({} B)",
-            stats_nwp.bpp, lz_nwp.len(), stats_nwp.bpp, lz_nwp.len(), stats_wp.bpp, lz_wp.len()
-        );
     }
+
 
     #[test]
     fn m3_lz_shrinks_repetitive_content() {
@@ -2273,6 +2284,7 @@ mod tests {
         // Force CARC_MIX selection (mirrors the OBSIDIAN_CARC_LZ_FORCE harness)
         // so the R2.4 decode branch is exercised end-to-end. Round-trip stays
         // bit-exact and the decoder reports the CARC_MIX mode.
+        let _env_lock = crate::ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_CARC_MIX_FORCE", "1");
         let mut img = Image::new(40, 28, Channels::Rgba).unwrap();
         for c in 0..4u8 {
@@ -2367,6 +2379,7 @@ mod tests {
         // exercise the run-length decode branch on near-constant content. The
         // safety net keeps run mode only when it wins, but forcing it via the
         // seam must still decode exactly.
+        let _env_lock = crate::ENV_LOCK.lock().unwrap();
         std::env::set_var("OBSIDIAN_CARC_RUN_FORCE", "1");
         // Image with long constant runs (vertical bands + a flat plane) so the
         // run coder actually fires.
@@ -2404,6 +2417,7 @@ mod tests {
         std::env::remove_var("OBSIDIAN_CARC");
         std::env::remove_var("OBSIDIAN_CARC_RUN");
         std::env::remove_var("OBSIDIAN_CARC_FORCE");
+        std::env::remove_var("OBSIDIAN_CARC_RUN_FORCE");
     }
 
     #[test]
