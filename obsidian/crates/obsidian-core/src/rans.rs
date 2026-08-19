@@ -1180,15 +1180,79 @@ pub fn cmarc_mag_bits(max_mag: u32) -> usize {
     }
 }
 
+/// First bin index of the R3-C run-mode region (appended after the remainder
+/// region so it never overlaps the residual bins). A run is signaled by one flag
+/// bin, then an Elias-gamma run length coded through two adaptive bins (unary
+/// stop bit + binary low bits), mirroring `cmarc_lz_write_gamma`.
+pub const CMARC_BIN_RUN: usize = CMARC_BIN_REM + CMARC_REM_MAXK * CMARC_REM_WIN_STATES;
+/// Run-flag bin: `1` => this near-constant pixel starts a run of `run_len` pixels
+/// that all equal their prediction.
+pub const CMARC_RUN_FLAG: usize = CMARC_BIN_RUN;
+/// Unary stop-bit bin for the Elias-gamma run length.
+pub const CMARC_RUN_GAMMA_U: usize = CMARC_BIN_RUN + 1;
+/// Binary low-bit bin for the Elias-gamma run length (shared across bit
+/// positions; learns the low-bit distribution).
+pub const CMARC_RUN_GAMMA_L: usize = CMARC_BIN_RUN + 2;
+/// Total bins per context for the CMARC residual (R3-B magnitude + R3-C run
+/// region). The run bins are unused when run mode is off, so the layout stays
+/// constant regardless of the `cmarc_run` flag (both sides agree on `bins`).
+pub const CMARC_BINS_TOTAL: usize = CMARC_BIN_RUN + 3;
+/// Minimum run length (number of consecutive zero-residual pixels) for which the
+/// R3-C run coder is engaged. Below this the per-pixel zero residual (a single
+/// cheap bin) is cheaper than the run flag + gamma overhead, so run mode only
+/// fires on genuine runs and can never expand the file.
+pub const CMARC_RUN_MIN: usize = 8;
+
 /// Bins per context for the R3-B Rice-through-binary CMARC residual (constant,
 /// independent of plane bit-depth): `zero(1) + sign(1) + q(1) + rem(CMARC_REM_MAXK
-/// * CMARC_REM_WIN_STATES)`. The small constant lets JPEG-LS-like residual
-/// contexts (<= 365) stay affordable: `365 * 35 = 12,775` models/plane, and the
-/// neutral prior (above) caps the worst-case per-bin cost at 1 bit so a sparse
-/// context merely fails to compress instead of exploding. See
+/// * CMARC_REM_WIN_STATES)` + the R3-C run region (3 bins). The small constant
+/// lets JPEG-LS-like residual contexts (<= 365) stay affordable, and the
+/// neutral prior caps the worst-case per-bin cost at 1 bit so a sparse context
+/// merely fails to compress instead of exploding. See
 /// `obsidian/docs/architect-r3-residual-context-blueprint.md` section 1.1.
 pub fn cmarc_bins_per_ctx() -> usize {
-    CMARC_BIN_REM + CMARC_REM_MAXK * CMARC_REM_WIN_STATES
+    CMARC_BINS_TOTAL
+}
+
+/// Code an Elias-gamma run length `n >= 1` through the R3-C run bins: a unary
+/// stop bit via `CMARC_RUN_GAMMA_U`, then the `k` binary low bits (LSB-first)
+/// via `CMARC_RUN_GAMMA_L`. `base` is `cid * bins_per_ctx`. Decoder mirrors
+/// this exactly, so lockstep holds.
+pub fn cmarc_run_write_gamma(enc: &mut RangeEnc, models: &mut [BinModel], base: usize, n: u32) {
+    debug_assert!(n >= 1, "run gamma requires n >= 1");
+    let k = 31 - n.leading_zeros();
+    for _ in 0..k {
+        enc.put(&mut models[base + CMARC_RUN_GAMMA_U], false);
+    }
+    enc.put(&mut models[base + CMARC_RUN_GAMMA_U], true);
+    let low = n & ((1u32 << k) - 1);
+    for i in 0..k {
+        let bit = (low >> i) & 1 == 1;
+        enc.put(&mut models[base + CMARC_RUN_GAMMA_L], bit);
+    }
+}
+
+/// Read an Elias-gamma run length coded by `cmarc_run_write_gamma`. Decoder
+/// mirrors the encoder exactly, so lockstep holds.
+pub fn cmarc_run_read_gamma<'a>(
+    dec: &mut RangeDec<'a>,
+    models: &mut [BinModel],
+    base: usize,
+) -> Result<u32, CodecError> {
+    let mut k: u32 = 0;
+    loop {
+        let b = dec.get(&mut models[base + CMARC_RUN_GAMMA_U])?;
+        if b {
+            break;
+        }
+        k += 1;
+    }
+    let mut low = 0u32;
+    for i in 0..k {
+        let b = dec.get(&mut models[base + CMARC_RUN_GAMMA_L])?;
+        low |= (b as u32) << i;
+    }
+    Ok((1u32 << k) | low)
 }
 
 /// Number of distinct R3-A residual DIFF contexts (2-neighbor, sign-symmetric,

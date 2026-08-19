@@ -82,6 +82,13 @@ pub struct ModelConfig {
     /// (computed in `analyze`) keeps it on only when it actually wins so a
     /// regression can never ship. Mirrored: both sides read it from the model.
     pub cmarc_residual_ctx: bool,
+    /// R3-C JPEG-LS-style run mode for the CMARC coder. When set, near-constant
+    /// regions (both causal neighbor residuals quantize to ~0) are coded as a
+    /// single run length instead of per-pixel residuals. Signaled in the model
+    /// section; the never-expand safety net keeps it on only when it actually
+    /// wins, so a regression can never ship. Mirrored: both sides read it from
+    /// the model (zero extra header bit).
+    pub cmarc_run: bool,
 }
 
 impl ModelConfig {
@@ -190,6 +197,7 @@ pub fn analyze(
         capped_histograms: None,
         cmarc_priors: None,
         cmarc_residual_ctx: false,
+        cmarc_run: false,
     };
 
     let predictors = predictors_for(effort);
@@ -331,6 +339,7 @@ pub fn default_model(
         capped_histograms: None,
         cmarc_priors: None,
         cmarc_residual_ctx: false,
+        cmarc_run: false,
     }
 }
 
@@ -500,6 +509,9 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     // cross-channel flag so legacy readers that stop earlier still parse the
     // model body; the decoder selects the CMARC coding context accordingly.
     w.write_all(&[if m.cmarc_residual_ctx { 1 } else { 0 }])?;
+    // R3-C run-mode flag for CMARC. Appended after the residual-context flag;
+    // decoder mirrors it to decide whether to read run lengths.
+    w.write_all(&[if m.cmarc_run { 1 } else { 0 }])?;
     Ok(())
 }
 
@@ -724,6 +736,9 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
     let mut rc = [0u8; 1];
     r.read_exact(&mut rc)?;
     let cmarc_residual_ctx = rc[0] != 0;
+    let mut rc2 = [0u8; 1];
+    r.read_exact(&mut rc2)?;
+    let cmarc_run = rc2[0] != 0;
 
     Ok(ModelConfig {
         transform,
@@ -738,6 +753,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         capped_histograms,
         cmarc_priors,
         cmarc_residual_ctx,
+        cmarc_run,
     })
 }
 

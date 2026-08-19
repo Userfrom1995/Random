@@ -7,7 +7,7 @@
 use crate::color::{
     try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, Palette, PlaneRange, TransformChoice,
 };
-use crate::context::{zigzag, ContextModel, ContextParams, residual_context};
+use crate::context::{zigzag, ContextModel, ContextParams, residual_context, quantize_residual};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::{Header, HEADER_LEN};
@@ -27,7 +27,7 @@ use crate::rans::{
     CAPPED_SYMBOLS, CAPPED_ALPHABET, BinModel, RangeEnc, CarcCtx, cmarc_write_residual,
     cmarc_mag_bits, cmarc_bins_per_ctx, CMARC_RESIDUAL_CONTEXTS, cmarc_lz_bins_per_ctx, cmarc_lz_len_bin,
     cmarc_lz_off_bin, cmarc_lz_write_gamma, cmarc_lz_write_literal, CMARC_LZ_FLAG,
-    cmarc_mix_write_residual, MIX_INIT_W,
+    cmarc_mix_write_residual, MIX_INIT_W, cmarc_run_write_gamma, CMARC_RUN_FLAG, CMARC_RUN_MIN,
 };
 
 
@@ -120,6 +120,13 @@ pub struct EncodeOpts {
     /// only ship when it actually wins on that image, so a regression can never ship.
     /// Only meaningful when `cmarc` is engaged. See blueprint R3-A §4.
     pub cmarc_residual_ctx_auto: bool,
+    /// R3-C JPEG-LS-style run mode for the CMARC coder. `Some(true)` makes the
+    /// encoder set `model.cmarc_run`, engaging the run-length coder for
+    /// near-constant regions. Only consulted when `cmarc` is also engaged. Ships
+    /// OFF by default (behind the `OBSIDIAN_CARC_RUN` env seam); the never-expand
+    /// safety net keeps it only when it is the smallest CMARC candidate.
+    /// See `obsidian/docs/architect-r3-residual-context-blueprint.md` R3-C.
+    pub cmarc_run: Option<bool>,
 }
 
 impl Default for EncodeOpts {
@@ -132,6 +139,7 @@ impl Default for EncodeOpts {
             cross_channel: None,
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto: false,
+            cmarc_run: None,
         }
     }
 }
@@ -142,6 +150,7 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
     let use_cmarc = std::env::var("OBSIDIAN_CARC").ok().as_deref() == Some("1");
     let use_carc_lz = std::env::var("OBSIDIAN_CARC_LZ").ok().as_deref() == Some("1");
     let use_carc_mix = std::env::var("OBSIDIAN_CARC_MIX").ok().as_deref() == Some("1");
+    let use_carc_run = std::env::var("OBSIDIAN_CARC_RUN").ok().as_deref() == Some("1");
     let xchan = std::env::var("OBSIDIAN_XCHAN").ok();
     let cross_channel = match xchan.as_deref() {
         Some("0") => Some(false),
@@ -165,6 +174,7 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
             cross_channel,
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto,
+            cmarc_run: Some(use_carc_run),
         },
     )
 }
@@ -397,6 +407,10 @@ pub fn encode_with(
     let use_carc_lz = opts.carc_lz.unwrap_or(false) && use_cmarc;
     // R2.4 logistic mixing: only meaningful when CMARC is engaged.
     let use_cmarc_mix = opts.carc_mix.unwrap_or(false) && use_cmarc;
+    // R3-C run mode: only meaningful when CMARC is engaged. Opt-in (default OFF)
+    // behind the `OBSIDIAN_CARC_RUN` env seam; the never-expand safety net keeps
+    // it only when it is the smallest CMARC candidate. See blueprint R3-C.
+    let use_carc_run = opts.cmarc_run.unwrap_or(false) && use_cmarc;
     // Test-only seam: when set, force CARC_LZ selection even if it is not the
     // smallest candidate, so the LZ decode branch can be exercised end-to-end.
     // Never used in production (the never-expand net still governs shipping output).
@@ -410,6 +424,10 @@ pub fn encode_with(
     // gates. Never used in production; the never-expand net still governs shipping
     // output. See `obsidian/docs/architect-r3-residual-context-blueprint.md`.
     let force_carc = std::env::var("OBSIDIAN_CARC_FORCE").ok().as_deref() == Some("1");
+    // Test/measurement seam: force R3-C run mode to ship (bypass the never-expand
+    // safety net) so its raw cost can be measured directly against the JPEG XL
+    // gate. Never used in production. Requires CMARC to be engaged.
+    let force_carc_run = std::env::var("OBSIDIAN_CARC_RUN_FORCE").ok().as_deref() == Some("1");
     // Capture the backend the model would have chosen without CMARC. The CMARC
     // safety net must beat THIS candidate, not just plain v1 GR, or enabling
     // CMARC would regress the file versus the production backend selection.
@@ -598,25 +616,60 @@ pub fn encode_with(
                 model.cmarc_residual_ctx = true;
             }
         }
+        // R3-C run mode: try the run-length coder on near-constant regions and
+        // keep it only when it is the smallest CMARC candidate (gradient or
+        // residual context). The winning choice is recorded in `model.cmarc_run`
+        // so the decoder mirrors it. Because the run coder only fires on genuine
+        // runs (>= CMARC_RUN_MIN zero-residual pixels), and this branch compares
+        // against the current best CMARC total, run mode can never expand the
+        // file versus the CMARC candidate it replaces. See blueprint R3-C.
+        if use_carc_run {
+            let pre_run_total = cm_total;
+            model.cmarc_run = true;
+            let run_coded = code_planes(
+                coding_planes,
+                &ranges,
+                &sizes,
+                width,
+                height,
+                &model,
+                entropy_gr,
+                orig_gr_m2,
+                orig_gr_cm,
+                orig_gr_lz,
+                false,
+                m3_wp,
+                true,
+                false,
+                false,
+            )?;
+            model.cmarc_run = false;
+            let run_total: usize = run_coded.streams.iter().map(|s| s.len()).sum();
+            if run_total < pre_run_total || force_carc_run {
+                coded = run_coded;
+                cm_total = run_total;
+                model.cmarc_run = true;
+            }
+        }
         // Start from the best of {GR, CMARC-literal}; the LZ candidate (below)
         // only replaces this if it is strictly smaller still.
-        let mut best_mode = if force_carc || cm_total <= v1_total {
+        let mut best_mode = if force_carc || force_carc_run || cm_total <= v1_total {
             ENTROPY_MODE_CARC
         } else {
             ENTROPY_MODE_GR
         };
-        let mut best_coded = if force_carc || cm_total <= v1_total {
+        let mut best_coded = if force_carc || force_carc_run || cm_total <= v1_total {
             coded
         } else {
             v1_coded
         };
-        let mut best_gr_cm = if force_carc || cm_total <= v1_total {
-            false
-        } else {
+        let mut best_gr_cm = if force_carc || force_carc_run || cm_total <= v1_total {
             orig_gr_cm
+        } else {
+            false
         };
-        let mut best_gr_lz = if force_carc || cm_total <= v1_total { false } else { v1_gr_lz };
-        let mut best_gr_m2 = if force_carc || cm_total <= v1_total { false } else { orig_gr_m2 };
+        let mut best_gr_lz = if force_carc || force_carc_run || cm_total <= v1_total { false } else { v1_gr_lz };
+        let mut best_gr_m2 = if force_carc || force_carc_run || cm_total <= v1_total { false } else { orig_gr_m2 };
         // R2.3 CMARC-LZ: try the match layer (flag/length/offset are CMARC bins,
         // literals are the CMARC residual). Never-expand invariant: it is kept
         // only when it is the smallest of {GR, CMARC, CARC_LZ}, otherwise the
@@ -1109,6 +1162,112 @@ fn code_planes(
                                 r,
                             );
                             chosen_counts[p.to_u8() as usize] += 1;
+                        }
+                    }
+                } else if model.cmarc_run {
+                    // R3-C: JPEG-LS-style run mode. Precompute every pixel's
+                    // residual and run-candidate flag (both causal neighbor
+                    // residuals quantize to ~0). A maximal run of `>= CMARC_RUN_MIN`
+                    // consecutive zero-residual pixels is coded as a single run
+                    // flag + Elias-gamma length; every interior run pixel is copied
+                    // from its prediction (bit-exact by induction, since the
+                    // decoder reconstructs the same neighbors). Non-run pixels and
+                    // sub-threshold runs are coded with the normal CMARC residual.
+                    let area = width * height;
+                    let mut res = vec![0i32; area];
+                    let mut cand = vec![false; area];
+                    for yy in 0..height {
+                        for xx in 0..width {
+                            let idx = yy * width + xx;
+                            let nb = neighbors(&coding_planes[pi], xx, yy, width, height);
+                            let cidp = cm.context_id(&nb, xx, yy) % model.context_count;
+                            let pp = model.predictor(pi, cidp);
+                            let predp =
+                                predict_clamped(pp, &nb, wv.as_ref(), ranges[pi]);
+                            let rp = coding_planes[pi][idx] as i32 - predp;
+                            res[idx] = rp;
+                            let ql = if xx > 0 {
+                                quantize_residual(res[idx - 1])
+                            } else {
+                                0
+                            };
+                            let qu = if yy > 0 {
+                                quantize_residual(res[idx - width])
+                            } else {
+                                0
+                            };
+                            cand[idx] = ql == 0 && qu == 0;
+                        }
+                    }
+                    let mut i = 0usize;
+                    while i < area {
+                        let x = i % width;
+                        let y = i / width;
+                        let nb = neighbors(&coding_planes[pi], x, y, width, height);
+                        let cid = cm.context_id(&nb, x, y) % model.context_count;
+                        let p = model.predictor(pi, cid);
+                        // R3-A coding-context selection (unchanged by run mode).
+                        let rcid = if model.cmarc_residual_ctx {
+                            cmarc_residual_context_of(
+                                &coding_planes[pi],
+                                pi,
+                                x,
+                                y,
+                                width,
+                                height,
+                                &cm,
+                                model,
+                                wv.as_ref(),
+                                &ranges[pi],
+                            )
+                        } else {
+                            cid
+                        };
+                        let slot = rcid * bins_per_ctx;
+                        if cand[i] {
+                            // Run candidate: measure the maximal run of zero
+                            // residuals starting here.
+                            let mut run_len = 0usize;
+                            if res[i] == 0 {
+                                while i + run_len < area && res[i + run_len] == 0 {
+                                    run_len += 1;
+                                }
+                            }
+                            let use_run = run_len >= CMARC_RUN_MIN;
+                            enc.put(
+                                &mut models[slot + CMARC_RUN_FLAG],
+                                use_run,
+                            );
+                            if use_run {
+                                cmarc_run_write_gamma(
+                                    &mut enc,
+                                    &mut models,
+                                    slot,
+                                    run_len as u32,
+                                );
+                                chosen_counts[p.to_u8() as usize] += run_len;
+                                i += run_len;
+                                continue;
+                            }
+                            cmarc_write_residual(
+                                &mut enc,
+                                &mut models,
+                                &mut ctxs[rcid],
+                                rcid,
+                                res[i],
+                            );
+                            chosen_counts[p.to_u8() as usize] += 1;
+                            i += 1;
+                        } else {
+                            cmarc_write_residual(
+                                &mut enc,
+                                &mut models,
+                                &mut ctxs[rcid],
+                                rcid,
+                                res[i],
+                            );
+                            chosen_counts[p.to_u8() as usize] += 1;
+                            i += 1;
                         }
                     }
                 } else {
@@ -2062,6 +2221,69 @@ mod tests {
             ),
             "unexpected entropy_mode {}",
             mix_model.entropy_mode
+        );
+    }
+
+    #[test]
+    fn r3c_run_mode_roundtrip() {
+        // R3-C run mode (OBSIDIAN_CARC_RUN) must round-trip bit-exactly and
+        // exercise the run-length decode branch on near-constant content. The
+        // safety net keeps run mode only when it wins, but forcing it via the
+        // seam must still decode exactly.
+        std::env::set_var("OBSIDIAN_CARC_RUN_FORCE", "1");
+        // Image with long constant runs (vertical bands + a flat plane) so the
+        // run coder actually fires.
+        let mut img = Image::new(64, 48, Channels::Rgb).unwrap();
+        for c in 0..3u8 {
+            for y in 0..48usize {
+                for x in 0..64usize {
+                    let v = if x < 16 {
+                        10u8.wrapping_add(c)
+                    } else if x < 32 {
+                        20u8.wrapping_add(c * 2)
+                    } else if x < 48 {
+                        30u8.wrapping_add(c * 3)
+                    } else {
+                        (y as u8).wrapping_mul(3).wrapping_add(c)
+                    };
+                    img.planes[c as usize][y * 64 + x] = v;
+                }
+            }
+        }
+        let (bytes, _stats) = encode_with(
+            &img,
+            4,
+            EncodeOpts {
+                cmarc: Some(true),
+                cmarc_run: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let (_h, model, _off) = inspect(&bytes).unwrap();
+        assert!(model.cmarc_run, "run mode must be engaged when forced");
+        let back = decode(&bytes).unwrap();
+        assert_eq!(back, img, "R3-C run mode roundtrip must be bit-exact");
+        std::env::remove_var("OBSIDIAN_CARC");
+        std::env::remove_var("OBSIDIAN_CARC_RUN");
+        std::env::remove_var("OBSIDIAN_CARC_FORCE");
+    }
+
+    #[test]
+    fn r3c_run_mode_off_by_default() {
+        // With no seams the production codec stays on v1 GR and never signals
+        // run mode (or CMARC at all).
+        let mut img = Image::new(32, 32, Channels::Gray).unwrap();
+        for i in 0..img.area() {
+            img.planes[0][i] = (i as u8).wrapping_mul(5);
+        }
+        let (_bytes, _stats) = encode_with(&img, 4, EncodeOpts { ..Default::default() }).unwrap();
+        let (_h, model, _off) = inspect(&_bytes).unwrap();
+        assert!(!model.cmarc_run, "run mode must be off by default");
+        assert_eq!(
+            model.entropy_mode,
+            ENTROPY_MODE_GR,
+            "default codec stays on v1 GR"
         );
     }
 }

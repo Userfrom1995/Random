@@ -4,7 +4,7 @@
 use crate::color::{
     subtract_green_inverse_planes, ycocgr_inverse_planes, PlaneRange, TransformChoice,
 };
-use crate::context::{unzigzag, ContextModel, residual_context};
+use crate::context::{unzigzag, ContextModel, residual_context, quantize_residual};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::Header;
@@ -21,6 +21,7 @@ use crate::rans::{
     BinModel, RangeDec, CarcCtx, cmarc_read_residual, cmarc_mag_bits, cmarc_bins_per_ctx,
     CMARC_RESIDUAL_CONTEXTS, cmarc_lz_bins_per_ctx, cmarc_lz_len_bin, cmarc_lz_off_bin, cmarc_lz_read_gamma,
     cmarc_lz_read_literal, CMARC_LZ_FLAG, MIN_MATCH, cmarc_mix_read_residual, MIX_INIT_W,
+    cmarc_run_read_gamma, CMARC_RUN_FLAG,
 };
 use std::io::Read;
 
@@ -596,6 +597,105 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             plane[idx] = (pred + r) as i16;
                         }
                     }
+                } else if model.cmarc_run {
+                    // R3-C decode: mirror the encoder's run mode. The decoder
+                    // tracks each reconstructed residual in `res_dec` so it can
+                    // compute the run-candidate flag (both causal neighbor
+                    // residuals quantize to ~0) identically to the encoder. When a
+                    // candidate pixel carries a run flag, it reads an Elias-gamma
+                    // run length and copies the prediction for that many pixels
+                    // (bit-exact by induction; the encoder's run pixels all equal
+                    // their prediction). Otherwise it reads the normal CMARC
+                    // residual.
+                    let area = width * height;
+                    let mut res_dec = vec![0i32; area];
+                    let mut i = 0usize;
+                    while i < area {
+                        let x = i % width;
+                        let y = i / width;
+                        let nb = neighbors(&plane, x, y, width, height);
+                        let cid = cm.context_id(&nb, x, y) % model.context_count;
+                        let p = model.predictor(pi, cid);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), ranges[pi]);
+                        let ql = if x > 0 {
+                            quantize_residual(res_dec[i - 1])
+                        } else {
+                            0
+                        };
+                        let qu = if y > 0 {
+                            quantize_residual(res_dec[i - width])
+                        } else {
+                            0
+                        };
+                        let cand = ql == 0 && qu == 0;
+                        let rcid = if model.cmarc_residual_ctx {
+                            cmarc_residual_context_of(
+                                &plane,
+                                pi,
+                                x,
+                                y,
+                                width,
+                                height,
+                                &cm,
+                                &model,
+                                wv.as_ref(),
+                                &ranges[pi],
+                            )
+                        } else {
+                            cid
+                        };
+                        let slot = rcid * bins_per_ctx;
+                        if cand {
+                            let is_run =
+                                dec.get(&mut models[slot + CMARC_RUN_FLAG])?;
+                            if is_run {
+                                let run_len = cmarc_run_read_gamma(
+                                    &mut dec,
+                                    &mut models,
+                                    slot,
+                                )? as usize;
+                                for l in 0..run_len {
+                                    let j = i + l;
+                                    let xj = j % width;
+                                    let yj = j / width;
+                                    let nbj =
+                                        neighbors(&plane, xj, yj, width, height);
+                                    let cidj =
+                                        cm.context_id(&nbj, xj, yj) % model.context_count;
+                                    let pj = model.predictor(pi, cidj);
+                                    let predj = predict_clamped(
+                                        pj,
+                                        &nbj,
+                                        wv.as_ref(),
+                                        ranges[pi],
+                                    );
+                                    plane[j] = predj as i16;
+                                    res_dec[j] = 0;
+                                }
+                                i += run_len;
+                                continue;
+                            }
+                            let r = cmarc_read_residual(
+                                &mut dec,
+                                &mut models,
+                                &mut ctxs[rcid],
+                                rcid,
+                            )?;
+                            plane[i] = (pred + r) as i16;
+                            res_dec[i] = r;
+                            i += 1;
+                        } else {
+                            let r = cmarc_read_residual(
+                                &mut dec,
+                                &mut models,
+                                &mut ctxs[rcid],
+                                rcid,
+                            )?;
+                            plane[i] = (pred + r) as i16;
+                            res_dec[i] = r;
+                            i += 1;
+                        }
+                    }
                 } else {
                     for y in 0..height {
                         for x in 0..width {
@@ -1090,6 +1190,7 @@ mod tests {
                     cross_channel: None,
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
+            cmarc_run: None,
                 },
             )
             .unwrap();
@@ -1119,6 +1220,7 @@ mod tests {
                     cross_channel: None,
                     cmarc_residual_ctx: Some(true),
                     cmarc_residual_ctx_auto: false,
+            cmarc_run: None,
                 },
             )
             .unwrap();
@@ -1149,6 +1251,7 @@ mod tests {
                 cross_channel: None,
                 cmarc_residual_ctx: None,
                 cmarc_residual_ctx_auto: true,
+            cmarc_run: None,
             },
         )
         .unwrap();
