@@ -31,6 +31,9 @@ measure "obsidian-cmarc-safnet"  /usr/bin/env OBSIDIAN_CARC=1
 measure "obsidian-cmarc-safnet+xchan" /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_XCHAN=1
 measure "obsidian-cmarc-force"   /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_CARC_FORCE=1
 measure "obsidian-cmarc-force+resctx" /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_CARC_FORCE=1 OBSIDIAN_CARC_RESIDUAL_CTX=1
+measure "obsidian-r3c-run-force" /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_CARC_RUN=1 OBSIDIAN_CARC_RUN_FORCE=1
+measure "obsidian-r3c-run-safnet" /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_CARC_RUN=1
+measure "obsidian-r3c-run-safnet+xchan" /usr/bin/env OBSIDIAN_CARC=1 OBSIDIAN_CARC_RUN=1 OBSIDIAN_XCHAN=1
 
 echo "==> wrote $OUT"
 echo "==> means (bpp):"

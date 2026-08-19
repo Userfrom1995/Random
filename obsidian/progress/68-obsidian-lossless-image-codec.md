@@ -410,4 +410,87 @@ Means (bpp), lower is better:
 2. Maintainer: WebP is cleared but JPEG XL is not, so per the owner override the
    PR stays open until all three gates are beaten bit-exactly.
 
+# =====================================================================
+# R3-C JPEG-LS RUN MODE (2026-08-19, builder) - measured NEUTRAL, gate open
+# =====================================================================
+#
+# Status: DONE (bit-exact, safe, off-by-default) and MEASURED on real Kodak.
+# R3-C does NOT clear the JPEG XL 8.71 gate. It is neutral at best and net
+# negative when forced; the never-expand safety net therefore never selects it.
+
+## What changed
+- `model.rs`: added `cmarc_run: bool` to `ModelConfig` (default false in both
+  `default()` fns); `write_model`/`read_model` carry one extra byte so the
+  decoder mirrors the choice. Signaled, not implied by `entropy_mode`.
+- `rans.rs`: added `CMARC_BIN_RUN`, `CMARC_RUN_FLAG`, `CMARC_RUN_GAMMA_U`,
+  `CMARC_RUN_GAMMA_L`, `CMARC_RUN_MIN = 8`, and resized `CMARC_BINS_TOTAL =
+  CMARC_BIN_RUN + 3`; added `cmarc_run_write_gamma`/`cmarc_run_read_gamma`
+  (Elias-gamma with a unary stop bit + k LSB-first low bits, lockstep-exact).
+- `encoder.rs`: `EncodeOpts.cmarc_run: Option<bool>` (default false), env seams
+  `OBSIDIAN_CARC_RUN` (opt-in) and `OBSIDIAN_CARC_RUN_FORCE` (bypass the safety
+  net to measure raw run cost); plain-CMARC branch rewritten with a run candidate
+  pre-pass (`cand[i]` = both causal neighbor residuals quantize to ~0) and a
+  maximal run of `>= CMARC_RUN_MIN` zero-residual pixels coded as one run flag +
+  Elias-gamma length (run body copied from prediction, bit-exact by induction).
+- `decoder.rs`: plain-CMARC branch mirrors the run candidate + run flag/gamma and
+  copies prediction for run-body pixels.
+- Run mode is gated by `model.cmarc_run` (mirrored, OFF unless opted in); the
+  never-expand safety net keeps it only when its total is strictly smaller than
+  the current best CMARC total.
+
+## Verification (unit + full-image, all GREEN)
+- `cargo test -p obsidian_core`: 117 passed / 0 failed / 2 ignored. Two new
+  tests: `encoder::r3c_run_mode_roundtrip` (bit-exact via the force seam) and
+  `encoder::r3c_run_mode_off_by_default`.
+- Real Kodak full-image round-trips stay `fidelity: ok` in both run and normal
+  paths. Fixed a double-offset bug (the gamma call was passed `slot +
+  CMARC_RUN_FLAG` while the gamma helper adds `CMARC_RUN_GAMMA_U` again) that
+  caused an out-of-bounds panic on images with high-context-id runs; base is now
+  `slot` on both sides.
+
+## Measurement (real Kodak, effort 4, 24 PPMs)
+CSV: `benchmarks/results/2026-08-19-r3c-runmode.csv`. Means (bpp), lower better:
+
+| config                          | mean bpp | note                                  |
+|---------------------------------|----------|---------------------------------------|
+| obsidian-cmarc-safnet+xchan     |  9.7094  | current BEST (gate baseline)          |
+| obsidian-r3c-run-safnet+xchan   |  9.7094  | run in safety net: identical (never wins) |
+| obsidian-r3c-run-safnet         |  9.7579  | run in safety net, no xchan: identical |
+| obsidian-r3c-run-force          |  9.7808  | run forced past the net: net WORSE    |
+
+Per-image the pattern is consistent: e.g. kodim02 gradient CMARC =
+457043 bytes (9.2986) while run-FORCED = 457743 (9.3128) - run mode is
++700 bytes WORSE even on the image where runs fire most. The safety net
+correctly refuses run mode on every Kodak image.
+
+## Honesty checkpoint: WHY run mode cannot beat CMARC here
+The R5 quotient fix made the zero residual a SINGLE cheap adaptive bin in CMARC
+(~1 bit throughput, well-modeled by the per-(cid,bin) model). JPEG-LS run mode
+helps when a zero residual is expensive; here it is already ~free, so the run
+flag + Elias-gamma overhead (paid per run start, through a cold adaptive model
+that sees too few run starts per context to specialize) is pure cost with no
+matching saving on photographic content. Exact-zero residual runs are also rare
+on real photos (residuals are near-zero, not exactly zero). This is the SAME
+conclusion as R3-A: adding context/id features to this model structure does not
+lower the residual-entropy ceiling; what is missing is a richer marginal / state
+model or a stronger predictor - a research/architecture task.
+
+## Gates (real Kodak, authoritative)
+- PNG 13.05: MET (GR 10.0906 < 13.05).
+- WebP 9.61: MET (best 9.7093 < 9.61).
+- JPEG XL 8.71: UNMET. Best Obsidian = 9.7094 (cmarc-safnet+xchan), 0.999 bpp above.
+  R3-C does not move this number: run mode is neutral-to-negative.
+
+## Next actions
+1. Architect/Researcher: the JPEG XL gap (~0.999 bpp) is NOT closable by more
+   CMARC backends over the current per-(cid,bin) binary model. The remaining
+   levers are a richer marginal/state model (per-context QM-coder state), a
+   stronger spatial/cross-channel predictor, or a context-mixing design that
+   actually wins on photographic residuals. R2.4 logistic-mix was already
+   measured as net-negative; R3-C run mode is now measured as neutral-to-negative.
+   The blocker is the residual-entropy ceiling, a research task - escalate.
+2. Maintainer: keep PR #83 open (JPEG XL not cleared bit-exactly); do not merge
+   per the owner override. R3-C lands off-by-default (safe, no regression).
+
+
 
