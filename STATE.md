@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~18:05Z, maintainer run 32285144475, owner `/oc maintainer` on PR #90; Tester approved -> merged). **DECISIONS:** `[]` - PR #90 merged directly (no trigger needed); #68 reopened (auto-closed by a literal `'Closes #68'` in the merged commit body); pages.yml re-triggered.
+- **Updated:** 2026-08-19 (~18:41Z, maintainer run 32288753918, schedule) - re-fired `continue` on PR #83 (head `df7942c`, unchanged) to implement R11; prior `continue` (32284310731) had not produced an implementation commit and no Builder was in flight. PR #90 MERGED (32285144475); #68 reopened.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -27,24 +27,24 @@
 
 ## Priority project (the fundamental goal)
 
-- **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED (was auto-closed by PR #90's merge, reopened 18:05Z); stays OPEN until codecs beaten.
+- **Issue #68 (Obsidian: lossless image-compression codec competitive with JPEG XL / WebP, Kodak-benchmarked).** REOPENED (auto-closed by PR #90's merge, reopened 18:05Z); stays OPEN until codecs beaten.
 - **M0 COMPLETE & MERGED** (PR #82).
 - **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `df7942c`):
   - **DEFAULT shipped codec = 9.5208 bpp mean** (R10-B CFL committed; real Kodak effort-4, reproducible, `2026-08-19-r10.csv`). Beats optipng PNG (13.05) and WebP (9.61) - **both gates MET**. **JPEG XL 8.71 MISSED by ~0.81 bpp** (17/24 images above 8.71). Bit-exact.
   - **R10 build (2026-08-19):** R10-A Squeeze INERT on photographic Kodak (adds ~91 KB on kodim01; never-expand net discards it). R10-B CFL is the ONLY R10 component that helps (~0.5 bpp gain) and is kept. Combined moved the codec 9.6678 -> 9.5208 bpp (WebP gate cleared).
   - **KEY DIAGNOSIS:** the codec is pinned at the ~9.52 bpp ceiling for PNG + WebP. The ~0.81 bpp to JPEG XL is the per-pixel CMARC pipeline's ceiling WITHOUT a cross-band/property-tree (MA) in-loop context model. The fix is a cross-band predictor that references the LL sub-band sample at the same (i,j).
-  - **R11 blueprint DELIVERED (17:40Z, Architect, commit `df7942c`):** threads co-located LL sample into `Neighbors` (`ll` field), adds `PredictorId::CrossBand = 19`, extends R9-B `WeightedTree` to a 6x6 basis `(L, T, TL, TR, ll, 1)`, decodes with zero signaled bytes. Build order R11-A (levels=1) -> R11-B (deep) -> R11-C (analyzer selects CrossBand / exploits `wLL`) -> R11-D (MA-tree context). Worst case ships unchanged 9.5208 (no regression).
+  - **R11 blueprint DELIVERED (17:40Z, Architect, commit `df7942c`):** threads co-located LL sample into `Neighbors` (`ll` field), adds `PredictorId::CrossBand = 19`, extends R9-B `WeightedTree` to a 6x6 basis `(L, T, TL, TR, ll, 1)`, decodes with zero signaled bytes. Build order R11-A (levels=1) -> R11-B (deep) -> R11-C (analyzer selects CrossBand / exploits `wLL`) -> R11-D (MA-tree context). Worst case ships unchanged 9.5208 (no regression). **R11 NOT yet implemented - head is still the blueprint `df7942c`.**
 
 ## In flight
 
-- **PR #90 (Factory infra PR) - MERGED (18:05Z, run 32285144475).** Branch `opencode/factory-68-build-loop-duplicate-guard` preserved (no delete). Merged commit `b85f30e` on `main`. Delivered: duplicate-Builder `concurrency` guard (lines 289-294) + reliable head-ref orphan guard (resolve build branch from `gh pr view headRefName`, force-update plain local ref `refs/buildbranch`). PR body non-closing (no `Closes #68`). This is infra, outside the 2-projects/day limit. pages.yml re-triggered (run 32285487262). The merged commit body contained a literal `'Closes #68'` that auto-closed #68; #68 reopened.
-- **PR #83 (Obsidian, branch `opencode/issue68-20260818070512`, head `df7942c`):** R11 blueprint delivered. `continue` fired on run 32284310731 to implement R11-A/B/C/D and re-measure REAL Kodak effort-4 against the JPEG XL 8.71 gate. One-PR rule intact. Orphan-main break + unmet JXL gate still apply. `mergeable: CONFLICTING/dirty`.
+- **PR #83 (Obsidian, branch `opencode/issue68-20260818070512`, head `df7942c`):** R11 blueprint delivered. `continue` re-fired on run 32288753918 to implement R11-A/B/C/D and re-measure REAL Kodak effort-4 against the JPEG XL 8.71 gate. One-PR rule intact. Orphan-main break + unmet JXL gate still apply. `mergeable: UNKNOWN`/CONFLICTING. Default 9.5208 (PNG + WebP MET; JXL unmet by +0.81). R10-A Squeeze inert; R10-B CFL helps. No implementation commit yet for R11.
+- **PR #90 (Factory infra PR) - MERGED (18:05Z, run 32285144475).** Branch `opencode/factory-68-build-loop-duplicate-guard` preserved (no delete). Merged commit `b85f30e` on `main`. Delivered: duplicate-Builder `concurrency` guard + reliable head-ref orphan guard. PR body non-closing (no `Closes #68`). This is infra, outside the 2-projects/day limit. pages.yml re-triggered. The merged commit body contained a literal `'Closes #68'` that auto-closed #68; #68 reopened.
 
 ## PENDING (deferred)
 
-- **Clear JPEG XL 8.71 gate:** ~0.81 above; the hard long pole. Needs R11 (cross-band / property-tree MA in-loop predictor) built by the Builder, re-measured on REAL durable Kodak.
+- **Clear JPEG XL 8.71 gate:** ~0.81 above; the hard long pole. Needs R11 (cross-band / property-tree MA in-loop predictor) built by the Builder, re-measured on REAL durable Kodak. (Re-engaged via `continue` this run.)
 - **README / index.html Obsidian promotion** (standing directive, deferred until gates near - now that WebP is cleared, this should be scheduled soon).
-- **Orphan-main re-link:** blocked on the App's ability to push `main`; the recurrence root cause in `opencode.yml` must be fixed before #83 can merge. The new orphan guard in PR #90 will ROUTE such cases to the Maintainer instead of merging, but `main` itself still needs re-linking. Now that `workflows` permission is CONFIRMED, the Factory can fix the recurrence root cause - candidate for a future `factory` trigger.
+- **Orphan-main re-link:** blocked on the App's ability to push `main`; the recurrence root cause in `opencode.yml` must be fixed before #83 can merge. The new orphan guard in PR #90 will ROUTE such cases to the Maintainer instead of merging, but `main` itself still needs re-linking. Now that `workflows` permission is CONFIRMED, the Factory can fix the recurrence root cause - candidate for a future `factory` trigger (deferred until JXL gate is closer).
 - **FUTURE `factory` candidate:** fix the merge step in `opencode.yml` that force-writes the orphan root on `main`, so the orphan-main recurrence cannot recur (and re-link `main` to the obsidian branch). Possible now that workflow edits land.
 - **Commit-message hygiene:** never write the literal `Closes #68` token (even quoted/negated) in any commit message - GitHub auto-closes #68 on merge.
 
@@ -59,20 +59,20 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `b85f30e` (post PR #90 merge).
-- **PR #83:** OPEN, head `df7942c`, **rebase-unmergeable** (orphan-main break, recurrence, Factory-caused; API CONFLICTING/dirty). Default 9.5208 (PNG + WebP MET; JXL unmet by +0.81). R10-A Squeeze inert; R10-B CFL helps. R11 blueprint delivered; Builder to implement R11-A..D via run 32284310731 `continue`.
+- **PR #83:** OPEN, head `df7942c`, **rebase-unmergeable** (orphan-main break, recurrence, Factory-caused; API CONFLICTING/UNKNOWN). Default 9.5208 (PNG 13.05 + WebP 9.61 MET; JXL 8.71 unmet by +0.81). R10-A Squeeze inert; R10-B CFL helps. R11 blueprint delivered; Builder to implement R11-A..D via run 32288753918 `continue`.
 - **PR #90:** MERGED (18:05Z, run 32285144475). infra hardening on `main`; branch preserved; #68 reopened.
 
 ## Next steps
 
-1. **PR #83 `continue` (already fired run 32284310731):** Builder implements R11-A (levels=1 cross-band predictor) first, re-measures REAL Kodak effort-4, then stacks R11-B/C/D. Record `benchmarks/results/2026-08-19-r11-*.csv`. Each stage measured against the JPEG XL 8.71 gate.
-2. **After R11 measured:** if JPEG XL gate clears (default < 8.71 bpp, alongside PNG 13.05 + WebP 9.61), rebase-merge (`--no-delete-branch`), close #68.
+1. **PR #83 `continue` (re-fired run 32288753918):** Builder implements R11-A (levels=1 cross-band predictor) first, re-measures REAL Kodak effort-4, then stacks R11-B/C/D. Record `benchmarks/results/2026-08-19-r11-*.csv`. Each stage measured against the JPEG XL 8.71 gate.
+2. **After R11 measured:** if JPEG XL gate clears (default < 8.71 bpp, alongside PNG 13.05 + WebP 9.61), rebase-merge (`--no-delete-branch`) - but only AFTER the Factory re-links `main` (orphan break fixed) - then close #68.
 3. **README / index.html promotion:** schedule a Builder/Factory pass to promote Obsidian as Current now that WebP is cleared.
 4. **Orphan-main re-link + fix recurrence root cause in `opencode.yml`** (candidate `factory` trigger now that `workflows` permission is confirmed); re-link `main` to the obsidian branch before #83 merges.
 5. **Commit-message hygiene:** enforce "never write literal `Closes #68`" in Factory/Builder commits (GitHub auto-close bug that bit #68 this run).
 
 ## Open questions
 
-- **Can R11 (cross-band / MA in-loop predictor) clear the +0.81 JPEG XL gap on REAL Kodak?** Transform + cross-band context is the only remaining blueprinted lever after every per-pixel enhancement (R1-R10) proved inert. WebP is cleared; JPEG XL is the hard long pole. Empirical verdict pending the Builder's R11 build (run 32284310731 `continue`) + real-Kodak re-measure.
+- **Can R11 (cross-band / MA in-loop predictor) clear the +0.81 JPEG XL gap on REAL Kodak?** Transform + cross-band context is the only remaining blueprinted lever after every per-pixel enhancement (R1-R10) proved inert. WebP is cleared; JPEG XL is the hard long pole. Empirical verdict pending the Builder's R11 build (run 32288753918 `continue`) + real-Kodak re-measure.
 - **Merge gate (owner override #2):** NOT met - default 9.5208 bpp > 8.71 JXL (PNG 13.05 + WebP 9.61 already MET). No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **Orphan-main break (recurrence):** `main` = `8f4c15b` orphan; branch = orphan root -> `df7942c`. `git merge-base` empty (confirmed exit 1). The new orphan guard (PR #90, now on `main`) will ROUTE such cases to the Maintainer instead of merging, but `main` itself still needs re-linking. The Factory can fix the recurrence root cause now that workflow edits land; non-blocking now (gate unmet) but must be fixed before #83 merges.
 - **#68 auto-close incident RESOLVED:** reopened 18:05Z after the PR #90 merge commit `b85f30e` body literally contained `'Closes #68'`. Future commits must avoid that token.
