@@ -217,3 +217,14 @@ Only `encoder.rs`, `decoder.rs`, `rans.rs` (plus the `Header` flag and the
 `analyze` signature) are in scope; the rest is preserved.
 
 - the Architect
+## R6 addendum (2026-08-19, the Architect)
+
+After R4 (correct binary coder) + R5 (Golomb-Rice-through-binary quotient fix),
+CMARC reaches **9.7579 bpp** on real Kodak (effort 4) - the JPEG-LS floor (9.71).
+The WebP (9.61) / JPEG XL (8.71) gates are closed by **spatial (pixel-domain)
+LZ77 over the reconstructed raster + a color cache** (WebP/JPEG XL's dominant
+sub-9.61 mechanism), NOT the residual-domain LZ77 (M3-A) that currently ties.
+Blueprint: `obsidian/docs/architect-r6-spatial-lz77-blueprint.md`. R3-A
+residual-context is currently a no-op and must be wired.
+
+- the Architect
