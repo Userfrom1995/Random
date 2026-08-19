@@ -7,7 +7,7 @@
 use crate::color::{
     try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, ColorCache, Palette, PlaneRange, TransformChoice,
 };
-use crate::context::{zigzag, ContextModel, ContextParams, residual_context, quantize_residual};
+use crate::context::{zigzag, ContextModel, ContextParams, residual_context};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::{Header, HEADER_LEN};
@@ -1298,51 +1298,32 @@ fn code_planes(
                         }
                     }
                 } else if model.cmarc_run {
-                    // R3-C: JPEG-LS-style run mode. Precompute every pixel's
-                    // residual and run-candidate flag (both causal neighbor
-                    // residuals quantize to ~0). A maximal run of `>= CMARC_RUN_MIN`
-                    // consecutive zero-residual pixels is coded as a single run
-                    // flag + Elias-gamma length; every interior run pixel is copied
-                    // from its prediction (bit-exact by induction, since the
-                    // decoder reconstructs the same neighbors). Non-run pixels and
-                    // sub-threshold runs are coded with the normal CMARC residual.
+                    // R9-C run mode (genuine JPEG-LS-style copy-prev-val run):
+                    // when the current reconstructed value equals its left neighbor
+                    // (so the pixel equals the previous reconstructed value), a run of
+                    // equal values is coded as a single run flag + Elias-gamma length;
+                    // the decoder reconstructs every run pixel as the left value
+                    // (prev_val). This is bit-exact by induction because the encoder
+                    // only runs where the original values are equal, so the decoder's
+                    // `plane` equals the encoder's `coding_planes` everywhere. Runs are
+                    // far more general than the earlier exact-zero-residual trigger and
+                    // fire on flat / constant regions. The never-expand safety net keeps
+                    // run mode only when it is the smallest CMARC candidate, so it can
+                    // never expand the file. See blueprint R9-C (`progress/68-...`).
                     let area = width * height;
-                    let mut res = vec![0i32; area];
-                    let mut cand = vec![false; area];
-                    for yy in 0..height {
-                        for xx in 0..width {
-                            let idx = yy * width + xx;
-                            let nb = neighbors(&coding_planes[pi], xx, yy, width, height);
-                            let cidp = cm.context_id(&nb, xx, yy) % model.context_count;
-                            let pp = model.predictor(pi, cidp);
-                            let predp =
-                                predict_clamped(pp, &nb, wv.as_ref(), wtree, ranges[pi]);
-                            let rp = coding_planes[pi][idx] as i32 - predp;
-                            res[idx] = rp;
-                            let ql = if xx > 0 {
-                                quantize_residual(res[idx - 1])
-                            } else {
-                                0
-                            };
-                            let qu = if yy > 0 {
-                                quantize_residual(res[idx - width])
-                            } else {
-                                0
-                            };
-                            cand[idx] = ql == 0 && qu == 0;
-                        }
-                    }
+                    let plane = &coding_planes[pi];
                     let mut i = 0usize;
                     while i < area {
                         let x = i % width;
                         let y = i / width;
-                        let nb = neighbors(&coding_planes[pi], x, y, width, height);
+                        let nb = neighbors(plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
+                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
-                                &coding_planes[pi],
+                                plane,
                                 pi,
                                 x,
                                 y,
@@ -1358,53 +1339,35 @@ fn code_planes(
                             cid
                         };
                         let slot = rcid * bins_per_ctx;
-                        if cand[i] {
-                            // Run candidate: measure the maximal run of zero
-                            // residuals starting here.
-                            let mut run_len = 0usize;
-                            if res[i] == 0 {
-                                while i + run_len < area && res[i + run_len] == 0 {
-                                    run_len += 1;
-                                }
+                        // Copy-prev-val run trigger: the reconstructed value equals the
+                        // left neighbor, so the run value is `lval`. We only run when a
+                        // maximal run of `>= CMARC_RUN_MIN` equal values exists.
+                        let lval = if x > 0 { plane[i - 1] as i32 } else { i32::MIN };
+                        let mut run_len = 0usize;
+                        if x > 0 && (plane[i] as i32) == lval {
+                            while i + run_len < area && (plane[i + run_len] as i32) == lval {
+                                run_len += 1;
                             }
-                            let use_run = run_len >= CMARC_RUN_MIN;
-                            enc.put(
-                                &mut models[slot + CMARC_RUN_FLAG],
-                                use_run,
-                            );
-                            if use_run {
-                                cmarc_run_write_gamma(
-                                    &mut enc,
-                                    &mut models,
-                                    slot,
-                                    run_len as u32,
-                                );
-                                chosen_counts[p.to_u8() as usize] += run_len;
-                                i += run_len;
-                                continue;
-                            }
-                            cmarc_write_residual(
-                                &mut enc,
-                                &mut models,
-                                &mut ctxs[rcid],
-                                cid,
-                                rcid,
-                                res[i],
-                            );
-                            chosen_counts[p.to_u8() as usize] += 1;
-                            i += 1;
-                        } else {
-                            cmarc_write_residual(
-                                &mut enc,
-                                &mut models,
-                                &mut ctxs[rcid],
-                                cid,
-                                rcid,
-                                res[i],
-                            );
-                            chosen_counts[p.to_u8() as usize] += 1;
-                            i += 1;
                         }
+                        let use_run = run_len >= CMARC_RUN_MIN;
+                        enc.put(&mut models[slot + CMARC_RUN_FLAG], use_run);
+                        if use_run {
+                            cmarc_run_write_gamma(&mut enc, &mut models, slot, run_len as u32);
+                            chosen_counts[p.to_u8() as usize] += run_len;
+                            i += run_len;
+                            continue;
+                        }
+                        let r = plane[i] as i32 - pred;
+                        cmarc_write_residual(
+                            &mut enc,
+                            &mut models,
+                            &mut ctxs[rcid],
+                            cid,
+                            rcid,
+                            r,
+                        );
+                        chosen_counts[p.to_u8() as usize] += 1;
+                        i += 1;
                     }
                 } else {
                     // R6-B color cache: per-plane LRU of reconstructed sample values.

@@ -4,7 +4,7 @@
 use crate::color::{
     subtract_green_inverse_planes, ycocgr_inverse_planes, ColorCache, PlaneRange, TransformChoice,
 };
-use crate::context::{unzigzag, ContextModel, residual_context, quantize_residual};
+use crate::context::{unzigzag, ContextModel, residual_context};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::Header;
@@ -639,17 +639,13 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         }
                     }
                 } else if model.cmarc_run {
-                    // R3-C decode: mirror the encoder's run mode. The decoder
-                    // tracks each reconstructed residual in `res_dec` so it can
-                    // compute the run-candidate flag (both causal neighbor
-                    // residuals quantize to ~0) identically to the encoder. When a
-                    // candidate pixel carries a run flag, it reads an Elias-gamma
-                    // run length and copies the prediction for that many pixels
-                    // (bit-exact by induction; the encoder's run pixels all equal
-                    // their prediction). Otherwise it reads the normal CMARC
-                    // residual.
+                    // R9-C decode: mirror the encoder's copy-prev-val run. The decoder
+                    // reads a run flag per pixel; on a run it reads an Elias-gamma run
+                    // length and reconstructs that many pixels as the left reconstructed
+                    // value (prev_val), which equals the encoder's run value because the
+                    // encoder only runs where the original values are equal (bit-exact
+                    // by induction). Non-run pixels read the normal CMARC residual.
                     let area = width * height;
-                    let mut res_dec = vec![0i32; area];
                     let mut i = 0usize;
                     while i < area {
                         let x = i % width;
@@ -658,17 +654,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor(pi, cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
-                        let ql = if x > 0 {
-                            quantize_residual(res_dec[i - 1])
-                        } else {
-                            0
-                        };
-                        let qu = if y > 0 {
-                            quantize_residual(res_dec[i - width])
-                        } else {
-                            0
-                        };
-                        let cand = ql == 0 && qu == 0;
+                        // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
                                 &plane,
@@ -687,59 +673,26 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
                             cid
                         };
                         let slot = rcid * bins_per_ctx;
-                        if cand {
-                            let is_run =
-                                dec.get(&mut models[slot + CMARC_RUN_FLAG])?;
-                            if is_run {
-                                let run_len = cmarc_run_read_gamma(
-                                    &mut dec,
-                                    &mut models,
-                                    slot,
-                                )? as usize;
-                                for l in 0..run_len {
-                                    let j = i + l;
-                                    let xj = j % width;
-                                    let yj = j / width;
-                                    let nbj =
-                                        neighbors(&plane, xj, yj, width, height);
-                                    let cidj =
-                                        cm.context_id(&nbj, xj, yj) % model.context_count;
-                                    let pj = model.predictor(pi, cidj);
-                                    let predj = predict_clamped(
-                                        pj,
-                                        &nbj,
-                                        wv.as_ref(),
-                                        wtree,
-                                        ranges[pi],
-                                    );
-                                    plane[j] = predj as i16;
-                                    res_dec[j] = 0;
-                                }
-                                i += run_len;
-                                continue;
+                        let is_run = dec.get(&mut models[slot + CMARC_RUN_FLAG])?;
+                        if is_run {
+                            let run_len =
+                                cmarc_run_read_gamma(&mut dec, &mut models, slot)? as usize;
+                            let lval = plane[i - 1] as i32;
+                            for l in 0..run_len {
+                                plane[i + l] = lval as i16;
                             }
-                            let r = cmarc_read_residual(
-                                &mut dec,
-                                &mut models,
-                                &mut ctxs[rcid],
-                                cid,
-                                rcid,
-                            )?;
-                            plane[i] = (pred + r) as i16;
-                            res_dec[i] = r;
-                            i += 1;
-                        } else {
-                            let r = cmarc_read_residual(
-                                &mut dec,
-                                &mut models,
-                                &mut ctxs[rcid],
-                                cid,
-                                rcid,
-                            )?;
-                            plane[i] = (pred + r) as i16;
-                            res_dec[i] = r;
-                            i += 1;
+                            i += run_len;
+                            continue;
                         }
+                        let r = cmarc_read_residual(
+                            &mut dec,
+                            &mut models,
+                            &mut ctxs[rcid],
+                            cid,
+                            rcid,
+                        )?;
+                        plane[i] = (pred + r) as i16;
+                        i += 1;
                     }
                 } else if is_cache {
                     // R6-B decode (Component A): mirror the encoder's per-plane LRU
