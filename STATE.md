@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~07:50Z, maintainer run 32229666573 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder to push R2.4 (logistic context mixing) toward the WebP 9.61 / JPEG XL 8.71 gates. The default codec is now CMARC (Builder made it the production default at `e3add6a`). No Builder build currently in flight, so no duplicate. Orphan-main break RESOLVED (PR MERGEABLE, merge-base == origin/main). Best real-Kodak default = **~9.71 bpp** (still ~0.10 above WebP 9.61, ~1.0 above JPEG XL 8.71). No merge (owner override: default codec must beat all three gates). One PR preserved.
+- **Updated:** 2026-08-19 (~07:58Z, maintainer run 32230364132 on PR #83). **DECISIONS:** `[{"action":"continue","pr":83}]` - resume the Builder to implement R2.4 (logistic context mixing) on the correct CACM87 core toward the WebP 9.61 / JPEG XL 8.71 gates. Default codec is now CMARC (~9.71 bpp best). No Builder build in flight, so no duplicate. Orphan-main break RESOLVED (PR MERGEABLE, merge-base == origin/main). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -16,7 +16,7 @@
 
 ## CRITICAL INFRASTRUCTURE STATE (orphan-main break RESOLVED; rebase satisfied)
 
-- **Mergeability (FIXED):** PR #83 OPEN, head `e3add6a9e9d6548b32bf976ca39f46ec6167d871`, `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`. `git merge-base origin/main opencode/issue68-20260818070512` == `8f4c15b` (== origin/main) - verified live this run. The Builder's earlier re-anchor commits (`833597f`, `058e045`) plus the durable Kodak corpus keep the branch re-linked to `main`, so `--rebase` is possible whenever the gate is met. No new PR needed.
+- **Mergeability (FIXED):** PR #83 OPEN, head `e3add6a9e9d6548b32bf976ca39f46ec6167d871`, `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`. `git merge-base origin/main opencode/issue68-20260818070512` == `8f4c15b` (== origin/main) - verified live this run. The Builder's re-anchor commits (`833597f`, `058e045`, `75e2eaa`) plus the durable Kodak corpus keep the branch re-linked to `main`, so `--rebase` is possible whenever the gate is met. No new PR needed.
 
 ## Priority project (the fundamental goal)
 
@@ -24,7 +24,7 @@
 - **M0 COMPLETE & MERGED** (PR #82).
 - **M1 OPEN as PR #83** (single canonical PR, branch `opencode/issue68-20260818070512`, head `e3add6a`). Real Kodak (effort 4) numbers, 24-image PCD0992 set:
   - **DEFAULT shipped codec = CMARC + subtract-green (never-expand net per-image auto-selects best of {GR, CMARC, CARC_LZ, CARC_MIX}): ~9.71 bpp mean** (PNG 13.05 MET; WebP 9.61 MISSED by ~0.10 bpp; JPEG XL 8.71 MISSED by ~1.0 bpp). Bit-exact (8000 fuzz, CRC).
-  - Forced CARC mean = 10.34 (forced never auto-picks the best backend); the safety-net default number that actually ships is ~9.71.
+  - Forced CARC mean = 9.7579; gr = 10.0906. The safety-net default number that actually ships is ~9.71.
   - Default `encode()` now engages CMARC unless `OBSIDIAN_CARC=0`; cross-channel subtract-green defaults ON when CMARC is on.
 - **CMARC lineage (R1 -> R5) built; entropy core now correct (CACM87):**
   - **R4 coder = CACM87 (Witten-Neal-Cleary binary arithmetic coder)** - proven correct; efficiency gates `range_coder_skew_efficiency` + `cmarc_efficiency_vs_shannon` PASS (ratio < 1.10/1.20).
@@ -34,7 +34,7 @@
 
 ## In flight
 
-- **Builder (resume via `continue`, this run's decision):** implement **R2.4 (logistic context mixing / per-context prediction refinement)** on the correct CACM87 core to close the ~0.10 bpp gap to WebP 9.61, re-measuring real Kodak effort-4 reproducibly. R2.4 previously regressed on synthetic; it must be validated on REAL Kodak and only shipped if the safety net confirms a win (no regression). If WebP clears, continue toward JPEG XL 8.71 (~1.0 bpp further - the hard long pole). No Builder run currently queued/in-progress (last build landed at `e3add6a`), so the `continue` is not a duplicate.
+- **Builder (resume via `continue`, fired this run):** implement **R2.4 (logistic context mixing / per-context prediction refinement)** on the correct CACM87 core to close the ~0.10 bpp gap to WebP 9.61, re-measuring real Kodak effort-4 reproducibly. R2.4 previously regressed on synthetic; it must be validated on REAL Kodak and only shipped if the safety net confirms a win (no regression). If WebP clears, continue toward JPEG XL 8.71 (~1.0 bpp further - the hard long pole). No Builder run was in flight before this `continue`, so it is not a duplicate.
 - **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); since then the CMARC default switch (R4/R5/R3-C + Kodak corpus) was added. A fresh strict review is required before any merge, but deferred until the codec stabilizes near the gate.
 - No Architect / Researcher in flight.
 
@@ -70,7 +70,7 @@
 ## Open questions
 
 - **Will R2.4 close the ~0.10 bpp WebP gap on REAL Kodak?** Plausible on CACM87 (H(p)+epsilon); the safety net must confirm a win (no regression). JPEG XL 8.71 needs ~1.0 bpp more - the hard long pole.
-- **Merge gate (owner override #2):** NOT met - default ~9.71 bpp > WebP 9.61 > JXL 8.71. Even forced CARC (10.34) and best auto-selected (~9.71) miss WebP by ~0.10 and JXL by ~1.0.
+- **Merge gate (owner override #2):** NOT met - default ~9.71 bpp > WebP 9.61 > JXL 8.71. Even forced CARC (9.7579) and best auto-selected (~9.71) miss WebP by ~0.10 and JXL by ~1.0.
 - **Review staleness:** last approve at head ~96a6075; current head `e3add6a` has the CMARC default switch un-reviewed. Fresh review required pre-merge.
 - **README/index promotion gap:** Obsidian not promoted as Current on README.md / index.html despite the standing directive.
 - **Factory infra hardening:** `continue-on-error` still pending.
