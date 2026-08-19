@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~10:54Z, maintainer run 32244963019 on PR #83). **DECISIONS:** `architect` PR #83 - re-engage the Architect (Mode 2) to design **R7**: a QM-class adaptive coder that conditions on the neighbor-residual DIFF context WITHOUT multiplying independent per-(cid,bin) probability models (which is why R3-A stayed inert). Targets WebP 9.61 then JPEG XL 8.71. No merge (default 9.7093 bpp still above WebP 9.61 / JXL 8.71); one PR preserved.
+- **Updated:** 2026-08-19 (~11:00Z, maintainer run 32245495266 on PR #83). **DECISIONS:** `[]` (no trigger) - the R7 Architect pass is already in flight (run `32245495346`, owner `/oc architect` 11:00:43Z), so no duplicate. The Architect will write `continue` on delivery, resuming the Builder on the same branch to implement R7 (QM-class adaptive coder conditioned on neighbor-residual DIFF context WITHOUT per-(cid,bin) model starvation) and re-measure on reproducible real Kodak. No merge; one PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -39,8 +39,8 @@
 
 ## In flight
 
-- **Architect (this run, `architect` PR #83):** design **R7** - a QM-class adaptive entropy coder conditioned on the neighbor-residual DIFF context WITHOUT the per-(cid,bin) model multiplication that made R3-A inert. The context should select a small adaptive state / Rice parameter on a single shared binary arithmetic coder (JPEG-LS QM style) so rare contexts adapt quickly instead of starving. Target: clear WebP 9.61 first, then JXL 8.71. Deliver the blueprint on PR #83; then the Builder resumes via `continue`.
-- **No Builder / Researcher / Factory in flight.** Corrected R6 blueprint present and empirically disproven (R6-B dead, R3-A inert); next is the R7 Architect pass.
+- **Architect (run `32245495346`, owner `/oc architect` 11:00:43Z):** design **R7** - a QM-class adaptive entropy coder conditioned on the neighbor-residual DIFF context WITHOUT the per-(cid,bin) model multiplication that made R3-A inert. The context should select a small adaptive state / Rice parameter on a single shared binary arithmetic coder (JPEG-LS QM style) so rare contexts adapt quickly instead of starving. Target: clear WebP 9.61 first, then JXL 8.71. Deliver the blueprint on PR #83; then the Builder resumes via `continue` (the Architect run writes `continue` on delivery).
+- **No Builder / Researcher / Factory in flight.** Corrected R6 blueprint present and empirically disproven (R6-B dead, R3-A inert); R7 Architect pass is the active step.
 - **Review is STALE:** last `/oc approve` was at 2026-08-18 07:52Z (head ~`96a6075`); current head `1415814` un-reviewed. Fresh strict review required before any merge, deferred until the codec stabilizes near the gate.
 
 ## PENDING (deferred)
@@ -60,13 +60,13 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `8f4c15b`.
-- **PR #83:** OPEN, head `1415814`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). No held runs.
+- **PR #83:** OPEN, head `1415814`, `mergeable: MERGEABLE` (orphan break resolved). R6-B proven dead end; R3-A inert; default 9.7093 (PNG + JPEG-LS met; WebP/JXL unmet). R7 Architect in flight (run `32245495346`).
 - **PR #84 and PR #87:** both CLOSED (redundant second PRs for #68, rejected per one-PR rule).
 
 ## Next steps
 
-1. **Architect delivers R7 blueprint on PR #83** (this run's `architect`): QM-class adaptive coder conditioned on neighbor-residual DIFF context without per-(cid,bin) model starvation. Targets WebP 9.61 then JXL 8.71.
-2. **After R7 blueprint lands:** resume Builder via `continue` to implement R7, re-measuring REAL Kodak effort-4 reproducibly on the durably committed corpus. Keep every prior seam OFF by default behind the never-expand net.
+1. **Architect delivers R7 blueprint on PR #83 (run `32245495346` in flight):** QM-class adaptive coder conditioned on neighbor-residual DIFF context without per-(cid,bin) model starvation. Targets WebP 9.61 then JXL 8.71.
+2. **After R7 blueprint lands (Architect writes `continue`):** resume Builder via `continue` to implement R7, re-measuring REAL Kodak effort-4 reproducibly on the durably committed corpus. Keep every prior seam OFF by default behind the never-expand net.
 3. **If R7 design cannot plausibly clear WebP:** that finding escalates to the Researcher for a deeper algorithmic redesign (do not loop on band-aids). Do NOT merge until all three gates clear.
 4. **Re-fire strict `/oc review`** on the stabilized head; only merge after `/oc approve` + `/oc approve-test` with no newer `/oc fix`.
 5. **After a reproducible real-Kodak number below all three gates:** rebase-merge (`--no-delete-branch`), close #68.
