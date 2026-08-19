@@ -26,7 +26,7 @@ use crate::rans::{
     gr_adapt_bias, CmState, gr_write_symbol_k, write_match, MIN_MATCH, MAX_MATCH,
     CAPPED_SYMBOLS, CAPPED_ALPHABET, BinModel, RangeEnc, CarcCtx, cmarc_write_residual,
     cmarc_mag_bits, cmarc_bins_per_ctx, CMARC_RESIDUAL_CONTEXTS, cmarc_lz_bins_per_ctx, cmarc_lz_len_bin,
-    cmarc_lz_off_bin, cmarc_lz_write_gamma, cmarc_lz_write_literal, CMARC_LZ_FLAG,
+    cmarc_lz_drow_bin, cmarc_lz_dcol_bin, cmarc_lz_write_gamma, cmarc_lz_write_literal, CMARC_LZ_FLAG, lz_distance_zigzag,
     cmarc_mix_write_residual, MIX_INIT_W, cmarc_run_write_gamma, CMARC_RUN_FLAG, CMARC_RUN_MIN,
     cmarc_cache_write, CARC_CACHE_SIZE,
 };
@@ -1183,7 +1183,10 @@ fn code_planes(
                     let mut prev: Vec<i32> = vec![-1; area];
                     let mut i = 0usize;
                     while i < area {
-                        let m = if i + MIN_MATCH <= area {
+                        // R9-A: `MIN_MATCH` is now 2, so guard the finder with
+                        // `i + 3 <= area` to keep the 3-sample hash key (`buf[i..i+3)`)
+                        // in bounds (otherwise `buf[i+2]` reads past the plane end).
+                        let m = if i + 3 <= area {
                             lz_find_match(buf, i, area, &head, &prev, window, hash_mask)
                         } else {
                             None
@@ -1200,6 +1203,17 @@ fn code_planes(
                                     true,
                                 );
                                 let lmm = (length - MIN_MATCH) as u32 + 1;
+                                // R9-A: code the match distance in 2D rather than as a
+                                // single 1D `offset`. `drow_back` is the number of rows
+                                // the match is *back* (>= 0); `dcol` is the signed
+                                // horizontal delta (zigzag-coded, can be negative for
+                                // same-row matches). The decoder reconstructs
+                                // `match_pos = (y - drow_back)*width + (x + dcol)` and
+                                // copies from its own buffer, so the round-trip is
+                                // bit-exact by induction.
+                                let match_pos = i - offset;
+                                let drow_back = (y as i32 - (match_pos / width) as i32) as u32;
+                                let dcol = (match_pos % width) as i32 - x as i32;
                                 cmarc_lz_write_gamma(
                                     &mut enc,
                                     &mut models,
@@ -1209,8 +1223,14 @@ fn code_planes(
                                 cmarc_lz_write_gamma(
                                     &mut enc,
                                     &mut models,
-                                    slot + cmarc_lz_off_bin(mag_bits),
-                                    offset as u32,
+                                    slot + cmarc_lz_drow_bin(mag_bits),
+                                    drow_back + 1,
+                                );
+                                cmarc_lz_write_gamma(
+                                    &mut enc,
+                                    &mut models,
+                                    slot + cmarc_lz_dcol_bin(mag_bits),
+                                    lz_distance_zigzag(dcol),
                                 );
                                 let mut j = i;
                                 while j < i + length {
@@ -1511,7 +1531,9 @@ fn code_planes(
                 let mut data_bw = BitWriter::new();
                 let mut i = 0usize;
                 while i < area {
-                    let m = if i + MIN_MATCH <= area {
+                    // R9-A: guard with `i + 3 <= area` so the 3-sample hash key
+                    // stays in bounds (MIN_MATCH is now 2).
+                    let m = if i + 3 <= area {
                         lz_find_match(buf, i, area, &head, &prev, window, hash_mask)
                     } else {
                         None

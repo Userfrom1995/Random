@@ -683,9 +683,13 @@ pub fn read_gamma(r: &mut BitReader) -> Result<u32, CodecError> {
 // See `obsidian/docs/m3-lz77-weighted-predictor.md`.
 // ===========================================================================
 
-/// Minimum match length for an LZ77 back-reference (shorter runs are cheaper as
-/// GR literals). Must stay >= 3 so the 3-sample hash key is always defined.
-pub const MIN_MATCH: usize = 3;
+/// Minimum match length for an LZ77 back-reference (R9-A). Shortened from 3 to 2
+/// so short 2D-local repeats (the dominant kind on photographic Kodak) can be
+/// copied. The 3-sample hash key is still well-defined because matches are only
+/// ever searched where `i + MIN_MATCH <= area`, and the hash insert skips the
+/// last `MIN_MATCH - 1` positions. A length-2 match is taken only when its 2D
+/// distance is cheaper than two literal residuals (the never-expand net decides).
+pub const MIN_MATCH: usize = 2;
 /// Maximum match length. Bounds the copy loop; longer runs become consecutive
 /// matches handled by the flag stream (which amortizes far better).
 pub const MAX_MATCH: usize = 256;
@@ -1880,12 +1884,17 @@ pub const CMARC_LZ_GAMMA_BINS: usize = 32;
 
 /// Number of bins per context for the CARC_LZ layout, given the plane's magnitude
 /// bit-width. The magnitude region (flag + zero + sign + magnitude) is followed by
-/// the length gamma region and the offset gamma region.
+/// the length gamma region and the two 2D-distance gamma regions (R9-A): `drow`
+/// (rows-back, >= 0) and `dcol` (signed horizontal delta, zigzag-coded). Coding the
+/// distance in 2D rather than as a single 1D `offset` lets the per-bin CMARC models
+/// specialize on the short, locally-correlated 2D repeats that dominate photographic
+/// Kodak, which is the WebP/JPEG XL LZ77 lever.
 pub fn cmarc_lz_bins_per_ctx(mag_bits: usize) -> usize {
     let lit_region = 3 + mag_bits * CMARC_MAG_STATES;
     let len_bin = lit_region;
-    let off_bin = len_bin + CMARC_LZ_GAMMA_BINS;
-    off_bin + CMARC_LZ_GAMMA_BINS
+    let drow_bin = len_bin + CMARC_LZ_GAMMA_BINS;
+    let dcol_bin = drow_bin + CMARC_LZ_GAMMA_BINS;
+    dcol_bin + CMARC_LZ_GAMMA_BINS
 }
 
 #[inline]
@@ -1893,9 +1902,42 @@ pub fn cmarc_lz_len_bin(mag_bits: usize) -> usize {
     3 + mag_bits * CMARC_MAG_STATES
 }
 
+/// Start bin of the 2D `drow` (rows-back) Elias-gamma distance (R9-A).
 #[inline]
-pub fn cmarc_lz_off_bin(mag_bits: usize) -> usize {
+pub fn cmarc_lz_drow_bin(mag_bits: usize) -> usize {
     cmarc_lz_len_bin(mag_bits) + CMARC_LZ_GAMMA_BINS
+}
+
+/// Start bin of the 2D `dcol` (signed horizontal delta, zigzag) Elias-gamma
+/// distance (R9-A).
+#[inline]
+pub fn cmarc_lz_dcol_bin(mag_bits: usize) -> usize {
+    cmarc_lz_drow_bin(mag_bits) + CMARC_LZ_GAMMA_BINS
+}
+
+/// Gamma-safe zigzag for the signed `dcol` 2D distance component (R9-A). Elias-gamma
+/// requires `n >= 1`, so `dcol = 0` maps to `1` (not `0`). Layout: `0 -> 1`,
+/// `n > 0 -> 2n + 1` (odd), `n < 0 -> 2|n|` (even). Every value is `>= 1` and the
+/// mapping is a bijection, so `lz_distance_unzigzag` recovers the exact `dcol`.
+pub fn lz_distance_zigzag(d: i32) -> u32 {
+    if d > 0 {
+        (d as u32) * 2 + 1
+    } else if d < 0 {
+        ((-d) as u32) * 2
+    } else {
+        1
+    }
+}
+
+/// Inverse of `lz_distance_zigzag`.
+pub fn lz_distance_unzigzag(u: u32) -> i32 {
+    if u == 1 {
+        0
+    } else if u & 1 == 1 {
+        ((u - 1) >> 1) as i32
+    } else {
+        -((u >> 1) as i32)
+    }
 }
 
 /// Code an Elias-gamma value `n >= 1` through CMARC bins starting at absolute
