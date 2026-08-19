@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-19 (~04:58Z, maintainer run 32217642060). **DECISIONS:** `[{"action":"continue","pr":83,"head":"7f636a45107675d77877e51e02f4b6248861360c"}]` - re-fire the Builder to fix the GR_LZ WNC panic + CMARC no-op/explosion integration bugs and re-measure real Kodak (the prior continue's builder run completed without advancing the branch). No merge (gates unmet: 10.0906 bpp > WebP 9.61 / JXL 8.71, PNG 13.05 met). One PR preserved.
+- **Updated:** 2026-08-19 (~05:09Z, maintainer run 32218320979). **DECISIONS:** `[{"action":"continue","pr":83,"head":"7f636a45107675d77877e51e02f4b6248861360c"}]` - re-fire the Builder to fix the GR_LZ WNC panic + CMARC no-op/explosion integration bugs and re-measure real Kodak (the 05:03Z `continue` session completed without advancing the branch). No merge (gates unmet: 10.0906 bpp > WebP 9.61 / JXL 8.71, PNG 13.05 met). One PR preserved.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -28,13 +28,13 @@
 - **CMARC stack (R1 -> R2.4) + R3 + R4 built, all OFF by default (never-expand net).**
   - **R4 coder FIXED as CACM87 (this lineage):** the lossy LZMA/WNC range-coder ports were replaced with a correct **CACM87 (Witten-Neal-Cleary) binary arithmetic coder** (commits `aca6650`, `7f636a4`). The mandatory efficiency gates `range_coder_skew_efficiency` + `cmarc_efficiency_vs_shannon` PASS (measured_bps/shannon < 1.10/1.20). The arithmetic core is sound.
   - **OPEN DEFECT 1 (CMARC still a no-op / explodes):** with `OBSIDIAN_CARC_FORCE=1` the encoder output is byte-identical to GR on all 24 Kodak images, and/or the never-expand net falls back to `GR_LZ`. So CMARC is not actually winning. Root cause is integration-level: `code_planes`/`cmarc_*` routing, per-bin `BinModel` adaptation (prior/step/sparsity), or residual mapping/overflow - NOT the coder. CMARC still cannot beat GR on real Kodak.
-  - **OPEN DEFECT 2 (GR_LZ WNC flag coder PANICS):** the `GR_LZ` fallback uses a still-broken WNC LZ flag coder that corrupts and panics, so a default encode can crash whenever that fallback is selected. 23 end-to-end tests fail (full-image CMARC tests + explicitly-broken `BinEnc`/`BinDec`).
+  - **OPEN DEFECT 2 (GR_LZ WNC flag coder PANICS):** the `GR_LZ` fallback uses a still-broken WNC LZ flag coder that corrupts and panics, so a default encode can crash whenever that fallback is selected. 23 end-to-end tests fail (full-image CMARC tests + explicitly-broken `BinEnc`/`BinDec`). This is the visible crash chain.
   - **Stale progress file:** `progress/68-obsidian-lossless-image-codec.md` still claims `data/kodak` absent / gates unmeasurable - contradicts the reproducible 10.0906 measurement. Must be corrected by the Builder this run.
 
 ## In flight
 
 - **Builder (resumed via `continue` this run, PR #83, head `7f636a4`):** (1) fix the GR_LZ WNC LZ flag coder panic (restore a non-crashing default - hard stability gate); (2) diagnose + fix why CMARC is a no-op / explodes (routing or per-bin `BinModel` adaptation in `code_planes`/`cmarc_*`); (3) re-measure real Kodak with the fixed CMARC; (4) correct the stale `progress/68-...md` (data/kodak present; real Kodak = 10.0906). The harness auto-commits/pushes.
-  - NOTE: the prior `continue` (run 32217439811) spawned builder run 32217602082 which COMPLETED at 2026-08-19 04:57:43 WITHOUT advancing the branch (head still `7f636a4`). This run's `continue` re-fires the integration work.
+  - NOTE: the prior `continue` (owner 05:03Z -> run 32218005352) COMPLETED at ~05:08Z WITHOUT advancing the branch (head still `7f636a4`). This run's `continue` re-fires the integration work.
 - **No Architect / Researcher in flight** (defer until the Builder confirms CMARC runs and re-measures; escalate research only if a correctly-wired CMARC still loses to GR on real Kodak).
 
 ## PENDING (deferred to a quiet run)
@@ -68,8 +68,8 @@
 
 ## Open questions
 
-- **Will fixing the GR_LZ WNC flag coder panic restore a safe default encode?** Hard stability gate before further CMARC work can be trusted.
-- **Why is CMARC a no-op / does it explode?** Routing (`code_planes` falling back to GR) or per-bin `BinModel` adaptation (prior/step/sparsity) or residual mapping/overflow in `cmarc_*`. Fixing this is the actual R4 completion that unlocks the real CMARC number.
+- **Will the re-fired Builder actually advance the branch this time?** The prior `continue` (05:03Z -> 32218005352) completed without pushing. Watch for a new opencode build run on `opencode/issue68-20260818070512` that lands the GR_LZ panic fix + CMARC integration fix and a real-Kodak CSV.
+- **Is the CMARC no-op a routing bug or a model-mapping bug?** Forced CMARC == GR bytes on all 24 Kodak images. Locate whether `code_planes(use_cmarc=true)` falls back to GR, or whether the `BinModel`/residual mapping makes CMARC GR-equivalent. Fixing this is the actual R4 completion.
 - **Will a correctly-wired CMARC beat adaptive GR on real Kodak (toward < 9.61 WebP / < 8.71 JXL)?** Awaits the integration fix + re-measurement. The correct coder now reaches H(p)+epsilon, so if the context models adapt, it should beat per-context-k GR.
 - **Will the branch rebase onto `main` succeed and make PR #83 MERGEABLE without a new PR?** Owner-requested 16:51Z, deferred until CMARC beats GR.
 - **One-PR integrity:** #83 sole canonical Obsidian PR; #84, #87 CLOSED.
