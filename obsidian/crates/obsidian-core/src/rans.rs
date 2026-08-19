@@ -1266,9 +1266,11 @@ fn cid_bin(cid: usize, bins_per_ctx: usize, bin: usize) -> usize {
 }
 
 /// R6-B color cache (Component A): per-plane LRU of reconstructed sample values.
-/// Default cache size; tuned like WebP's color cache (large enough to capture
-/// photographic repetition, small enough that the index code stays cheap).
-pub const CARC_CACHE_SIZE: usize = 512;
+/// Kept small so the Elias-gamma rank index stays competitive with the residual it
+/// replaces: at size 32 the hottest ranks (0..7) cost 1..7 bits, beating the typical
+/// ~5-6 bit CMARC residual, while the worst rank (31) costs ~11 bits. A large cache
+/// (e.g. 512) makes ranks expensive and the net cost regresses (see progress file).
+pub const CARC_CACHE_SIZE: usize = 32;
 
 /// Bin layout within a context for the `ENTROPY_MODE_CARC_CACHE` mode:
 ///   - 0: cache hit flag (1 = value hit the LRU, 0 = miss -> full residual follows)

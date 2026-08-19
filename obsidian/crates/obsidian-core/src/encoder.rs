@@ -464,6 +464,13 @@ pub fn encode_with(
     // safety net) so its raw cost can be measured directly against the JPEG XL
     // gate. Never used in production. Requires CMARC to be engaged.
     let force_carc_run = std::env::var("OBSIDIAN_CARC_RUN_FORCE").ok().as_deref() == Some("1");
+    // Measurement seam: force the R6-B color cache to ship (bypass the never-expand
+    // safety net) so its raw cost can be measured directly against the WebP gate.
+    // Never used in production. Requires CMARC to be engaged.
+    let force_carc_cache = std::env::var("OBSIDIAN_CARC_CACHE_FORCE")
+        .ok()
+        .as_deref()
+        == Some("1");
     // Capture the backend the model would have chosen without CMARC. The CMARC
     // safety net must beat THIS candidate, not just plain v1 GR, or enabling
     // CMARC would regress the file versus the production backend selection.
@@ -818,7 +825,7 @@ pub fn encode_with(
             model.cmarc_use_color_cache = save_cache;
             let cache_total: usize = cache_coded.streams.iter().map(|s| s.len()).sum();
             let best_total: usize = best_coded.streams.iter().map(|s| s.len()).sum();
-            if cache_total < best_total {
+            if force_carc_cache || cache_total < best_total {
                 best_coded = cache_coded;
                 best_mode = ENTROPY_MODE_CARC_CACHE;
                 model.cmarc_use_color_cache = true;
