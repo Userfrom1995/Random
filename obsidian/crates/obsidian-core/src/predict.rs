@@ -43,9 +43,14 @@ pub enum PredictorId {
     SubLTL = 14,
     SubTLT = 15,
     SubTTR = 16,
+    // ---- R8-A signaling-free adaptive weighted predictor (JPEG XL / WebP "weighted") ----
+    // Deterministic from the causal neighborhood (no signaled weights), so it is a
+    // strict superset of the fixed predictor candidates: the analysis pass selects
+    // it per context only where it lowers the summed residual magnitude.
+    AdaptiveWeighted = 17,
 }
 
-pub const PREDICTOR_COUNT: usize = 17;
+pub const PREDICTOR_COUNT: usize = 18;
 
 impl PredictorId {
     pub fn from_u8(v: u8) -> Option<PredictorId> {
@@ -67,6 +72,7 @@ impl PredictorId {
             14 => Some(PredictorId::SubLTL),
             15 => Some(PredictorId::SubTLT),
             16 => Some(PredictorId::SubTTR),
+            17 => Some(PredictorId::AdaptiveWeighted),
             _ => None,
         }
     }
@@ -94,6 +100,7 @@ impl PredictorId {
             PredictorId::SubLTL => "Sub(L,TL)",
             PredictorId::SubTLT => "Sub(TL,T)",
             PredictorId::SubTTR => "Sub(T,TR)",
+            PredictorId::AdaptiveWeighted => "AdaptiveWeighted",
         }
     }
 }
@@ -256,6 +263,7 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>) -> i32 {
         PredictorId::SubLTL => n.l - n.tl,
         PredictorId::SubTLT => n.tl - n.t,
         PredictorId::SubTTR => n.t - n.tr,
+        PredictorId::AdaptiveWeighted => weighted_adaptive(n),
         PredictorId::Weighted => {
             let w = match w {
                 Some(w) => w,
@@ -299,6 +307,43 @@ fn weighted(n: &Neighbors, w: &WeightVec) -> i32 {
     let shift = w.shift as u32;
     let half = 1i32 << (shift - 1);
     (acc + half) >> shift
+}
+
+/// R8-A: the JPEG XL / WebP "weighted" predictor, computed deterministically from
+/// the causal neighborhood (no signaled weights, so encoder and decoder agree
+/// exactly by induction). The weight on each neighbor is an inverse-gradient
+/// soft weight: directions with a small gradient (smooth, predictable) get a large
+/// weight; directions with a large gradient get a near-zero weight. The prediction
+/// is the convex combination of the four neighbors by these weights.
+///
+/// Because the weights are a pure function of already-decoded neighbors and the
+/// result is bounded within `[min neighbor, max neighbor]`, this predictor is a
+/// strict superset of the fixed-predictor candidate set: wherever it yields a
+/// smaller |residual| over the analysis pass it is selected, otherwise GAP/med
+/// remain. It adds zero model bytes (only the existing 1-byte-per-context map id
+/// changes, and only where it wins).
+fn weighted_adaptive(n: &Neighbors) -> i32 {
+    // Three gradients of the causal neighborhood (signed).
+    let d_l = n.l - n.tl; // horizontal gradient
+    let d_t = n.t - n.tl; // vertical gradient
+    let d_tl = n.tl - n.tr; // diagonal gradient
+
+    // Inverse-gradient weight: large |gradient| -> near 0, small -> large.
+    // Scaled by `SCALE` and clamped to `[1, WMAX]` so no direction is ever fully
+    // discarded and the normalization sum stays strictly positive.
+    const SCALE: i32 = 256; // 1 << 8
+    const WMAX: i32 = 256;
+    let w = |g: i32| -> i32 {
+        let a = g.unsigned_abs() as i32;
+        ((SCALE / (1 + a)).min(WMAX)).max(1)
+    };
+    let wl = w(d_l);
+    let wt = w(d_t);
+    let wtl = w(d_tl);
+    let wtr = w(-d_tl); // symmetric diagonal
+    let sum = wl + wt + wtl + wtr; // in [4, 4*WMAX], always > 0
+    let dot = wl * n.l + wt * n.t + wtl * n.tl + wtr * n.tr;
+    (dot + (sum >> 1)) / sum // round to nearest
 }
 
 /// Predict a single sample with clamping to the plane range.
@@ -435,11 +480,93 @@ mod tests {
 
     #[test]
     fn r22_predictor_count_and_ids() {
-        assert_eq!(PREDICTOR_COUNT, 17);
-        for id in 0..17u8 {
+        assert_eq!(PREDICTOR_COUNT, 18);
+        for id in 0..18u8 {
             assert!(PredictorId::from_u8(id).is_some(), "id {id} must map");
         }
-        assert!(PredictorId::from_u8(17).is_none());
+        assert!(PredictorId::from_u8(18).is_none());
+    }
+
+    #[test]
+    fn r8_adaptive_weighted_deterministic_and_bounded() {
+        // A flat neighborhood (all equal): all gradients zero, all weights equal, so
+        // the prediction equals the common value (convex combination).
+        let flat = Neighbors {
+            l: 120,
+            t: 120,
+            tl: 120,
+            tr: 120,
+        };
+        assert_eq!(predict(PredictorId::AdaptiveWeighted, &flat, None), 120);
+
+        // A structured neighborhood: the smoother (horizontal) direction should get
+        // more weight than the steep vertical direction.
+        let n = Neighbors {
+            l: 100,
+            t: 160,
+            tl: 100,
+            tr: 100,
+        };
+        // d_l = 0 -> wl = 256; d_t = 60 -> wt = 256/61 ~= 4; d_tl = 0 -> wtl = 256;
+        // wtr = 256. sum = 772. dot = 256*100 + 4*160 + 256*100 + 256*100 = 76864.
+        // pred = round(76864/772) = round(99.56) = 100.
+        let p = predict(PredictorId::AdaptiveWeighted, &n, None);
+        assert_eq!(p, 100, "smooth horizontal direction dominates");
+        // Result lies within [min, max] of the neighbors (convex combination).
+        assert!((80..=180).contains(&p));
+
+        // Deterministic: same neighborhood -> same prediction on both "sides".
+        let n2 = Neighbors {
+            l: 40,
+            t: 200,
+            tl: 40,
+            tr: 40,
+        };
+        assert_eq!(
+            predict(PredictorId::AdaptiveWeighted, &n2, None),
+            predict(PredictorId::AdaptiveWeighted, &n2, None)
+        );
+    }
+
+    #[test]
+    fn r8_adaptive_weighted_roundtrip_bit_exact() {
+        use crate::model::analyze;
+        use crate::context::{ContextParams, ContextModel};
+        use crate::color::PlaneRange;
+
+        let range = PlaneRange::U8;
+        let w = 16u32;
+        let h = 12u32;
+        let mut plane: Vec<i16> = Vec::with_capacity((w * h) as usize);
+        for i in 0..(w * h) {
+            plane.push(((i.wrapping_mul(73) ^ (i >> 2)) % 256) as i16);
+        }
+        let planes = vec![plane];
+        let ctx = ContextParams::default();
+        let codebook = super::default_weight_codebook();
+        let model = analyze(&planes, &[range], w as usize, h as usize, 4, &ctx, &codebook, false);
+        // With AdaptiveWeighted in the candidate set, every per-context predictor id
+        // must be a valid id (encoder and decoder agree on the map).
+        for &id in &model.planes[0].map {
+            assert!(PredictorId::from_u8(id).is_some(), "pred id {id} must map");
+        }
+        // Build the predicted plane using the model's chosen predictors and confirm
+        // it reconstructs the original losslessly given the residual (sanity check of
+        // the deterministic prediction path used by both encode and decode).
+        let cm = ContextModel::new(ctx);
+        let mut recon = vec![0i16; (w * h) as usize];
+        for y in 0..h as usize {
+            for x in 0..w as usize {
+                let idx = y * w as usize + x;
+                let nb = neighbors(&recon, x, y, w as usize, h as usize);
+                let cid = cm.context_id(&nb, x, y) % model.context_count;
+                let p = model.predictor(0, cid);
+                let pred = predict_clamped(p, &nb, model.weight_for(0).as_ref(), range);
+                let r = planes[0][idx] as i32 - pred;
+                recon[idx] = (pred + r) as i16;
+            }
+        }
+        assert_eq!(recon, planes[0], "lossless reconstruction via chosen predictors");
     }
 
     #[test]

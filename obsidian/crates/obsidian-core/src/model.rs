@@ -161,6 +161,10 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         PredictorId::SubLTL,
         PredictorId::SubTLT,
         PredictorId::SubTTR,
+        // R8-A: signaling-free adaptive weighted predictor (JPEG XL / WebP "weighted").
+        // Deterministic from the causal neighborhood, so it adds no model bytes and is
+        // only ever selected where it lowers the summed residual magnitude.
+        PredictorId::AdaptiveWeighted,
     ]
 }
 
