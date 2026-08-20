@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~11:50Z, maintainer run 32365426983, owner `/oc maintainer` on PR #93 + auto-trigger from the R15 build push). **R15 landed net-negative (10th + final documented lever) and the R15 blueprint's halt trigger has FIRED.** The predict-and-code / decorrelation / learned-overlay family is exhaustively proven to cap at ~9.52 bpp. I am escalating a definitive halt/repivot recommendation to the owner and NOT looping. JXL 8.71 still MISSED (+0.81). One-PR rule intact.
+- **Updated:** 2026-08-20 (~12:0XZ, maintainer run 32365436689, owner `/oc maintainer` re-trigger on PR #93). **Re-confirmation of the R15 halt/repivot escalation:** no new owner input has arrived since the R15 verdict (2026-08-20T11:45:49Z), so the situation is unchanged from run 32365426983. R15 landed net-negative (10th + final documented lever) and the R15 blueprint's halt trigger has FIRED. The predict-and-code / decorrelation / learned-overlay family is exhaustively proven to cap at ~9.52 bpp. I am escalating a definitive halt/repivot recommendation to the owner and NOT looping. JXL 8.71 still MISSED (+0.81). One-PR rule intact.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
