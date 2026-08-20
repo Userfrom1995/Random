@@ -70,11 +70,17 @@ pub const PREDICTOR_COUNT: usize = 19;
 /// offset that a pure linear combination of one-step-behind neighbors cannot).
 pub type WLeaf = (i16, i16, i16, i16, i16, u8);
 
-/// Number of fine weight-context leaves for `WeightedTree`. Small (JPEG XL uses
-/// 8-15), so the per-plane table is ~`WC_LEAVES * 6` bytes (O(1), amortized over
-/// millions of pixels) - the decisive difference from the R7-A blowup (which added
-/// a codebook index per coarse context, hundreds of bytes/image).
-pub const WC_LEAVES: usize = 15;
+/// Number of fine weight-context leaves for `WeightedTree`. JPEG XL uses a small
+/// property tree (8-15) for its weighted predictor; Obsidian originally used 15.
+/// This build deepens it to 64 by quantizing each of the three causal gradients to
+/// 4 tiers (instead of 3), giving 4*4*4 = 64 distinct `(gh,gv,gd)` cells. Because
+/// the raw index then spans exactly `0..64`, every leaf is populated (no empty bins
+/// that would fall back to `UNIT_LEAF` and regress - the earlier 64-leaf attempt
+/// regressed precisely because its 3-tier raw range (0..27) left most of 64 bins
+/// empty). The per-plane table is `WC_LEAVES * 6` bytes (~384 B) - O(1), amortized
+/// over millions of pixels - so this is the JPEG XL per-fine-leaf weighted
+/// predictor at a finer granularity, the decisive difference from the R7-A blowup.
+pub const WC_LEAVES: usize = 64;
 
 /// Minimum samples in a leaf before its least-squares solve is trusted; smaller
 /// leaves fall back to `UNIT_LEAF` (LOCO-I L+T average) so no leaf diverges.
@@ -317,12 +323,17 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>, wtree: Opt
     }
 }
 
-/// R9-B: the fine weight context, a pure function of the already-decoded causal
-/// neighborhood (so encoder and decoder compute it identically with zero signaled
-/// bytes). Three causal gradients, each quantized to 3 tiers (zero / small / large),
-/// packed into a 27-cell raw index then folded into `WC_LEAVES` leaves. Identical
-/// leaves group pixels with similar local structure, so the per-leaf least-squares
-/// weights specialize to the local image statistics.
+/// R9-B / R13: the fine weight context, a pure function of the already-decoded
+/// causal neighborhood (so encoder and decoder compute it identically with zero
+/// signaled bytes). Three causal gradients, each quantized to 4 tiers (zero /
+/// small / medium / large), packed into a 64-cell raw index. With `WC_LEAVES = 64`
+/// the raw index spans exactly `0..64`, so every leaf is populated and the
+/// per-leaf least-squares weights specialize to the local image structure without
+/// any leaf falling back to `UNIT_LEAF` (the earlier 64-leaf attempt regressed
+/// because its 3-tier raw range (0..27) left most of 64 bins empty). Identical
+/// leaves group pixels with similar local structure, so the weighted predictor
+/// gets finer, more locally-tuned affine weights - the JPEG XL per-fine-leaf
+/// weighted predictor at higher resolution.
 pub fn weight_context(n: &Neighbors) -> usize {
     let gh = n.l - n.tl; // horizontal gradient
     let gv = n.t - n.tl; // vertical gradient
@@ -330,11 +341,12 @@ pub fn weight_context(n: &Neighbors) -> usize {
     let q = |g: i32| -> usize {
         match g.unsigned_abs() {
             0 => 0,
-            a if a <= 8 => 1,
-            _ => 2,
+            a if a <= 4 => 1,
+            a if a <= 16 => 2,
+            _ => 3,
         }
     };
-    let raw = q(gh) * 9 + q(gv) * 3 + q(gd); // 0..26
+    let raw = q(gh) * 16 + q(gv) * 4 + q(gd); // 0..63
     raw % WC_LEAVES
 }
 
