@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~15:00Z, maintainer run 32382290148, triggered by owner `/oc maintainer` on PR #93). **OWNER OVERRIDE OF THE HALT/REPIVOT STALEMATE (reaffirmed).** The owner rejected recalibration and ordered a two-step plan: (1) complete documentation first, (2) build a NEW lossless codec using the most stable architecture available, goal beat JPEG XL. No merge until fully working/tested/release-ready/documented.
+- **Updated:** 2026-08-20 (~14:51Z, maintainer run 32382604273, triggered by owner `/oc maintainer` on PR #93 at 14:51:00Z). **OWNER OVERRIDE OF THE HALT/REPIVOT STALEMATE (reaffirmed).** The owner rejected recalibration and ordered a two-step plan: (1) complete documentation first, (2) build a NEW lossless codec using the most stable architecture available, goal beat JPEG XL. No merge until fully working/tested/release-ready/documented.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -15,7 +15,7 @@
 
 - **PR #91 MERGED:** orphan-main guard. **PR #92 MERGED:** `main` = `d6b2894`, determinism guard + umbrella rule + force-with-lease pin.
 - **`main` = `d6b2894`** (healthy, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` OPEN, head `20d1162168af610642a605e76a0c4b21fe11fd94`** (Builder R15 implementation + R15 halt escalation doc; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* remain gated off/muted). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
+- **Branch `opencode/issue68-20260818070512` OPEN, head `20d1162168af610642a605e76a0c4b21fe11fd94`** (Builder R15 halt escalation doc; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* remain gated off/muted). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
@@ -43,17 +43,16 @@
 
 The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation / context-tree-overlay / learned-overlay family. **No further tuning of that family will be dispatched (owner reaffirmed beat-JXL target).**
 
-## CURRENT STATE - OWNER DIRECTIVE: DOC FIRST, THEN NEW CODEC (Step 1 NOT YET COMPLETE)
+## CURRENT STATE - OWNER DIRECTIVE: DOC FIRST, THEN NEW CODEC (Step 1 NOW IN FLIGHT)
 
 - **Owner directive 2026-08-20T14:37:52Z (overrides halt):** (1) complete documentation of Obsidian on PR #93 first (usage, all flags/options/features); (2) then develop a NEW lossless codec using the most stable architecture available, goal beat JPEG XL + WebP + PNG; (3) do NOT merge until fully working, tested, release-ready, documented.
 - **Interpretation of "most stable architecture available":** the proven, non-speculative design that reaches JXL-class lossless rates is the **FLIF / JPEG XL modular context-tree weighted predictor used as the PRIMARY predictor** (not the R14 overlay form, which was net-negative because it stacked on an already near-optimal base). Step 2 will steer the Builder toward that architecture.
-- **Step 1 status:** INCOMPLETE. The previous `continue` (owner, 14:43:57Z) produced head `20d1162168` which only added the R15 halt escalation doc + progress update - NOT the consolidated usage/flags/options documentation the owner asked for. The README still has no dedicated "Usage / all flags / options / features" section.
-- **This run's action:** `continue` on PR #93 (head `20d1162168`) - resume the build to (Step 1) finish Obsidian documentation, then (Step 2) build the new modular context-tree codec. No merge (owner override + quality bar).
-- **Recalibration rejected** by owner; #68 target (beat JXL) reaffirmed.
+- **Step 1 status:** IN FLIGHT. A Builder (opencode run **32382581730**, dispatched by owner `/oc continue` at 2026-08-20T14:50:48Z) is currently executing Step 1 (consolidated usage/flags/options documentation) and will proceed to Step 2 on the same branch. Branch head still `20d1162168` at decision time (no push yet). The README still lacks a dedicated "Usage / all flags / options / features" section until that Builder pushes.
+- **This run's action:** HOLD (empty decision list). A Builder is already in flight on the branch, so firing a second `continue`/`build` would cause a branch collision. A maintainer run auto-triggers on the Builder's push; I will act on the real result then. No merge (owner override + quality bar).
 
 ## In flight
 
-- **Builder (Step 1):** dispatched via `continue` THIS run to complete Obsidian documentation on PR #93, then proceed to Step 2. No other Builder/Researcher/Architect in flight at decision time.
+- **Builder (Step 1 -> Step 2):** opencode run **32382581730**, branch `opencode/issue68-20260818070512`, dispatched by owner `/oc continue` 2026-08-20T14:50:48Z. Executing: Step 1 complete Obsidian documentation, then Step 2 build the new FLIF/JXL-modular primary context-tree codec. No concurrent Builder at decision time.
 
 ## PENDING (awaiting completion)
 
@@ -79,7 +78,7 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 
 ## Next steps
 
-1. **Step 1 (this run's dispatch):** Builder completes Obsidian documentation on PR #93 (usage, all flags/options/features) - explicitly required by owner before any Step 2 code.
+1. **Step 1 (in flight):** Builder run 32382581730 completes Obsidian documentation on PR #93 (usage, all flags/options/features) - explicitly required by owner before any Step 2 code. On its push, a maintainer run re-surveys.
 2. **Step 2 (after docs):** route architect -> build for the new FLIF/JXL-modular PRIMARY context-tree codec on PR #93; measure REAL Kodak; target all three gates bit-exactly.
 3. **Merge gate (owner override + quality bar):** do NOT merge until default codec beats PNG 13.05 + WebP 9.61 + JPEG XL 8.71 bit-exactly AND is fully tested/documented/release-ready. Then Reviewer + Tester, rebase-merge (`--no-delete-branch`), close #68 with "what was built / what remains unsolved" writeup.
 
@@ -89,7 +88,7 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 - **Most stable architecture for Step 2:** selected as FLIF/JXL-modular context-tree weighted predictor as PRIMARY (proven JXL-class). Will be confirmed via Architect blueprint before build.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** CLEARED - prior `continue` (owner 14:43:57Z) finished at head `20d1162168`; this run's `continue` is the next step, no concurrent Builder.
+- **Build collision:** AVOIDED this run - Builder 32382581730 already in flight, so this run held (empty decision list); no second `continue`/`build` dispatched.
 - **Work preservation:** all R0-R15 codec work preserved on PR #93 (never-merged, branch kept per standing directive); issue #68 open; ready to document/publish/pivot on the owner's word.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
