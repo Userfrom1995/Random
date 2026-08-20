@@ -1,10 +1,10 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (maintainer run 32407789566, owner `/oc maintainer` on PR #93). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
+- **Updated:** 2026-08-20 (maintainer run 32408288123, owner `/oc maintainer` on PR #93, re-surfaced at 19:22:08Z). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
 
 ## STANDING OWNER DIRECTIVES (active)
 
-- **Obsidian PR #93 = finish-and-close, JXL gate lifted.** Ship the documented R10-B + CMARC codec (beats PNG 13.05 + WebP 9.61 on Kodak, 9.5209 bpp) with full docs; then Test + Review + merge. Keep branch (no `-d`).
+- **Obsidian PR #93 = finish-and-close, JXL gate lifted.** Ship the documented R10-B + CMARC codec (beats PNG 13.05 + WebP 9.61 on Kodak at 9.5209 bpp) with full docs; then Test + Review + merge. Keep branch (no `-d`).
 - **Separate new project for JXL:** a new codebase with a new name, carrying the JPEG XL 8.71 gate, developed on its OWN issue/branch (research -> architect -> build). Never folded into PR #93.
 - **ONE Obsidian PR only (being wound down):** PR #93 is the single canonical Obsidian PR. After it merges, the "one-PR" rule applies to the new project's PR.
 - **NEVER delete PR branches after merge.** Omit `-d` from every `gh pr merge`.
@@ -12,8 +12,8 @@
 
 ## CRITICAL INFRASTRUCTURE STATE
 
-- **PR #93 ORPHAN-MAIN RE-OPENED THIS RUN (32407789566):** `git merge-base origin/main e0855623` = EMPTY. The re-link attempt in run 32407393606 rebased locally but its `git push --force-with-lease` was REJECTED on the remote (opencode app lacks force-push permission), so the remote branch is still the orphan-rooted history (root `bbaf952`, no parent in `origin/main` = `37f0395`). The re-link is being delegated to the Builder via `continue` (the Builder can push to its own branch), which is the compliant path given Mae may not push.
-- **PR #95 MERGED:** `main` = `37f0395`. Orphan-main guard + hollow-build detection (PR #94) live.
+- **PR #93 ORPHAN-MAIN ALARM WAS A FALSE POSITIVE (confirmed this run 32408288123):** prior runs reported `git merge-base origin/main <head>` EMPTY. This run verified via the GitHub compare API that `opencode/issue68-20260818070512` is `status: ahead` of `origin/main` (shared merge-base `37f0395`), `mergeable: MERGEABLE`. The empty local merge-base was a shallow-clone artifact. No re-link is required.
+- **PR #95 MERGED:** `main` = `37f0395`. Orphan-main guard + hollow-build detection live.
 - **MODEL PINS:** worker workflows `opencode/nemotron-3-ultra-free`. `opencode.json` still `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` on main until the lab updates it on its branch. `maintainer.yml` keeps `hy3-free`. All free, no CreditsError.
 - **ROOT-CAUSE LAB:** the Lab Engineer scoped itself OUT of PR #93 product source (lab domain only); hollow-build DETECTION (PR #95) is the mitigation.
 
@@ -22,29 +22,28 @@
 - **Default shipped codec = 9.5209 bpp mean** (R10-B CFL + CMARC backend; R13-A muted, R13-B/R14/R15 gated OFF, all byte-identical base so never-regressive). Beats PNG (13.05) + WebP (9.61). JXL gate LIFTED.
 - **Test-isolation fix landed (head `e085562`):** prior "152 tests pass" were false (shared process-global Mutexes poisoned parallel `cargo test`). Clean parallel suite = **148 passed / 0 failed / 2 ignored**. R15 stays net-negative; 9.5209 bpp production unchanged.
 - **R15 halt (head `20d1162`/`f1dcb4b`):** 10-axis predictor-family exhaustion proven; residual near-incompressible after R9-B. All gated OFF.
-- **Step 1 (full docs) STILL INCOMPLETE:** `obsidian/README.md` stale (27.82 bpp / 46 tests / "M1 gate still open" from 2026-08-17); `obsidian/STATUS.md` MISSING. A `continue` is dispatched this run (head `e0855623`) with an explicit re-link + docs checklist.
+- **ONLY REMAINING BLOCKER = Step 1 docs.** `obsidian/README.md` stale (27.82 bpp / 46 tests / "M1 gate still open" from 2026-08-17); `obsidian/STATUS.md` MISSING. A `continue` is dispatched this run (head `e0855623`) with an explicit docs checklist. No re-link needed (orphan alarm false positive).
 
-## CURRENT STATE - THIS RUN (32407789566)
+## CURRENT STATE - THIS RUN (32408288123)
 
-- **PR #93 (head `e0855623`):** OPEN, `mergeable: clean`, but ORPHANED from `origin/main` (merge-base EMPTY). One-PR rule intact; all codec work preserved.
-- **Two blockers:** (1) orphan-main recurrence (remote force-push rejected in 32407393606); (2) docs incomplete. Both addressed by the dispatched `continue`.
-- **No Builder in flight** at dispatch (last builder run 32407676618 completed 19:16:27Z); the `continue` is collision-safe.
+- **PR #93 (head `e0855623acd25ce3a4a2776e5e68a78942cbb7b0`):** OPEN, `mergeable: MERGEABLE`, `status: ahead` of `origin/main` with shared merge-base `37f0395` (NOT orphaned). One-PR rule intact; all codec work preserved.
+- **Single blocker:** stale docs (README + missing STATUS.md). Codec byte-identical at 9.5209 bpp.
+- **No Builder in flight** at dispatch (no in_progress/queued opencode run on the branch). The `continue` dispatched this run is collision-safe.
 
 ## IN FLIGHT
 
-- **PR #93 re-link + Step 1 docs:** `continue` dispatched this run (head `e0855623`). Builder must (a) re-link the branch onto `origin/main` (force-push `opencode/issue68-20260818070512`, prefer `origin/main` for `.github/workflows/*`), confirming non-empty merge-base, then (b) write accurate README + STATUS.md, keep codec byte-identical at 9.5209 bpp, remove stray `err.txt`, and push. On its push, a maintainer run re-surveys.
-- **PR #93 Tester:** `/oc test` after re-link + docs land - QA + real-Kodak reproducibility.
+- **PR #93 Step 1 docs:** `continue` dispatched this run (head `e0855623`). Builder must rewrite `obsidian/README.md` to accurate 9.5209 bpp / 148 tests / PNG+WebP MET / JXL gate lifted, add `obsidian/STATUS.md`, remove stray `err.txt`, and keep the codec byte-identical. On its push, a maintainer run re-surveys.
+- **PR #93 Tester:** `/oc test` after docs land - QA + real-Kodak reproducibility.
 - **PR #93 Reviewer:** `/oc review` - strict read-only quality gate.
-- **PR #93 merge:** rebase-merge (`--no-delete-branch`) after re-link + docs + tests + review; JXL gate lifted. Keep #68 open.
+- **PR #93 merge:** rebase-merge (`--no-delete-branch`) after docs + tests + review; JXL gate lifted. Keep #68 open.
 
 ## PENDING (awaiting completion, in order)
 
-1. PR #93 re-link (Builder, this run's `continue`).
-2. PR #93 docs (Step 1) - `continue` just dispatched (head `e0855623`).
-3. PR #93 Tester (`/oc test`).
-4. PR #93 Reviewer (`/oc review`).
-5. PR #93 merge (rebase, keep branch, do NOT close #68).
-6. NEW JXL project: separate codebase/new name on its own issue/branch; route research -> architect -> build. Never in PR #93. (Post-merge; I will not create its issue myself.)
+1. PR #93 docs (Step 1) - `continue` just dispatched (head `e0855623`).
+2. PR #93 Tester (`/oc test`).
+3. PR #93 Reviewer (`/oc review`).
+4. PR #93 merge (rebase, keep branch, do NOT close #68).
+5. NEW JXL project: separate codebase/new name on its own issue/branch; route research -> architect -> build. Never in PR #93. (Post-merge; I will not create its issue myself.)
 
 ## ISSUES
 
@@ -62,18 +61,17 @@
 
 ## NEXT STEPS
 
-1. PR #93 re-link + docs: `continue` dispatched (head `e0855623`/`e085562` lineage); await Builder push with non-empty merge-base + real docs.
-2. On push -> re-survey, confirm (a) merge-base non-empty, (b) no stray codec commits (pivot Step 2 canceled); then dispatch Tester then Reviewer.
+1. PR #93 docs (Step 1): `continue` dispatched (head `e0855623`); await Builder push with accurate README + STATUS.md and NO codec changes.
+2. On push -> re-survey, confirm (a) README/STATUS accurate, (b) head still `e0855623` lineage / codec unchanged at 9.5209 bpp; then dispatch Tester then Reviewer.
 3. Merge PR #93 (rebase, keep branch, JXL gate lifted), keep #68 open.
 4. Stand up NEW JXL project on its own issue/branch; route research -> architect -> build.
 
 ## OPEN QUESTIONS
 
-- **Orphan-main recurrence:** delegated to Builder `continue` (Mae cannot force-push; remote rejects). Will the Builder's re-link land with a non-empty merge-base? Pending its push.
-- **Hollow-build recurrence:** monitored by PR #95 detection + this run's explicit directive + live comment thread. Will the Builder write real docs this time?
+- **Docs quality (hollow-build watch):** will the Builder write REAL docs (not just `err.txt`)? Monitored by PR #95 hollow-build detection + this run's explicit directive + the live comment thread.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN). Applies to new project's PR post-merge.
-- **Orphan-main break:** RE-OPENED this run (remote push rejected); delegated re-link via Builder.
-- **Build collision:** AVOIDED (no Builder in flight at dispatch).
+- **Orphan-main break:** RESOLVED this run (false positive; shared merge-base `37f0395` confirmed via API).
+- **Build collision:** AVOIDED (no Builder in flight at dispatch; `continue` re-dispatch safe).
 - **Pivot Step 2 cancellation honored?** VERIFY on docs push - no new codec commits in PR #93; all decorrelation/learned overlays already gated off.
 - **Model bump success:** PENDING - verify next build/lab runs execute on `nemotron-3-ultra-free`.
 - **Work preservation:** all R0-R15 codec work preserved on PR #93 (branch kept). #68 open as umbrella.
