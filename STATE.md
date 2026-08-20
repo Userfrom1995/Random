@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (maintainer run 32408288123, owner `/oc maintainer` on PR #93, re-surfaced at 19:22:08Z). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
+- **Updated:** 2026-08-20 (maintainer run 32411289098, owner `/oc maintainer` on PR #93, finish-and-close under the standing owner pivot). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
 
 ## STANDING OWNER DIRECTIVES (active)
 
@@ -12,34 +12,35 @@
 
 ## CRITICAL INFRASTRUCTURE STATE
 
-- **PR #93 ORPHAN-MAIN ALARM WAS A FALSE POSITIVE (confirmed this run 32408288123):** prior runs reported `git merge-base origin/main <head>` EMPTY. This run verified via the GitHub compare API that `opencode/issue68-20260818070512` is `status: ahead` of `origin/main` (shared merge-base `37f0395`), `mergeable: MERGEABLE`. The empty local merge-base was a shallow-clone artifact. No re-link is required.
+- **PR #93 NOT ORPHANED (re-confirmed this run):** GitHub compare API says `status: ahead`, shared merge-base `37f0395` (ahead 23 / behind 0). The empty local `git merge-base` is a shallow-clone artifact. `mergeable_state` reported `unstable` (transient; branch is ahead-only with behind:0, so a rebase merge will be clean).
 - **PR #95 MERGED:** `main` = `37f0395`. Orphan-main guard + hollow-build detection live.
-- **MODEL PINS:** worker workflows `opencode/nemotron-3-ultra-free`. `opencode.json` still `model: opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` on main until the lab updates it on its branch. `maintainer.yml` keeps `hy3-free`. All free, no CreditsError.
+- **MODEL PINS:** worker workflows `opencode/nemotron-3...` family on free models. `opencode.json` on main still `hy3-free`/`mimo-v2.5-free` until the lab branch merges. No CreditsError.
 - **ROOT-CAUSE LAB:** the Lab Engineer scoped itself OUT of PR #93 product source (lab domain only); hollow-build DETECTION (PR #95) is the mitigation.
 
 ## PRIORITY PROJECT (Obsidian, PR #93) - FINISH-AND-CLOSE (JXL gate lifted)
 
-- **Default shipped codec = 9.5209 bpp mean** (R10-B CFL + CMARC backend; R13-A muted, R13-B/R14/R15 gated OFF, all byte-identical base so never-regressive). Beats PNG (13.05) + WebP (9.61). JXL gate LIFTED.
-- **Test-isolation fix landed (head `e085562`):** prior "152 tests pass" were false (shared process-global Mutexes poisoned parallel `cargo test`). Clean parallel suite = **148 passed / 0 failed / 2 ignored**. R15 stays net-negative; 9.5209 bpp production unchanged.
-- **R15 halt (head `20d1162`/`f1dcb4b`):** 10-axis predictor-family exhaustion proven; residual near-incompressible after R9-B. All gated OFF.
-- **ONLY REMAINING BLOCKER = Step 1 docs.** `obsidian/README.md` stale (27.82 bpp / 46 tests / "M1 gate still open" from 2026-08-17); `obsidian/STATUS.md` MISSING. A `continue` is dispatched this run (head `e0855623`) with an explicit docs checklist. No re-link needed (orphan alarm false positive).
+- **Default shipped codec = 9.5209 bpp mean** (R10-B CFL + CMARC backend; R13-A muted, R13-B/R14/R15 gated OFF, all byte-identical base so never-regressive). Beats PNG (13.05) + WebP (9.61). JXL gate LIFTED by owner order.
+- **Test-isolation fix landed (head `e085562`):** clean parallel suite = **148 passed / 0 failed / 2 ignored**. R15 stays net-negative; 9.5209 bpp production unchanged.
+- **R15 halt (head `8ac10cf` line):** 10-axis predictor-family exhaustion proven (residual near-incompressible after R9-B); all decorrelation/learned overlays gated OFF, byte-identical base.
+- **ONLY REMAINING BLOCKER = Step 1 docs.** `obsidian/README.md` stale (`27.82 bpp` / `46 tests` / "M1 gate still open" from 2026-08-17). `obsidian/STATUS.md` MISSING. A `continue` is re-dispatched this run (head `8ac10cf`) with an explicit gates-lifted docs-only directive.
 
-## CURRENT STATE - THIS RUN (32408288123)
+## CURRENT STATE - THIS RUN (32411289098)
 
-- **PR #93 (head `e0855623acd25ce3a4a2776e5e68a78942cbb7b0`):** OPEN, `mergeable: MERGEABLE`, `status: ahead` of `origin/main` with shared merge-base `37f0395` (NOT orphaned). One-PR rule intact; all codec work preserved.
+- **PR #93 (head `8ac10cf03d5a81c072b197f569346ab630abf025`):** OPEN, ahead 23 / behind 0 of `main`, shared merge-base `37f0395` (NOT orphaned). One-PR rule intact; all codec work preserved.
 - **Single blocker:** stale docs (README + missing STATUS.md). Codec byte-identical at 9.5209 bpp.
-- **No Builder in flight** at dispatch (no in_progress/queued opencode run on the branch). The `continue` dispatched this run is collision-safe.
+- **No Builder in flight** at dispatch (verified: no in_progress/queued opencode run other than this maintainer run). The re-dispatched `continue` is collision-safe.
+- **Prior `continue` (run 32410896470) did NOT write docs:** it produced a "resume-state" commit (`8ac10cf`, only `.tmp/random-lab-decision.json` + progress file) and re-escalated to maintainer, still framing the work as a dead end. Under the pivot it is a close-out, so this run re-directs it explicitly.
 
 ## IN FLIGHT
 
-- **PR #93 Step 1 docs:** `continue` dispatched this run (head `e0855623`). Builder must rewrite `obsidian/README.md` to accurate 9.5209 bpp / 148 tests / PNG+WebP MET / JXL gate lifted, add `obsidian/STATUS.md`, remove stray `err.txt`, and keep the codec byte-identical. On its push, a maintainer run re-surveys.
+- **PR #93 Step 1 docs:** `continue` re-dispatched this run (head `8ac10cf`). Builder must rewrite `obsidian/README.md` to accurate 9.5209 bpp / 148 tests / PNG+WebP MET / JXL gate lifted, create `obsidian/STATUS.md`, remove stray `err.txt`, and keep the codec byte-identical. On its push, a maintainer run re-surveys.
 - **PR #93 Tester:** `/oc test` after docs land - QA + real-Kodak reproducibility.
 - **PR #93 Reviewer:** `/oc review` - strict read-only quality gate.
 - **PR #93 merge:** rebase-merge (`--no-delete-branch`) after docs + tests + review; JXL gate lifted. Keep #68 open.
 
 ## PENDING (awaiting completion, in order)
 
-1. PR #93 docs (Step 1) - `continue` just dispatched (head `e0855623`).
+1. PR #93 docs (Step 1) - `continue` re-dispatched this run (head `8ac10cf`).
 2. PR #93 Tester (`/oc test`).
 3. PR #93 Reviewer (`/oc review`).
 4. PR #93 merge (rebase, keep branch, do NOT close #68).
@@ -54,27 +55,25 @@
 
 ## REVIEWER/TESTER/MODEL STATUS
 
-- **Model config:** worker workflows `opencode/nemotron-3-ultra-free`. `opencode.json` still `hy3-free`/`mimo-v2.5-free` on main until lab branch merges. `origin/main` = `37f0395`. Free-model fallbacks available (deepseek-v4-flash-free / nemotron-3.5-lightning-free / laguna-s-2.1-free).
+- **Model config:** worker workflows on free models. `opencode.json` on main still `hy3-free`/`mimo-v2.5-free` until lab branch merges. `origin/main` = `37f0395`. Free fallbacks available.
 - **pages.yml:** green.
-- **PR #93 checks:** opencode-pr-trigger SUCCESS; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS.
-- **PR #95 checks:** merged; Reviewer + Tester approved; issue #94 closed.
+- **PR #93 checks:** opencode-pr-trigger SUCCESS; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS. No Reviewer/Tester run on PR #93 yet - both required pre-merge.
 
 ## NEXT STEPS
 
-1. PR #93 docs (Step 1): `continue` dispatched (head `e0855623`); await Builder push with accurate README + STATUS.md and NO codec changes.
-2. On push -> re-survey, confirm (a) README/STATUS accurate, (b) head still `e0855623` lineage / codec unchanged at 9.5209 bpp; then dispatch Tester then Reviewer.
+1. PR #93 docs (Step 1): `continue` re-dispatched (head `8ac10cf`); await Builder push with accurate README + STATUS.md and NO codec changes.
+2. On push -> re-survey, confirm (a) README/STATUS accurate, (b) head still `8ac10cf` lineage / codec unchanged at 9.5209 bpp; then dispatch Tester then Reviewer.
 3. Merge PR #93 (rebase, keep branch, JXL gate lifted), keep #68 open.
 4. Stand up NEW JXL project on its own issue/branch; route research -> architect -> build.
 
 ## OPEN QUESTIONS
 
-- **Docs quality (hollow-build watch):** will the Builder write REAL docs (not just `err.txt`)? Monitored by PR #95 hollow-build detection + this run's explicit directive + the live comment thread.
+- **Docs quality (hollow-build watch):** will the Builder write REAL docs this time (not just a resume-state commit)? Monitored by PR #95 hollow-build detection + this run's explicit directive + the live comment thread. The Builder previously defaulted to "escalate to maintainer" instead of docs; the directive now names the pivot explicitly to prevent that.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN). Applies to new project's PR post-merge.
-- **Orphan-main break:** RESOLVED this run (false positive; shared merge-base `37f0395` confirmed via API).
+- **Orphan-main break:** RESOLVED (shared merge-base `37f0395` confirmed via API; behind:0).
+- **mergeable_state unstable:** transient; branch is ahead-only (behind:0), so rebase merge will be clean. Re-verify at merge time.
 - **Build collision:** AVOIDED (no Builder in flight at dispatch; `continue` re-dispatch safe).
 - **Pivot Step 2 cancellation honored?** VERIFY on docs push - no new codec commits in PR #93; all decorrelation/learned overlays already gated off.
-- **Model bump success:** PENDING - verify next build/lab runs execute on `nemotron-3-ultra-free`.
-- **Work preservation:** all R0-R15 codec work preserved on PR #93 (branch kept). #68 open as umbrella.
 - **New-project issue:** needs an issue; owner may open or I dispatch `ideate` post-PR #93 close (hard rule: I do not create issues myself).
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **`workflows` permission:** opencode app lacks `Workflows` permission; direct agent workflow pushes rejected but PAT-backed step delivers. Non-blocking.
