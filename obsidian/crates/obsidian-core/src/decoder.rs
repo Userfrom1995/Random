@@ -42,6 +42,7 @@ const MAX_AREA: u64 = 1 << 25;
 /// contribute `d = 0` (the JPEG-LS neutral state). Returns the id in
 /// `0..CMARC_RESIDUAL_CONTEXTS` via `residual_context`.
 fn cmarc_residual_context_of(
+    band: usize,
     plane: &[i16],
     pi: usize,
     x: usize,
@@ -70,7 +71,7 @@ fn cmarc_residual_context_of(
         let nidx = ny * width + nx;
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
-        let np = model.predictor(pi, ncid);
+        let np = model.predictor_for_band(band, pi, ncid);
         let npred = predict_clamped(np, &nnb, wv, wtree, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
@@ -215,12 +216,13 @@ fn decode_plane_into(
     alphabet: usize,
     sizes: &[usize],
     pi: usize,
+    band: usize,
     model: &ModelConfig,
     header: &Header,
     cm: &ContextModel,
 ) -> Result<(), CodecError> {
     let wv = model.weight_for(pi);
-    let wtree = model.weighted_tree_for(pi);
+    let wtree = model.weighted_tree_for_band(band, pi);
 
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
@@ -243,7 +245,7 @@ fn decode_plane_into(
                         let idx = y * width + x;
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor_for_band(band, pi, cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
@@ -315,7 +317,7 @@ fn decode_plane_into(
                         let y = i / width;
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor_for_band(band, pi, cid);
                         let w = if m3_wp && matches!(p, PredictorId::Weighted) {
                             Some(&wp[cid])
                         } else {
@@ -358,7 +360,7 @@ fn decode_plane_into(
                     let idx = i;
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor_for_band(band, pi, cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = range.clamp(pred + bias);
@@ -389,7 +391,7 @@ fn decode_plane_into(
                         let idx = y * width + x;
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor_for_band(band, pi, cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
                         plane[idx] = (pred + r) as i16;
@@ -461,7 +463,7 @@ fn decode_plane_into(
                         let idx = y * width + x;
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor_for_band(band, pi, cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         let sym = rdec.get(&mut tables[cid])?;
                         let r = if sym != CAPPED_ALPHABET {
@@ -623,7 +625,7 @@ fn decode_plane_into(
                             }
                             i += len;
                         } else {
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor_for_band(band, pi, cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
@@ -650,7 +652,7 @@ fn decode_plane_into(
                             let idx = y * width + x;
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor_for_band(band, pi, cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
@@ -678,11 +680,12 @@ fn decode_plane_into(
                         let y = i / width;
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(pi, cid);
+                        let p = model.predictor_for_band(band, pi, cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
+                                band,
                                 &plane,
                                 pi,
                                 x,
@@ -740,7 +743,7 @@ fn decode_plane_into(
                             let idx = y * width + x;
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor_for_band(band, pi, cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let v = cmarc_cache_read(
                                 &mut dec,
@@ -759,10 +762,11 @@ fn decode_plane_into(
                             let idx = y * width + x;
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(pi, cid);
+                            let p = model.predictor_for_band(band, pi, cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
+                                    band,
                                     &plane,
                                     pi,
                                     x,
@@ -808,7 +812,7 @@ fn decode_plane_into(
                     let idx = y * width + x;
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(pi, cid);
+                    let p = model.predictor_for_band(band, pi, cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                     let sym = if use_static {
                         let table = static_tables[cid].as_mut().ok_or_else(|| {
@@ -845,7 +849,7 @@ fn decode_plane_into(
                 model.band_ranges[band_cursor]
             };
             let band_alphabet = (band_range.max - band_range.min + 1) as usize;
-            decode_plane_into(&mut band, payload, bw, bh, band_range, band_alphabet, &sizes, c, &model, &header, &cm)?;
+            decode_plane_into(&mut band, payload, bw, bh, band_range, band_alphabet, &sizes, c, band_cursor, &model, &header, &cm)?;
             bands.push((band, bw, bh));
             band_cursor += 1;
         }

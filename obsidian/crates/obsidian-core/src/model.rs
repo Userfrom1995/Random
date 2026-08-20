@@ -146,6 +146,19 @@ pub struct ModelConfig {
     /// Length is `total_bands`; empty only for legacy streams (decoder falls
     /// back to the per-plane range).
     pub band_ranges: Vec<PlaneRange>,
+    /// R12-A per-band predictor maps (one `context_count`-byte map per coding
+    /// band). `Some` only when Squeeze is present (any level != 0); `None` on the
+    /// non-squeezed path so the per-plane map is used and legacy streams decode
+    /// byte-identically. The decoder mirrors the encoder by reading the same
+    /// signaled maps, so lockstep is exact with zero online state.
+    pub band_maps: Option<Vec<Vec<u8>>>,
+    /// R12-A per-band weighted-tree tables (one `Option<Vec<WLeaf>>` per coding
+    /// band), mirrored from the R9-B per-plane table. Indexed by the global band
+    /// index, matching `band_maps`. `None` on the non-squeezed path; when `Some`
+    /// the banded coder prefers the per-band table over the per-plane fallback,
+    /// so each Squeeze sub-band gets its own least-squares optimum (the JPEG XL
+    /// per-band decorrelation edge the R11 escalation named as missing).
+    pub band_wc_table: Option<Vec<Option<Vec<WLeaf>>>>,
 }
 
 impl ModelConfig {
@@ -168,6 +181,28 @@ impl ModelConfig {
         self.weighted_wc_table
             .as_ref()
             .and_then(|v| v.get(plane).and_then(|o| o.as_ref()).map(|x| x.as_slice()))
+    }
+
+    /// R12-A: per-band predictor map lookup. When `band_maps` is set (Squeeze
+    /// present), the map for the specific coding band `band` is used; otherwise
+    /// the per-plane map of `parent_plane` is used (legacy/non-squeezed path,
+    /// byte-identical).
+    pub fn predictor_for_band(&self, band: usize, parent_plane: usize, cid: usize) -> PredictorId {
+        if let Some(maps) = &self.band_maps {
+            PredictorId::from_u8(maps[band][cid]).unwrap_or(PredictorId::Med)
+        } else {
+            self.predictor(parent_plane, cid)
+        }
+    }
+
+    /// R12-A: per-band weighted-tree table lookup (mirror of `predictor_for_band`).
+    pub fn weighted_tree_for_band(&self, band: usize, parent_plane: usize) -> Option<&[WLeaf]> {
+        if let Some(tables) = &self.band_wc_table {
+            if let Some(t) = tables.get(band).and_then(|o| o.as_ref()) {
+                return Some(t.as_slice());
+            }
+        }
+        self.weighted_tree_for(parent_plane)
     }
 }
 
@@ -277,6 +312,8 @@ pub fn analyze(
         squeeze_levels: vec![0u8; n_planes],
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
+        band_maps: None,
+        band_wc_table: None,
     };
 
     let predictors = predictors_for(effort);
@@ -446,6 +483,111 @@ pub fn analyze(
     model
 }
 
+/// R12-A: fit a SEPARATE predictor map + weighted-tree table per coding band (the
+/// JPEG XL per-band decorrelation edge). Mirrors the per-plane analysis loop in
+/// `analyze` but iterates the already-banded planes, so each Squeeze sub-band
+/// gets its own least-squares optimum instead of the single full-res map/table
+/// that `analyze` reuses for every band. Runs ONCE up front (in `code_banded`),
+/// not inside the never-expand candidate loop, so it does NOT reproduce R11-A's
+/// 45x slowdown. Returns `(band_maps, per_band_weighted_tables)` indexed by the
+/// global band index. The per-band table is `None` for bands whose per-band map
+/// never selects `WeightedTree` (no wasted model bytes).
+pub fn analyze_bands(
+    banded_planes: &[Vec<i16>],
+    banded_dims: &[(usize, usize)],
+    band_ranges: &[PlaneRange],
+    parents: &[usize],
+    base_model: &ModelConfig,
+    effort: u8,
+) -> (Vec<Vec<u8>>, Vec<Option<Vec<WLeaf>>>) {
+    let context = &base_model.context;
+    let context_count = base_model.context_count;
+    let cm = ContextModel::new(*context);
+    let predictors = predictors_for(effort);
+    let include_tree = predictors.contains(&PredictorId::WeightedTree);
+    let mut band_maps: Vec<Vec<u8>> = Vec::with_capacity(banded_planes.len());
+    let mut band_tables: Vec<Option<Vec<WLeaf>>> = Vec::with_capacity(banded_planes.len());
+    for (pi, plane) in banded_planes.iter().enumerate() {
+        let (width, height) = banded_dims[pi];
+        let range = band_ranges[pi];
+        let parent = parents[pi];
+        // Per-band weighted-tree table (R9-B least-squares over the band's own
+        // (L,T,TL,TR) samples), identical machinery to `analyze`.
+        let wt_table: Vec<WLeaf> = if include_tree {
+            let mut s_leaf: Vec<[[i64; 5]; 5]> = vec![[[0i64; 5]; 5]; WC_LEAVES];
+            let mut b_leaf: Vec<[i64; 5]> = vec![[0i64; 5]; WC_LEAVES];
+            let mut cnt: Vec<i64> = vec![0i64; WC_LEAVES];
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = y * width + x;
+                    let n = neighbors(plane, x, y, width, height);
+                    let wc = weight_context(&n);
+                    let ns = [n.l as i64, n.t as i64, n.tl as i64, n.tr as i64, 1i64];
+                    for i in 0..5 {
+                        for j in 0..5 {
+                            s_leaf[wc][i][j] += ns[i] * ns[j];
+                        }
+                        b_leaf[wc][i] += (plane[idx] as i64) * ns[i];
+                    }
+                    cnt[wc] += 1;
+                }
+            }
+            let mut table = Vec::with_capacity(WC_LEAVES);
+            for lc in 0..WC_LEAVES {
+                let leaf = if cnt[lc] >= WC_MIN_SAMPLES as i64 {
+                    solve_weighted_tree(&s_leaf[lc], &b_leaf[lc]).unwrap_or(UNIT_LEAF)
+                } else {
+                    UNIT_LEAF
+                };
+                table.push(leaf);
+            }
+            table
+        } else {
+            Vec::new()
+        };
+        // Per-context predictor selection over the band (prefers `WeightedTree` on
+        // ties, exactly like `analyze`).
+        let wv = base_model.weight_for(parent);
+        let mut ctx_costs: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
+        for y in 0..height {
+            for x in 0..width {
+                let idx = y * width + x;
+                let nb = neighbors(plane, x, y, width, height);
+                let cid = cm.context_id(&nb, x, y) % context_count;
+                let v = plane[idx] as i32;
+                for (k, &p) in predictors.iter().enumerate() {
+                    let wtree = if p == PredictorId::WeightedTree {
+                        Some(wt_table.as_slice())
+                    } else {
+                        None
+                    };
+                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                    ctx_costs[cid][k] += zigzag(v - pred) as u64;
+                }
+            }
+        }
+        let mut best_pred: Vec<u8> = vec![predictors[0].to_u8(); context_count];
+        for cid in 0..context_count {
+            let mut best_k = 0usize;
+            let mut best_c = u64::MAX;
+            for (k, &c) in ctx_costs[cid].iter().enumerate() {
+                let p = predictors[k];
+                if c < best_c || (c == best_c && p == PredictorId::WeightedTree) {
+                    best_c = c;
+                    best_k = k;
+                }
+            }
+            best_pred[cid] = predictors[best_k].to_u8();
+        }
+        let used_tree = best_pred
+            .iter()
+            .any(|&p| p == PredictorId::WeightedTree.to_u8());
+        band_tables.push(if used_tree { Some(wt_table) } else { None });
+        band_maps.push(best_pred);
+    }
+    (band_maps, band_tables)
+}
+
 /// A default model (effort 0): MED everywhere over a single global context per
 /// plane (architecture section 9: "fixed MED for all contexts"), so all adaptive
 /// symbols concentrate in one table and the model section stays tiny.
@@ -483,6 +625,8 @@ pub fn default_model(
         squeeze_levels: vec![0u8; n_planes],
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
+        band_maps: None,
+        band_wc_table: None,
     }
 }
 
@@ -714,6 +858,40 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     for r in &m.band_ranges {
         w.write_all(&r.min.to_le_bytes())?;
         w.write_all(&r.max.to_le_bytes())?;
+    }
+    // R12-A per-band model (predictor maps + weighted-tree tables), appended last
+    // so legacy readers that stop earlier still parse the model body. Written
+    // ONLY when Squeeze is present (any level != 0); when absent a single flag
+    // byte 0 is written and the decoder uses the per-plane path (byte-identical
+    // legacy decode). Format per band: [map bytes] then [table flag]; if 1, the
+    // leaf count followed by the weight tuples (same layout as `weighted_wc_table`).
+    let banded = m.band_maps.is_some() && m.band_wc_table.is_some();
+    if banded {
+        w.write_all(&[1])?;
+        let nb = m.band_maps.as_ref().map(|b| b.len()).unwrap_or(0);
+        w.write_all(&(nb as u32).to_le_bytes())?;
+        let maps = m.band_maps.as_ref().unwrap();
+        let tables = m.band_wc_table.as_ref().unwrap();
+        for (mi, map) in maps.iter().enumerate() {
+            w.write_all(map)?;
+            match &tables[mi] {
+                Some(table) => {
+                    w.write_all(&[1])?;
+                    w.write_all(&(table.len() as u16).to_le_bytes())?;
+                    for &(w0, w1, w2, w3, bias, s) in table {
+                        w.write_all(&w0.to_le_bytes())?;
+                        w.write_all(&w1.to_le_bytes())?;
+                        w.write_all(&w2.to_le_bytes())?;
+                        w.write_all(&w3.to_le_bytes())?;
+                        w.write_all(&bias.to_le_bytes())?;
+                        w.write_all(&[s])?;
+                    }
+                }
+                None => w.write_all(&[0])?,
+            }
+        }
+    } else {
+        w.write_all(&[0])?;
     }
     Ok(())
 }
@@ -1039,6 +1217,64 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         });
     }
 
+    // R12-A per-band model (appended last). A flag byte 0 means the non-squeezed
+    // path; flag 1 is followed by a u32 band count, then per band a `context_count`
+    // map and a weighted-tree table (flag + leaves), mirroring `write_model`.
+    let mut r12_flag = [0u8; 1];
+    r.read_exact(&mut r12_flag)?;
+    let (band_maps, band_wc_table) = if r12_flag[0] == 1 {
+        let mut nbuf = [0u8; 4];
+        r.read_exact(&mut nbuf)?;
+        let nb = u32::from_le_bytes(nbuf) as usize;
+        let mut maps: Vec<Vec<u8>> = Vec::with_capacity(nb);
+        let mut tables: Vec<Option<Vec<WLeaf>>> = Vec::with_capacity(nb);
+        for _ in 0..nb {
+            let mut map = vec![0u8; context_count];
+            r.read_exact(&mut map)?;
+            maps.push(map);
+            let mut pf = [0u8; 1];
+            r.read_exact(&mut pf)?;
+            if pf[0] == 1 {
+                let mut lc = [0u8; 2];
+                r.read_exact(&mut lc)?;
+                let n = u16::from_le_bytes(lc) as usize;
+                let mut table = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let mut w0 = [0u8; 2];
+                    r.read_exact(&mut w0)?;
+                    let mut w1 = [0u8; 2];
+                    r.read_exact(&mut w1)?;
+                    let mut w2 = [0u8; 2];
+                    r.read_exact(&mut w2)?;
+                    let mut w3 = [0u8; 2];
+                    r.read_exact(&mut w3)?;
+                    let mut bias = [0u8; 2];
+                    r.read_exact(&mut bias)?;
+                    let mut s = [0u8; 1];
+                    r.read_exact(&mut s)?;
+                    table.push((
+                        i16::from_le_bytes(w0),
+                        i16::from_le_bytes(w1),
+                        i16::from_le_bytes(w2),
+                        i16::from_le_bytes(w3),
+                        i16::from_le_bytes(bias),
+                        s[0],
+                    ));
+                }
+                tables.push(Some(table));
+            } else if pf[0] == 0 {
+                tables.push(None);
+            } else {
+                return Err(CodecError::InvalidStream("bad r12 band table flag".into()));
+            }
+        }
+        (Some(maps), Some(tables))
+    } else if r12_flag[0] == 0 {
+        (None, None)
+    } else {
+        return Err(CodecError::InvalidStream("bad r12 band flag".into()));
+    };
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -1059,6 +1295,8 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         squeeze_levels,
         cfl_scale,
         band_ranges,
+        band_maps,
+        band_wc_table,
     })
 }
 

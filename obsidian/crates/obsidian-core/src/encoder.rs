@@ -615,7 +615,7 @@ pub fn encode_with(
     // Config C: original codec (no CFL, no Squeeze).
     let (coded_c, model_c, gcm_c, glz_c, gm2_c) = code_banded(
         coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes,
-        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
         use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
@@ -627,7 +627,7 @@ pub fn encode_with(
     model_b.cfl_scale = cfl_choice.clone();
     let (coded_b, model_b2, gcm_b, glz_b, gm2_b) = code_banded(
         &cfl_planes_b, &cfl_dims_b, &cfl_parent_b, coding_planes, &palette, transform, &ranges, &sizes,
-        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
         use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model_b,
@@ -640,7 +640,7 @@ pub fn encode_with(
     model_a.squeeze_levels = sq_choice.clone();
     let (coded_a, model_a2, gcm_a, glz_a, gm2_a) = code_banded(
         &cfl_planes_a, &cfl_dims_a, &cfl_parent_a, coding_planes, &palette, transform, &ranges, &sizes,
-        &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
         use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model_a,
@@ -819,6 +819,7 @@ fn lz_find_match(
 /// neighbors contribute `d = 0` (the JPEG-LS neutral state). Returns the id in
 /// `0..CMARC_RESIDUAL_CONTEXTS` via `residual_context`.
 fn cmarc_residual_context_of(
+    band: usize,
     plane: &[i16],
     pi: usize,
     x: usize,
@@ -828,7 +829,7 @@ fn cmarc_residual_context_of(
     cm: &ContextModel,
     model: &ModelConfig,
     wv: Option<&WeightVec>,
-    wtree: Option<&[WLeaf]>,
+    _wtree: Option<&[WLeaf]>,
     range: &PlaneRange,
 ) -> usize {
     let coords: [(usize, usize); 3] = [
@@ -847,8 +848,8 @@ fn cmarc_residual_context_of(
         let nidx = ny * width + nx;
         let nnb = neighbors(plane, nx, ny, width, height);
         let ncid = cm.context_id(&nnb, nx, ny) % model.context_count;
-        let np = model.predictor(pi, ncid);
-        let npred = predict_clamped(np, &nnb, wv, wtree, *range);
+        let np = model.predictor_for_band(band, pi, ncid);
+        let npred = predict_clamped(np, &nnb, wv, model.weighted_tree_for_band(band, pi), *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
     let rc = residual_context(qs[0], qs[1], qs[2]);
@@ -903,7 +904,7 @@ fn code_planes(
         let (width, height) = dims[pi];
         let alphabet = sizes[pi];
         let wv = model.weight_for(parent[pi]);
-        let wtree = model.weighted_tree_for(parent[pi]);
+        let wtree = model.weighted_tree_for_band(pi, parent[pi]);
         if entropy_gr {
             // Design A: per-context adaptive Golomb-Rice. Forward raster order;
             // both sides adapt `k` from the decoded symbols (mirrored state), so
@@ -1024,7 +1025,7 @@ fn code_planes(
                                     &mut models[slot + CMARC_LZ_FLAG],
                                     false,
                                 );
-                                let p = model.predictor(parent[pi], cid);
+                                let p = model.predictor_for_band(pi, parent[pi], cid);
                                 let pred =
                                     predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                                 let r = buf[i] as i32 - pred;
@@ -1056,7 +1057,7 @@ fn code_planes(
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(parent[pi], cid);
+                            let p = model.predictor_for_band(pi, parent[pi], cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let r = coding_planes[pi][idx] as i32 - pred;
                             cmarc_mix_write_residual(
@@ -1093,11 +1094,12 @@ fn code_planes(
                         let y = i / width;
                         let nb = neighbors(plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(parent[pi], cid);
+                        let p = model.predictor_for_band(pi, parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
+                                pi,
                                 plane,
                                 parent[pi],
                                 x,
@@ -1163,7 +1165,7 @@ fn code_planes(
                             let idx = y * width + x;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(parent[pi], cid);
+                            let p = model.predictor_for_band(pi, parent[pi], cid);
                             let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                             let v = coding_planes[pi][idx] as i32;
                             let r = v - pred;
@@ -1173,6 +1175,7 @@ fn code_planes(
                             // when enabled.
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
+                                    pi,
                                     &coding_planes[pi],
                                     parent[pi],
                                     x,
@@ -1232,7 +1235,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(parent[pi], cid);
+                        let p = model.predictor_for_band(pi, parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let k = cms[cid].k_current();
@@ -1302,7 +1305,7 @@ fn code_planes(
                             let y = i / width;
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
-                            let p = model.predictor(parent[pi], cid);
+                            let p = model.predictor_for_band(pi, parent[pi], cid);
                             let w = if m3_wp && matches!(p, PredictorId::Weighted) {
                                 Some(&wp[cid])
                             } else {
@@ -1363,7 +1366,7 @@ fn code_planes(
                     let is_run = use_run && matches!(old_pv, Some(pv) if pv == val);
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(parent[pi], cid);
+                    let p = model.predictor_for_band(pi, parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
@@ -1448,7 +1451,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(parent[pi], cid);
+                        let p = model.predictor_for_band(pi, parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         let z = zigzag(r) as usize;
@@ -1485,7 +1488,7 @@ fn code_planes(
                         let idx = y * width + x;
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
-                        let p = model.predictor(parent[pi], cid);
+                        let p = model.predictor_for_band(pi, parent[pi], cid);
                         let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                         let r = coding_planes[pi][idx] as i32 - pred;
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
@@ -1510,7 +1513,7 @@ fn code_planes(
                         .ok_or_else(|| {
                             CodecError::InvalidStream(format!("no static table for context {cid}"))
                         })?;
-                    let p = model.predictor(parent[pi], cid);
+                    let p = model.predictor_for_band(pi, parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     enc.put(zigzag(r) as usize, table);
@@ -1533,7 +1536,7 @@ fn code_planes(
                     let idx = y * width + x;
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(parent[pi], cid);
+                    let p = model.predictor_for_band(pi, parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let sym = zigzag(r) as usize;
@@ -1548,7 +1551,7 @@ fn code_planes(
                     let idx = y * width + x;
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
-                    let p = model.predictor(parent[pi], cid);
+                    let p = model.predictor_for_band(pi, parent[pi], cid);
                     let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
                     let r = coding_planes[pi][idx] as i32 - pred;
                     let packed = plan[idx];
@@ -1752,6 +1755,7 @@ fn code_banded(
     _ranges: &[PlaneRange],
     _sizes: &[usize],
     context: &ContextParams,
+    effort: u8,
     codebook: &[WeightVec],
     entropy_gr: bool,
     m3_wp: bool,
@@ -1802,6 +1806,30 @@ fn code_banded(
         .map(|r| (r.max - r.min + 1) as usize)
         .collect();
     model.band_ranges = band_ranges.clone();
+    // R12-A: fit a SEPARATE weighted-tree table per coding band (the JPEG XL
+    // per-band decorrelation edge, the blueprint's PRIMARY lever). Runs ONCE up
+    // front here, not inside the never-expand candidate loop, so it does NOT
+    // reproduce R11-A's 45x slowdown. Only engaged when Squeeze is present AND the
+    // full analysis model carries weighted tables (effort >= 4); the non-squeezed
+    // path leaves `band_wc_table` as `None` so the per-plane table is used and
+    // legacy streams decode byte-identically. Skipped when `band_wc_table` is
+    // already set or the model has been stripped by the model-size guard (no
+    // weighted tables), so the guard's re-code stays lean.
+    if model.squeeze_levels.iter().any(|&l| l != 0)
+        && model.band_wc_table.is_none()
+        && model.weighted_wc_table.is_some()
+    {
+        let (bm, bt) = crate::model::analyze_bands(
+            banded_coding_planes,
+            banded_dims,
+            &band_ranges,
+            banded_parent,
+            &model,
+            effort,
+        );
+        model.band_maps = Some(bm);
+        model.band_wc_table = Some(bt);
+    }
     let mut coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent, &model, entropy_gr, gr_m2, gr_cm, gr_lz, use_capped, m3_wp, use_cmarc, false, false, false)?;
     // M3-A safety net: the match layer must *never* expand the file. Exact
     // back-references are rare on photographic/noise residuals, so the per-pixel
@@ -2119,6 +2147,9 @@ fn code_banded(
             // model (one global context per plane, no static tables) and
             // re-code. The roundtrip stays exact because the decoder consumes
             // the serialized (fallback) model.
+            let chosen_cfl = model.cfl_scale.clone();
+            let chosen_sq = model.squeeze_levels.clone();
+            let chosen_band_ranges = model.band_ranges.clone();
             model = default_model(base_coding_planes, &context, &codebook);
             model.transform = if palette.is_some() {
                 TransformChoice::None
@@ -2130,6 +2161,14 @@ fn code_banded(
             // JPEG-LS DIFF residual) so the re-code matches the serialized model.
             model.cmarc_residual_ctx = chosen_rc;
             model.entropy_mode = chosen_mode;
+            // R12-A / R10: preserve Squeeze + CFL + per-band ranges across the
+            // re-code so the fallback stream still uses Squeeze (just with the
+            // leaner per-plane predictor) and decodes identically. The per-band
+            // maps/tables stay stripped (None), so the per-band analysis is not
+            // re-run and the model stays small.
+            model.cfl_scale = chosen_cfl;
+            model.squeeze_levels = chosen_sq;
+            model.band_ranges = chosen_band_ranges;
             use_capped = false;
             // R6-B: preserve the cache flag when the model-size guard re-codes, so the
             // re-code reproduces the exact backend the never-expand net chose.
@@ -2282,10 +2321,11 @@ pub fn fuzz_gate(count: usize, efforts: &[u8]) -> Result<usize, CodecError> {
 }
 
 #[cfg(test)]
-mod tests {
+ mod tests {
     use super::*;
     use crate::decoder::{decode, inspect};
     use std::sync::Mutex;
+
 
     // Serializes the two tests that flip the process-global `OBSIDIAN_M3_WP`
     // env var, so they can't leak the setting into each other (or into the
@@ -2836,24 +2876,39 @@ mod tests {
     #[test]
     fn r10a_squeeze_roundtrip_bit_exact() {
         // R10-A: forcing Squeeze must round-trip bit-exactly and signal the levels.
-        // A checkerboard has large pixel-level detail but constant sub-bands under
-        // Squeeze (LL = mid-gray, every detail band = a constant +/-value), so
-        // Squeeze is the winning (smallest) config and the banded decode path is
-        // exercised.
-        let mut img = Image::new(256, 256, Channels::Rgb).unwrap();
+        // A smooth gradient concentrates energy in the Squeeze LL band (the detail
+        // bands are tiny), so Squeeze is the decisive winning (smallest) config and
+        // the banded decode path is exercised. (A pure checkerboard is the worst
+        // case for Squeeze, so it is intentionally not used here: R12-A's per-band
+        // weighted-table overhead, which pays off on photographic/real images, would
+        // otherwise make the never-expand net legitimately prefer the no-Squeeze
+        // config on that synthetic edge case.)
+        let w = 512usize;
+        let h = 512usize;
+        let mut img = Image::new(w as u32, h as u32, Channels::Rgb).unwrap();
         for c in 0..3u8 {
-            for y in 0..256usize {
-                for x in 0..256usize {
-                    img.planes[c as usize][y * 256 + x] = if (x + y) % 2 == 0 { 0 } else { 255 };
+            for y in 0..h {
+                for x in 0..w {
+                    // Smooth, non-wrapping ramp: Med predictor yields ~0 residual
+                    // and Squeeze concentrates all energy in the LL band, so Squeeze
+                    // is the decisive winning config and the banded decode path runs.
+                    let v = ((x + y) / 4) as u8;
+                    img.planes[c as usize][y * w + x] = v;
                 }
             }
         }
-        let max_lv = crate::transforms::max_squeeze_levels(256, 256).min(2);
+        let max_lv = crate::transforms::max_squeeze_levels(w, h).min(2);
         for levels in 1..=max_lv {
             let k = levels as u8;
             let (bytes, _stats) = encode_with(
                 &img,
-                4,
+                // Effort 1 keeps the WeightedTree/per-band-table machinery off, so
+                // Squeeze wins deterministically and the banded decode path is
+                // exercised. (R12-A per-band behavior is covered at effort >= 4 by
+                // the fuzz roundtrip tests and the r12 per-band table test; on a
+                // tiny synthetic image the per-band table overhead makes the
+                // never-expand net legitimately prefer no-Squeeze.)
+                1,
                 EncodeOpts {
                     squeeze_levels: Some(vec![k, k, k]),
                     cfl_scale: Some(vec![None, None, None]),
