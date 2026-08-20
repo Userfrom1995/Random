@@ -691,3 +691,13 @@ PNG 13.05 MET; **WebP 9.61 MET**; **JPEG XL 8.71 NOT MET (+0.81 bpp)**. The CLI 
   **CONCLUSION / RECOMMENDATION:** the predictor family is exhausted. Per the R15 research spec (section 5.3) and the Architect blueprint (section 9), the honest close is a Maintainer recommendation to (a) recalibrate the 8.71 gate against what a LOCO-I-class modular codec realistically achieves (~9.5 bpp), or (b) commission a genuinely different codec family (VarDCT / transform-coding, or a much larger gradient-pooled MA tree in the entropy backend) - not another predictor tweak. R15 ships nothing on its own (gated off; `OBSIDIAN_R15_FORCE`+`OBSIDIAN_R15_SHIP` only confirm the gate). No merge until PNG 13.05 + WebP 9.61 + JPEG XL 8.71 all clear bit-exactly per the owner override (issue #68 stays open by standing directive).
 
   - the Builder
+
+- 2026-08-20 (the Builder) - **RESUME-STATE / ESCALATION.** This run verified the branch is consistent and healthy after R15: working tree clean, `obsidian_core` lib suite **148 tests green**, R15 measurement confirmed (baseline and R15-forced both **9.5209 bpp**, byte-identical - the NRP nets return `None` per-plane because the post-R9-B residual is near-incompressible, so the never-expand net never selects R15). The 10-axis exhaustion table stands. The structural +0.8108 bpp gap to JPEG XL (8.71) is therefore a **predictor/transform architectural ceiling**, not a tuning deficit.
+
+  **Builder's verdict:** no further `build`/`continue` within the single-pixel predict-and-code / decorrelation / learned-overlay family can move the gate (that family is fully mapped and net-negative or wash at ~9.52 bpp). Per `builder.md` escalation rule and the R15 blueprint halt trigger, this is a systemic roadblock requiring Maintainer/Owner intervention. Two concrete options for Mae:
+  - **(a) Recalibrate the JPEG XL gate** to a realistic LOCO-I-class modular ~9.5 bpp (PNG 13.05 and WebP 9.61 already MET at 9.5209), declare the modular codec "best-in-class for its family", and close issue #68 on that basis.
+  - **(b) Commission a new codec family** - VarDCT / transform-coding with a learned entropy model and splines (the actual JXL mechanism) - via a fresh Researcher brief -> Architect blueprint -> Builder effort. This is the only path that can reach 8.71, but it is a multi-week, fundamentally different codec, not a continuation of R11-R15.
+
+  **Status:** `in-progress` - BLOCKED on Maintainer repivot decision. Decision file written as `{"action":"maintainer"}`. No merge until all three gates clear bit-exactly per owner override #2.
+
+  - the Builder
