@@ -167,6 +167,11 @@ pub struct EncodeOpts {
     /// Used only to measure / lock-step test R13-A (`AdaptiveRecursive`); it is
     /// not a production path.
     pub forced_predictor: Option<PredictorId>,
+    /// R13-B measurement seam: force the reversible group transform kind. `Some(Lift)`
+    /// forces CDF 5/3 lifting (the energy-compacting wavelet); `Some(Squeeze)` forces
+    /// the legacy quincunx subsampling; `None` (default) lets the never-expand safety
+    /// net pick. Used to measure R13-B; not a production path on its own.
+    pub transform_kind: Option<crate::transforms::TransformKind>,
 }
 
 impl Default for EncodeOpts {
@@ -186,6 +191,7 @@ impl Default for EncodeOpts {
             cfl_scale: None,
             squeeze_levels: None,
             forced_predictor: None,
+            transform_kind: None,
         }
     }
 }
@@ -601,6 +607,8 @@ pub fn encode_with(
     // Test/measurement seams: force CFL and/or Squeeze on regardless of probes.
     let force_cfl = std::env::var("OBSIDIAN_CFL_FORCE").ok().as_deref() == Some("1");
     let force_sq = std::env::var("OBSIDIAN_SQ_FORCE").ok().as_deref() == Some("1");
+    let force_lift = std::env::var("OBSIDIAN_LIFT_FORCE").ok().as_deref() == Some("1")
+        || opts.transform_kind == Some(crate::transforms::TransformKind::Lift);
 
     // Honor explicit per-plane overrides from `EncodeOpts`; otherwise pick CFL
     // scales and Squeeze levels greedily via cheap per-plane probes.
@@ -620,8 +628,12 @@ pub fn encode_with(
         let mx = crate::transforms::max_squeeze_levels(width, height);
         sq_choice = vec![mx; n_planes];
     }
+    if force_lift {
+        let mx = crate::transforms::max_squeeze_levels(width, height);
+        sq_choice = vec![mx; n_planes];
+    }
 
-    // Config C: original codec (no CFL, no Squeeze).
+    // Config C: original codec (no CFL, no transform).
     let (coded_c, model_c, gcm_c, glz_c, gm2_c) = code_banded(
         coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes,
         &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
@@ -629,9 +641,9 @@ pub fn encode_with(
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
     )?;
-    // Config B: CFL applied, no Squeeze.
+    // Config B: CFL applied, no transform.
     let (cfl_planes_b, cfl_dims_b, cfl_parent_b) =
-        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &vec![0u8; n_planes]);
+        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &vec![0u8; n_planes], crate::transforms::TransformKind::Squeeze);
     let mut model_b = model.clone();
     model_b.cfl_scale = cfl_choice.clone();
     let (coded_b, model_b2, gcm_b, glz_b, gm2_b) = code_banded(
@@ -643,7 +655,7 @@ pub fn encode_with(
     )?;
     // Config A: CFL applied and Squeeze applied.
     let (cfl_planes_a, cfl_dims_a, cfl_parent_a) =
-        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &sq_choice);
+        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &sq_choice, crate::transforms::TransformKind::Squeeze);
     let mut model_a = model.clone();
     model_a.cfl_scale = cfl_choice.clone();
     model_a.squeeze_levels = sq_choice.clone();
@@ -654,18 +666,41 @@ pub fn encode_with(
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model_a,
     )?;
+    // Config D: CFL applied and CDF 5/3 lifting (R13-B) applied. Same per-plane
+    // CFL scales and Squeeze levels as config A, only the transform differs; the
+    // never-expand net keeps it only when it is the smallest of {C, B, A, D}.
+    let (cfl_planes_d, cfl_dims_d, cfl_parent_d) =
+        build_banded(coding_planes, &ranges, width, height, &cfl_choice, &sq_choice, crate::transforms::TransformKind::Lift);
+    let mut model_d = model.clone();
+    model_d.cfl_scale = cfl_choice.clone();
+    model_d.squeeze_levels = sq_choice.clone();
+    model_d.transform_kind = crate::transforms::TransformKind::Lift;
+    let (coded_d, model_d2, gcm_d, glz_d, gm2_d) = code_banded(
+        &cfl_planes_d, &cfl_dims_d, &cfl_parent_d, coding_planes, &palette, transform, &ranges, &sizes,
+        &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
+        force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
+        use_static, use_capped, gr_cm, gr_lz, gr_m2, model_d,
+    )?;
 
     // Never-expand net: keep the smallest container (model + payload + per-stream
-    // length fields + header). CFL/Squeeze ship only when they actually win.
+    // length fields + header). CFL/Squeeze/Lift ship only when they actually win.
     let total_c = config_total(&model_c, &coded_c.streams);
     let total_b = config_total(&model_b2, &coded_b.streams);
     let total_a = config_total(&model_a2, &coded_a.streams);
-    let winner = if total_a <= total_b && total_a <= total_c {
+    let total_d = config_total(&model_d2, &coded_d.streams);
+    let winner = if force_lift {
+        // R13-B measurement seam: force the lifting config to ship so its real
+        // bytes are measured (the net's total_d is still recorded for reporting).
+        (coded_d, model_d2, gcm_d, glz_d, gm2_d)
+    } else if total_a <= total_b && total_a <= total_c && total_a <= total_d {
         (coded_a, model_a2, gcm_a, glz_a, gm2_a)
-    } else if total_b <= total_c {
+    } else if total_b <= total_c && total_b <= total_d {
         (coded_b, model_b2, gcm_b, glz_b, gm2_b)
-    } else {
+    } else if total_c <= total_d {
         (coded_c, model_c, gcm_c, glz_c, gm2_c)
+    } else {
+        (coded_d, model_d2, gcm_d, glz_d, gm2_d)
     };
     let coded = winner.0;
     model = winner.1;
@@ -1681,11 +1716,12 @@ fn config_total(model: &ModelConfig, streams: &[Vec<u8>]) -> usize {
     total
 }
 
-/// R10: build the banded coding-plane list for a (CFL scale, Squeeze level)
-/// choice. CFL is applied in the original plane space (chroma plane `c` has
-/// `round(s * luma / 8)` subtracted, luma = plane 0, scale 0 = identity), then
-/// each plane is split by Squeeze into post-order sub-bands. Returns the bands,
-/// their `(w, h)`, and the owning original plane index of each band.
+/// R10: build the banded coding-plane list for a (CFL scale, Squeeze level,
+/// transform kind) choice. CFL is applied in the original plane space (chroma
+/// plane `c` has `round(s * luma / 8)` subtracted, luma = plane 0, scale 0 =
+/// identity), then each plane is split by the chosen transform into post-order
+/// sub-bands. Returns the bands, their `(w, h)`, and the owning original plane
+/// index of each band.
 fn build_banded(
     base: &[Vec<i16>],
     ranges: &[PlaneRange],
@@ -1693,6 +1729,7 @@ fn build_banded(
     height: usize,
     cfl_scale: &[Option<u8>],
     squeeze_levels: &[u8],
+    transform_kind: crate::transforms::TransformKind,
 ) -> (Vec<Vec<i16>>, Vec<(usize, usize)>, Vec<usize>) {
     let n = base.len();
     let mut planes: Vec<Vec<i16>> = base.to_vec();
@@ -1707,7 +1744,8 @@ fn build_banded(
             }
         }
     }
-    // R10-A Squeeze split (post-order).
+    // R10-A / R13-B transform split (post-order). Squeeze and Lift share the same
+    // 4-band-per-level geometry, so the banded coder is unchanged between them.
     let mut banded: Vec<Vec<i16>> = Vec::new();
     let mut dims: Vec<(usize, usize)> = Vec::new();
     let mut parent: Vec<usize> = Vec::new();
@@ -1718,7 +1756,9 @@ fn build_banded(
             dims.push((width, height));
             parent.push(p);
         } else {
-            for (data, bw, bh) in crate::transforms::squeeze(&planes[p], width, height, levels) {
+            for (data, bw, bh) in
+                crate::transforms::transform_plane(&planes[p], width, height, levels, transform_kind)
+            {
                 banded.push(data);
                 dims.push((bw, bh));
                 parent.push(p);

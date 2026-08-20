@@ -143,6 +143,13 @@ pub struct ModelConfig {
     /// so no extra header bits are needed. Chosen per plane by the never-expand
     /// safety net, so enabling Squeeze can never regress the file.
     pub squeeze_levels: Vec<u8>,
+    /// R13-B: which reversible group transform produces the sub-band geometry.
+    /// `Squeeze` (default, legacy) is the quincunx subsampling; `Lift` (CDF 5/3,
+    /// R13-B) is a genuine energy-compacting wavelet. Both share the band layout
+    /// produced by `squeeze_band_layout`, so the banded coder is unchanged. Signal
+    /// a single byte in the model section (last, so legacy readers decode it as
+    /// the default `Squeeze` when absent); both sides read it so lockstep is exact.
+    pub transform_kind: crate::transforms::TransformKind,
     /// R10-B chroma-from-luma (CFL) scale per plane. `None` (the default, and the
     /// value for the luma plane) means no CFL; `Some(s)` with `s in 0..=7` means
     /// the chroma plane is pre-subtracted by `round(s * luma / 8)` before coding
@@ -353,6 +360,7 @@ pub fn analyze(
         weighted_wc_table: None,
         weighted_r13_table: None,
         squeeze_levels: vec![0u8; n_planes],
+        transform_kind: crate::transforms::TransformKind::Squeeze,
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
         band_maps: None,
@@ -804,6 +812,7 @@ pub fn default_model(
         weighted_wc_table: None,
         weighted_r13_table: None,
         squeeze_levels: vec![0u8; n_planes],
+        transform_kind: crate::transforms::TransformKind::Squeeze,
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
         band_maps: None,
@@ -1098,6 +1107,10 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     } else {
         w.write_all(&[0])?;
     }
+    // R13-B: transform kind byte, appended last (after the R12-A band model) so
+    // every legacy reader that stops earlier still parses the model body. A
+    // legacy stream has no such byte; `read_model` defaults it to `Squeeze`.
+    w.write_all(&[m.transform_kind.to_u8()])?;
     Ok(())
 }
 
@@ -1518,6 +1531,19 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         return Err(CodecError::InvalidStream("bad r12 band flag".into()));
     };
 
+    // R13-B: transform kind byte, appended last. Legacy streams (written before
+    // this field existed) have no trailing byte; default to `Squeeze` so every
+    // prior stream decodes byte-identically.
+    let transform_kind = {
+        let mut b = [0u8; 1];
+        match r.read_exact(&mut b) {
+            Ok(()) => {
+                crate::transforms::TransformKind::from_u8(b[0]).unwrap_or(crate::transforms::TransformKind::Squeeze)
+            }
+            Err(_) => crate::transforms::TransformKind::Squeeze,
+        }
+    };
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -1537,6 +1563,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         weighted_wc_table,
         weighted_r13_table,
         squeeze_levels,
+        transform_kind,
         cfl_scale,
         band_ranges,
         band_maps,

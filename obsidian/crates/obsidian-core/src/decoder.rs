@@ -18,7 +18,7 @@ use crate::predict::{
     neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state, weight_context, PredictorId,
     R13State, WLeaf, WeightVec, M3_WP_GAIN,
 };
-use crate::transforms::{cfl_predict, squeeze_band_layout, unsqueeze};
+use crate::transforms::{cfl_predict, squeeze_band_layout};
 use crate::rans::{
     RansDecoder, RansTable, BitReader, GrState, GR_K_INIT, gr_read_symbol, read_gamma,
     gr_adapt_bias, CmState, gr_read_symbol_k, read_match, CAPPED_SYMBOLS, CAPPED_ALPHABET,
@@ -909,8 +909,8 @@ if p == PredictorId::AdaptiveRecursive {
     Ok(())
 }
 
-    // R10: decode banded planes (Squeeze sub-bands) then unsqueeze, then add
-    // back CFL. `total_bands` streams are stored in plane-major order; each
+    // R10: decode banded planes (Squeeze/Lift sub-bands) then untransform, then
+    // add back CFL. `total_bands` streams are stored in plane-major order; each
     // original plane contributes `squeeze_band_layout(...).len()` bands.
     let mut band_cursor = 0usize;
     for c in 0..plane_count {
@@ -932,7 +932,7 @@ if p == PredictorId::AdaptiveRecursive {
             bands.push((band, bw, bh));
             band_cursor += 1;
         }
-        let mut full = unsqueeze(&bands, width, height, model.squeeze_levels[c]);
+        let mut full = crate::transforms::untransform_plane(&bands, width, height, model.squeeze_levels[c], model.transform_kind);
         // R10-B CFL inverse: add the scaled luma prediction back to chroma planes.
         if let Some(s) = model.cfl_scale[c] {
             let rmin = ranges[c].min as i32;

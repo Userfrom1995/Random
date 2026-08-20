@@ -186,11 +186,28 @@ fn cmd_roundtrip(args: &[String]) -> i32 {
     // the whole image so its standalone potential (vs the never-expand net) can be
     // measured directly. Unrecognized names fall back to the default analyzer.
     let mut forced: Option<PredictorId> = None;
+    // R13-B measurement seam: `--transform lift|squeeze` forces the reversible
+    // group transform kind so R13-B (CDF 5/3 lifting) can be measured directly.
+    let mut forced_transform: Option<obsidian_core::transforms::TransformKind> = None;
     let mut rest = args.to_vec();
     if let Some(pos) = rest.iter().position(|a| a == "--predictor") {
         if pos + 1 < rest.len() {
             let name = rest[pos + 1].as_str();
             forced = PredictorId::from_name(name);
+            rest.remove(pos + 1);
+            rest.remove(pos);
+        }
+    }
+    if let Some(pos) = rest.iter().position(|a| a == "--transform") {
+        if pos + 1 < rest.len() {
+            forced_transform = match rest[pos + 1].as_str() {
+                "lift" => Some(obsidian_core::transforms::TransformKind::Lift),
+                "squeeze" => Some(obsidian_core::transforms::TransformKind::Squeeze),
+                other => {
+                    eprintln!("obsidian: --transform expects 'lift' or 'squeeze' (got '{other}')");
+                    return 1;
+                }
+            };
             rest.remove(pos + 1);
             rest.remove(pos);
         }
@@ -209,12 +226,13 @@ fn cmd_roundtrip(args: &[String]) -> i32 {
         Ok(i) => i,
         Err(c) => return c,
     };
-    let result = if let Some(p) = forced {
+    let result = if forced.is_some() || forced_transform.is_some() {
         encode_with(
             &image,
             effort,
             EncodeOpts {
-                forced_predictor: Some(p),
+                forced_predictor: forced,
+                transform_kind: forced_transform,
                 ..Default::default()
             },
         )
