@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~03:07Z, maintainer event run 32327031693, triggered by owner `/oc maintainer` on PR #93 after the Builder's escalation). Decision: dispatch Architect R12 blueprint (adaptive per-band weighted predictor + MA-tree entropy context). One-PR rule intact; orphan re-link remains fixed.
+- **Updated:** 2026-08-20 (~03:13Z, maintainer event run 32327446457, triggered by owner `/oc maintainer` on PR #93 after the Architect delivered the R12 blueprint). Decision: dispatch `continue` on PR #93 so the Builder implements R12-A (per-band weighted predictor) and re-measures REAL Kodak. One-PR rule intact; orphan re-link remains fixed.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -19,7 +19,7 @@
 - **PR #91 MERGED:** orphan-main guard (`c043b7e`, carries literal `Closes #68` commit token; #68 reopened same run).
 - **PR #92 MERGED:** `main` = `d6b2894`. Determinism guard + "do not auto-close umbrella" rule + force-with-lease pin. Body `Refs #68`.
 - **`main` = `d6b2894`** (healthy, 370 commits, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` RE-LINKED** (current head `70c943d6`), shares history with `main` (merge-base `d6b2894`). PR #93 is the single canonical Obsidian PR (`Refs #68`). ORPHAN PROBLEM RESOLVED.
+- **Branch `opencode/issue68-20260818070512` RE-LINKED** (current head `cfd66c6e`), shares history with `main` (merge-base `d6b2894`). PR #93 is the single canonical Obsidian PR (`Refs #68`). ORPHAN PROBLEM RESOLVED.
 - Root cause of the prior stall (Lab Engineer refused the re-link; Mae hard-barred from pushing) resolved by the Builder's `/oc continue` rebuild + reopen as PR #93.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
@@ -31,23 +31,25 @@
 - **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten. Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5208 bpp mean** (R10-B CFL). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
 - **R0-R11 codec shipped on PR #93:** Golomb-Rice, CMARC binary range coder (R4), context-tree weighted predictor (R9-B), R10 Squeeze + chroma-from-luma, R11 cross-band in-loop predictor, R11-D MA-tree-lite combined gradient+residual context (opt-in `OBSIDIAN_CARC_MA_CTX=1`), R11-A cross-band `wLL` (reverted - wash + 45x slowdown).
-- **PREDICTOR-CONTEXT CEILING CONFIRMED (3 independent axes):**
-  1. R11-D combined gradient+residual MA context - wash (mean unchanged 9.5208).
-  2. R11-A cross-band `wLL` - wash + 45x slowdown (reverted).
-  3. This run (2026-08-20, Builder): finer 64-leaf `WeightedTree` weight-context partition - 9.5262 bpp REGRESSION vs 9.5208 (reverted).
-  - Conclusion (robust): the +0.81 bpp gap to JXL 8.71 is the **predictor's functional form**, not its context granularity.
+- **PREDICTOR-CONTEXT CEILING CONFIRMED (3 independent axes):** R11-D wash; R11-A wash + 45x slowdown (reverted); 64-leaf weight-context partition regression (reverted). Conclusion: the +0.81 bpp gap to JXL 8.71 is the **predictor's functional form**, not its context granularity.
+
+## R12 ARCHITECT BLUEPRINT (DELIVERED, on PR #93 branch)
+
+- File `obsidian/docs/architect-r12-per-band-weighted-ma-tree-blueprint.md` committed + pushed (working tree clean).
+- **R12-A (primary):** per-band `analyze_bands` - one `WeightedTree` table + predictor map per Squeeze band in the subsampled LL domain (today Obsidian solves ONE full-res table reused for every band). Sparse signaling only when Squeeze present; legacy streams decode byte-identically. Target ~8.9-9.2 bpp.
+- **R12-B (secondary, additive):** replace the uniform `combined_ma_context` fold with a fixed-topology depth-3 `ma_tree_context` whose per-band-kind feature ordering + quantization is a compile-time `MA_TREE_FEATURES[band_kind]` table (zero signaled bytes, exact lockstep) - re-semanticizing the MA context per band.
+- Both strict supersets; never-expand net + per-image MA auto-selection guarantee no regression. Build order: R12-A first, then R12-B, each re-measured on REAL `data/kodak`.
 
 ## In flight
 
-- **`architect` on PR #93 (DISPATCHED THIS run, 32327031693):** the Architect drafts the **R12 blueprint** - adaptive per-band weighted predictor (fit per Squeeze band in subsampled LL domain) + true MA-tree entropy context (semantics change per band). Design basis: existing R7 weighted / R8 adaptive-weighted / R9 spatial-weighted blueprints on-branch. Builder resumes via `continue` once the blueprint lands.
-- After R12 blueprint: Builder implements + re-measures REAL Kodak effort-4. Loop via `continue` until all three gates clear.
+- **`continue` on PR #93 (DISPATCHED THIS run, 32327446457):** the Builder implements R12-A (per-band weighted predictor), re-measures REAL Kodak effort-4 against the JXL 8.71 gate, then R12-B. Loop via `continue` until all three gates clear. The design dependency (Architect blueprint) is satisfied; no further `architect`/`research` dispatch needed unless the Builder's implementation reveals a deeper algorithmic gap.
 
 ## PENDING (deferred)
 
-- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5208); next lever = R12 Architect blueprint (in flight).
-- **Resume Builder (predictor) via `continue`** - after R12 blueprint lands.
+- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5208); next lever = R12 Builder implementation (in flight via `continue`).
+- **Resume Builder (R12) via `continue`** - dispatched THIS run.
 - **README / index.html Obsidian promotion** (standing directive, deferred; schedule once JXL nears).
-- **Review staleness on #93:** head `70c943d6` is builder self-pushed; fresh Reviewer + Tester gate required before any merge.
+- **Review staleness on #93:** head `cfd66c6e` is builder self-pushed; fresh Reviewer + Tester gate required before any merge.
 - **Commit-message hygiene:** never write literal `Closes #68` token in ANY commit message or PR body.
 
 ## Issues
@@ -60,19 +62,18 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError` in recent runs.
-- **pages.yml:** green (run 32327041481 completed/success after PR #93 updates). PR preview staged.
+- **pages.yml:** green (deploy re-running 32327454514 after owner push; PR preview staged).
 - **PR #93 checks:** opencode-pr-trigger SUCCESS, pages deploy SKIPPED (expected for PR preview), GitGuardian SUCCESS. No Reviewer/Tester run yet.
 
 ## Next steps
 
-1. **Architect R12 blueprint (in flight):** design adaptive per-band weighted predictor + true MA-tree entropy context (JPEG XL-class). Reference R7/R8/R9 blueprints on-branch.
-2. **Builder `continue` after blueprint:** implement R12, re-measure REAL Kodak effort-4 against the JXL 8.71 gate. Loop until all three gates clear.
-3. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
-4. **README / index.html promotion:** schedule once JXL nears / PR clears.
+1. **Builder `continue` (in flight):** implement R12-A (per-band weighted predictor), re-measure REAL Kodak effort-4 against the JXL 8.71 gate; then R12-B (MA-tree context). Loop until all three gates clear.
+2. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
+3. **README / index.html promotion:** schedule once JXL nears / PR clears.
 
 ## Open questions
 
-- **Will the R12 Architect blueprint clear the +0.81 JPEG XL gap on REAL Kodak?** Verdict pending the Architect's design + the Builder's implementation + real-Kodak re-measure. Three axes now prove context refinement is exhausted; the predictor's functional form is the lever.
+- **Will R12-A (per-band weighted predictor) clear the +0.81 JPEG XL gap on REAL Kodak?** Verdict pending the Builder's implementation + real-Kodak re-measure. Blueprint targets ~8.9-9.2 bpp; first design that attacks the predictor's functional form per band. Three prior axes proved context refinement was exhausted.
 - **Merge gate (owner override #2):** NOT met - default 9.5208 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
