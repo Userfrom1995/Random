@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~14:55Z, maintainer run 32381296165, triggered by owner `/oc maintainer` + directive comment on PR #93). **OWNER OVERRIDE OF THE HALT/REPIVOT STALEMATE.** The owner rejected recalibration and ordered a two-step plan: (1) complete documentation first, (2) build a NEW lossless codec using the most stable architecture available, goal beat JPEG XL. No merge until fully working/tested/release-ready/documented.
+- **Updated:** 2026-08-20 (~15:00Z, maintainer run 32382290148, triggered by owner `/oc maintainer` on PR #93). **OWNER OVERRIDE OF THE HALT/REPIVOT STALEMATE (reaffirmed).** The owner rejected recalibration and ordered a two-step plan: (1) complete documentation first, (2) build a NEW lossless codec using the most stable architecture available, goal beat JPEG XL. No merge until fully working/tested/release-ready/documented.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -15,7 +15,7 @@
 
 - **PR #91 MERGED:** orphan-main guard. **PR #92 MERGED:** `main` = `d6b2894`, determinism guard + umbrella rule + force-with-lease pin.
 - **`main` = `d6b2894`** (healthy, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` OPEN, head `f1dcb4b7e19f50ff12e5d4f0128b905484c7561c`** (Builder R15 implementation; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* remain gated off/muted). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
+- **Branch `opencode/issue68-20260818070512` OPEN, head `20d1162168af610642a605e76a0c4b21fe11fd94`** (Builder R15 implementation + R15 halt escalation doc; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* remain gated off/muted). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
@@ -43,24 +43,25 @@
 
 The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation / context-tree-overlay / learned-overlay family. **No further tuning of that family will be dispatched (owner reaffirmed beat-JXL target).**
 
-## CURRENT STATE - OWNER DIRECTIVE: DOC FIRST, THEN NEW CODEC (Step 1 in progress)
+## CURRENT STATE - OWNER DIRECTIVE: DOC FIRST, THEN NEW CODEC (Step 1 NOT YET COMPLETE)
 
 - **Owner directive 2026-08-20T14:37:52Z (overrides halt):** (1) complete documentation of Obsidian on PR #93 first (usage, all flags/options/features); (2) then develop a NEW lossless codec using the most stable architecture available, goal beat JPEG XL + WebP + PNG; (3) do NOT merge until fully working, tested, release-ready, documented.
 - **Interpretation of "most stable architecture available":** the proven, non-speculative design that reaches JXL-class lossless rates is the **FLIF / JPEG XL modular context-tree weighted predictor used as the PRIMARY predictor** (not the R14 overlay form, which was net-negative because it stacked on an already near-optimal base). Step 2 will steer the Builder toward that architecture.
-- **This run's action:** `continue` on PR #93 (head `f1dcb4b7`) - resume the build to (Step 1) finish Obsidian documentation, then (Step 2) build the new modular context-tree codec. No merge (owner override + quality bar).
+- **Step 1 status:** INCOMPLETE. The previous `continue` (owner, 14:43:57Z) produced head `20d1162168` which only added the R15 halt escalation doc + progress update - NOT the consolidated usage/flags/options documentation the owner asked for. The README still has no dedicated "Usage / all flags / options / features" section.
+- **This run's action:** `continue` on PR #93 (head `20d1162168`) - resume the build to (Step 1) finish Obsidian documentation, then (Step 2) build the new modular context-tree codec. No merge (owner override + quality bar).
 - **Recalibration rejected** by owner; #68 target (beat JXL) reaffirmed.
 
 ## In flight
 
-- **Builder (Step 1):** dispatched via `continue` this run to complete Obsidian documentation on PR #93, then proceed to Step 2. No other Builder/Researcher/Architect in flight at decision time.
+- **Builder (Step 1):** dispatched via `continue` THIS run to complete Obsidian documentation on PR #93, then proceed to Step 2. No other Builder/Researcher/Architect in flight at decision time.
 
 ## PENDING (awaiting completion)
 
-- **Step 1 - Documentation:** full CLI usage, every flag/option/feature, including the stable shipped R10-B+CMARC path and the gated experimental R13/R14/R15 work with honest measurements. Must be complete before merge.
-- **Step 2 - New codec:** architect/blueprint the FLIF/JXL-modular primary context-tree predictor (research only if a genuinely novel algorithmic question arises; otherwise architect -> build directly since the architecture is proven/stable), implement, measure on REAL Kodak effort-4, target < 8.71 JXL AND < 9.61 WebP AND < 13.05 PNG bit-exactly.
+- **Step 1 - Documentation:** full CLI usage, every flag/option/feature, including the stable shipped R10-B+CMARC path and the gated experimental R13/R14/R15 work with honest measurements. MUST cover `--effort`, `--predictor`, `--transform`, `--rcct`, `--nrp` and `OBSIDIAN_*` seams, plus stability/speed trade-offs. Must be complete before merge and before Step 2 coding.
+- **Step 2 - New codec:** architect/blueprint the FLIF/JXL-modular PRIMARY context-tree predictor (research only if a genuinely novel algorithmic question arises; otherwise architect -> build directly since the architecture is proven/stable), implement, measure on REAL Kodak effort-4, target < 8.71 JXL AND < 9.61 WebP AND < 13.05 PNG bit-exactly.
 - **Before merge (owner override):** fully working, thoroughly tested (full lib + real-Kodak reproducible), release-ready, properly documented. Then Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`).
 - **README / index.html Obsidian promotion** (standing directive, deferred until Step 2 clears gates / owner approves).
-- **Review staleness on #93:** head `f1dcb4b7` clean; fresh Reviewer + Tester gate required before any merge.
+- **Review staleness on #93:** head `20d1162168` clean; fresh Reviewer + Tester gate required before any merge.
 - **Commit-message hygiene:** never write literal `Closes #68` token.
 
 ## Issues
@@ -78,8 +79,8 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 
 ## Next steps
 
-1. **Step 1 (this run's dispatch):** Builder completes Obsidian documentation on PR #93 (usage, all flags/options/features). 
-2. **Step 2 (after docs):** route architect -> build for the new FLIF/JXL-modular primary context-tree codec on PR #93; measure REAL Kodak; target all three gates bit-exactly.
+1. **Step 1 (this run's dispatch):** Builder completes Obsidian documentation on PR #93 (usage, all flags/options/features) - explicitly required by owner before any Step 2 code.
+2. **Step 2 (after docs):** route architect -> build for the new FLIF/JXL-modular PRIMARY context-tree codec on PR #93; measure REAL Kodak; target all three gates bit-exactly.
 3. **Merge gate (owner override + quality bar):** do NOT merge until default codec beats PNG 13.05 + WebP 9.61 + JPEG XL 8.71 bit-exactly AND is fully tested/documented/release-ready. Then Reviewer + Tester, rebase-merge (`--no-delete-branch`), close #68 with "what was built / what remains unsolved" writeup.
 
 ## Open questions
@@ -88,12 +89,12 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 - **Most stable architecture for Step 2:** selected as FLIF/JXL-modular context-tree weighted predictor as PRIMARY (proven JXL-class). Will be confirmed via Architect blueprint before build.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** CLEARED - prior R15 Builder finished; this run's `continue` is the next step.
+- **Build collision:** CLEARED - prior `continue` (owner 14:43:57Z) finished at head `20d1162168`; this run's `continue` is the next step, no concurrent Builder.
 - **Work preservation:** all R0-R15 codec work preserved on PR #93 (never-merged, branch kept per standing directive); issue #68 open; ready to document/publish/pivot on the owner's word.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
-- **Silent-stall comment-delivery:** the prior escalation comments (runs 32365426983/32365436689) apparently did not post, but the owner clearly saw the situation and responded with a directive - so the escalation reached the owner. No `lab` dispatch needed now; will revisit only if a future required comment fails to post.
+- **Silent-stall comment-delivery:** escalation comments reached the owner; owner responded with directive. No `lab` dispatch needed now.
 - **Commit-message hygiene:** PR #93 body correctly `Refs #68`; future commits must avoid literal `Closes #68`.
 
 - Mae, the Maintainer
