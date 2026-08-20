@@ -4,7 +4,7 @@
 use crate::color::{
     subtract_green_inverse_planes, ycocgr_inverse_planes, ColorCache, PlaneRange, TransformChoice,
 };
-use crate::context::{unzigzag, ContextModel, residual_context};
+use crate::context::{unzigzag, ContextModel, residual_context, quantize_gradient, combined_ma_context};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::Header;
@@ -74,7 +74,18 @@ fn cmarc_residual_context_of(
         let npred = predict_clamped(np, &nnb, wv, wtree, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
-    residual_context(qs[0], qs[1], qs[2])
+    let rc = residual_context(qs[0], qs[1], qs[2]);
+    // R11-D MA-tree-lite: mirror the encoder's combined gradient+residual context
+    // so the decoder reconstructs the identical CMARC coding context (lockstep).
+    // Engaged only when the model flag is set, matching the encoder branch.
+    if model.cmarc_ma_context {
+        let self_nb = neighbors(plane, x, y, width, height);
+        let g1 = self_nb.t - self_nb.l;
+        let gb = quantize_gradient(g1);
+        combined_ma_context(rc, gb as usize)
+    } else {
+        rc
+    }
 }
 
 /// Decode a container into an image, verifying the header CRC.
@@ -1303,7 +1314,8 @@ mod tests {
                 squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(true),
-            },
+                        ..Default::default()
+        },
         )
         .unwrap();
         assert_eq!(decode(&bytes_cache).unwrap(), img, "R6-B cache round-trip");
@@ -1335,7 +1347,8 @@ mod tests {
                 squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(false),
-            },
+                        ..Default::default()
+        },
         )
         .unwrap();
         assert!(
@@ -1370,7 +1383,8 @@ mod tests {
                 squeeze_levels: None,
                 cmarc_run: None,
                 carc_cache: Some(true),
-            },
+                        ..Default::default()
+        },
         )
         .unwrap();
         assert_eq!(decode(&bytes_cache).unwrap(), img, "R6-B cache round-trip (photographic)");
@@ -1405,7 +1419,8 @@ mod tests {
                 squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
-                },
+                            ..Default::default()
+        },
             )
             .unwrap();
             let back = decode(&bytes).unwrap();
@@ -1438,7 +1453,8 @@ mod tests {
                 squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
-                },
+                            ..Default::default()
+        },
             )
             .unwrap();
             assert_eq!(decode(&bytes).unwrap(), img, "R3-A fuzz round-trip");
@@ -1472,7 +1488,8 @@ mod tests {
                 squeeze_levels: None,
             cmarc_run: None,
             carc_cache: None,
-            },
+                        ..Default::default()
+        },
         )
         .unwrap();
         let back = decode(&bytes).unwrap();

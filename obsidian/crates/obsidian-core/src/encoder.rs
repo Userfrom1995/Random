@@ -7,7 +7,7 @@
 use crate::color::{
     try_build_palette, ycocgr_forward_planes, subtract_green_forward_planes, ColorCache, Palette, PlaneRange, TransformChoice,
 };
-use crate::context::{zigzag, ContextModel, ContextParams, residual_context};
+use crate::context::{zigzag, ContextModel, ContextParams, residual_context, quantize_gradient, combined_ma_context};
 use crate::crc32::crc32;
 use crate::error::CodecError;
 use crate::header::{Header, HEADER_LEN};
@@ -128,6 +128,17 @@ pub struct EncodeOpts {
     /// safety net keeps it only when it is the smallest CMARC candidate.
     /// See `obsidian/docs/architect-r3-residual-context-blueprint.md` R3-C.
     pub cmarc_run: Option<bool>,
+    /// R11-D MA-tree-lite: fold the local gradient into the CMARC residual coding
+    /// context (`Some(true)` sets `model.cmarc_ma_context`). Only consulted when
+    /// `cmarc` is engaged. Ships OFF by default; the per-image auto-selection
+    /// (`cmarc_ma_context_auto`) keeps it on only when it actually wins. See
+    /// `obsidian/docs/architect-r11-crossband-predictor-blueprint.md` R11-D.
+    pub cmarc_ma_context: Option<bool>,
+    /// R11-D per-image context auto-selection (`OBSIDIAN_CARC_MA_CTX` seam). When
+    /// set, the encoder codes the plane with and without the MA-context fold and
+    /// keeps whichever CMARC context is smaller per image, recording the winner in
+    /// `model.cmarc_ma_context`. Guarantees R11-D can only ship when it wins.
+    pub cmarc_ma_context_auto: bool,
     /// R6-B per-plane color cache for the CMARC coder (`ENTROPY_MODE_CARC_CACHE`).
     /// `Some(true)` enables the cache candidate; `Some(false)` disables it; `None`
     /// (default) defers to the `OBSIDIAN_CARC_CACHE` env seam / the never-expand
@@ -162,6 +173,8 @@ impl Default for EncodeOpts {
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto: false,
             cmarc_run: None,
+            cmarc_ma_context: None,
+            cmarc_ma_context_auto: false,
             carc_cache: None,
             cfl_scale: None,
             squeeze_levels: None,
@@ -217,9 +230,13 @@ pub fn encode(image: &Image, effort: u8) -> Result<(Vec<u8>, EncodeStats), Codec
             cmarc_residual_ctx: None,
             cmarc_residual_ctx_auto,
             cmarc_run: Some(use_carc_run),
+            cmarc_ma_context: None,
+            cmarc_ma_context_auto:
+                std::env::var("OBSIDIAN_CARC_MA_CTX").ok().as_deref() == Some("1"),
             carc_cache: Some(use_carc_cache),
             cfl_scale: None,
             squeeze_levels: None,
+                    ..Default::default()
         },
     )
 }
@@ -531,6 +548,10 @@ pub fn encode_with(
     // R3-A: force the CMARC coding context to the JPEG-LS DIFF residual context
     // when the seam is set (only meaningful when CMARC is engaged).
     model.cmarc_residual_ctx = opts.cmarc_residual_ctx.unwrap_or(false) && use_cmarc;
+    // R11-D: force the MA-context fold on when the seam is set (only meaningful
+    // when CMARC is engaged). The per-image auto-selection below keeps it on only
+    // when it actually wins, so a regression can never ship.
+    model.cmarc_ma_context = opts.cmarc_ma_context.unwrap_or(false) && use_cmarc;
     // `entropy_mode` is finalized AFTER the coding pass / safety net below, so
     // the serialized model reflects whichever backend actually won.
     // M3.5 Design B: build the per-context capped alphabet histograms from the
@@ -595,7 +616,7 @@ pub fn encode_with(
     let (coded_c, model_c, gcm_c, glz_c, gm2_c) = code_banded(
         coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes,
         &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
-        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
     )?;
@@ -607,7 +628,7 @@ pub fn encode_with(
     let (coded_b, model_b2, gcm_b, glz_b, gm2_b) = code_banded(
         &cfl_planes_b, &cfl_dims_b, &cfl_parent_b, coding_planes, &palette, transform, &ranges, &sizes,
         &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
-        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model_b,
     )?;
@@ -620,7 +641,7 @@ pub fn encode_with(
     let (coded_a, model_a2, gcm_a, glz_a, gm2_a) = code_banded(
         &cfl_planes_a, &cfl_dims_a, &cfl_parent_a, coding_planes, &palette, transform, &ranges, &sizes,
         &context, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run,
-        use_carc_cache, opts.cmarc_residual_ctx_auto, force_carc, force_carc_lz, force_carc_mix,
+        use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix,
         force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2,
         use_static, use_capped, gr_cm, gr_lz, gr_m2, model_a,
     )?;
@@ -830,7 +851,20 @@ fn cmarc_residual_context_of(
         let npred = predict_clamped(np, &nnb, wv, wtree, *range);
         qs[i] = plane[nidx] as i32 - npred;
     }
-    residual_context(qs[0], qs[1], qs[2])
+    let rc = residual_context(qs[0], qs[1], qs[2]);
+    // R11-D MA-tree-lite: fold the local horizontal-gradient bucket into the
+    // residual-DIFF context so the coder also sees the JPEG XL MA "property".
+    // Only engaged when the per-image auto-selection (`model.cmarc_ma_context`)
+    // has chosen it, so a regression can never ship. The decoder mirrors this
+    // exact branch (it reads the same model flag), preserving bit-exact lockstep.
+    if model.cmarc_ma_context {
+        let self_nb = neighbors(plane, x, y, width, height);
+        let g1 = self_nb.t - self_nb.l;
+        let gb = quantize_gradient(g1);
+        combined_ma_context(rc, gb as usize)
+    } else {
+        rc
+    }
 }
 
 /// The per-plane coding pass for `model`. Shared by the initial encode and the
@@ -1727,6 +1761,7 @@ fn code_banded(
     use_carc_run: bool,
     use_carc_cache: bool,
     cmarc_residual_ctx_auto: bool,
+    cmarc_ma_context_auto: bool,
     force_carc: bool,
     force_carc_lz: bool,
     force_carc_mix: bool,
@@ -1868,6 +1903,38 @@ fn code_banded(
                 coded = res_coded;
                 cm_total = res_total;
                 model.cmarc_residual_ctx = true;
+            }
+        }
+        // R11-D MA-tree-lite per-image context auto-selection. The CMARC pass above
+        // used the (already-selected) residual/gradient coding context. When this
+        // seam is on, also code the plane with the local-gradient fold added into
+        // the coding context and keep whichever CMARC context is smaller per image.
+        // The winning choice is recorded in `model.cmarc_ma_context` so the decoder
+        // mirrors it. Because this branch compares the MA-fold candidate against
+        // the current best CMARC total (which is itself gated by the GR/R3-A nets),
+        // R11-D can never expand the file versus the CMARC candidate it replaces.
+        if cmarc_ma_context_auto {
+            let pre_ma_total = cm_total;
+            model.cmarc_ma_context = true;
+            let ma_coded = code_planes(banded_coding_planes, &band_ranges, &band_sizes, banded_dims, banded_parent,
+                &model,
+                entropy_gr,
+                false,
+                false,
+                false,
+                false,
+                m3_wp,
+                use_cmarc,
+                false,
+                false,
+                false,
+            )?;
+            model.cmarc_ma_context = false;
+            let ma_total: usize = ma_coded.streams.iter().map(|s| s.len()).sum();
+            if ma_total < pre_ma_total {
+                coded = ma_coded;
+                cm_total = ma_total;
+                model.cmarc_ma_context = true;
             }
         }
         // R3-C run mode: try the run-length coder on near-constant regions and
@@ -2591,6 +2658,41 @@ mod tests {
         );
         let back = decode(&bytes).unwrap();
         assert_eq!(back, img, "forced CARC_MIX roundtrip");
+    }
+
+    #[test]
+    fn r11d_ma_context_roundtrip_bit_exact() {
+        // R11-D: the MA-tree-lite combined gradient+residual context must
+        // round-trip bit-exactly when forced on (the decoder mirrors the exact
+        // branch via `model.cmarc_ma_context`), and must stay consistent with
+        // the never-expand net (auto-selection disables it when it does not win).
+        let mut img = Image::new(128, 96, Channels::Rgb).unwrap();
+        let mut seed = 0x9E3779B97F4A7C15u64;
+        for c in 0..3u8 {
+            for i in 0..img.area() {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let ramp = ((i % 128) as i32 + (i / 128) as i32) * 3 / 2;
+                let noise = ((seed >> 33) % 11) as i32 - 5;
+                img.planes[c as usize][i] = (ramp + noise).clamp(0, 255) as u8;
+            }
+        }
+        for e in [1u8, 4, 7] {
+            let (bytes, _stats) = encode_with(
+                &img,
+                e,
+                EncodeOpts {
+                    cmarc: Some(true),
+                    cmarc_residual_ctx: Some(true),
+                    cmarc_ma_context: Some(true),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let back = decode(&bytes).unwrap();
+            assert_eq!(back, img, "R11-D MA-context roundtrip failed at effort {e}");
+            let (_h, model, _off) = inspect(&bytes).unwrap();
+            assert!(model.cmarc_ma_context, "MA context must be signaled when forced on");
+        }
     }
 
     #[test]

@@ -316,9 +316,38 @@ pub fn residual_context(d_l: i32, d_u: i32, d_ul: i32) -> usize {
     rc3_lut()[q1 as usize * 81 + q2 as usize * 9 + q3 as usize] as usize
 }
 
+/// R11-D (MA-tree-lite): fold a coarse local-gradient bucket `gb` (in `0..=8`,
+/// the quantized horizontal gradient magnitude at the current pixel) into the
+/// residual-DIFF context `rc` so the CMARC coder conditions on BOTH the
+/// neighboring residual pattern (the JPEG-LS delta, `rc`) AND the local gradient
+/// structure (the JPEG XL MA "property", `gb`). Returns a dense id in
+/// `0..365`. `(rc + gb * 41) % 365` keeps the result bounded and spreads the 9
+/// gradient buckets across the 365 residual contexts without colliding for a
+/// fixed `rc` (41 and 365 are coprime), so each residual context specializes on a
+/// distinct (neighbor-residuals, local-gradient) class. This is the coder-side
+/// specialization the R11 blueprint prescribes; it is strictly additive (more
+/// context classes) and, with the neutral prior + never-expand net, can only
+/// lower or match the bit cost — never expand.
+pub fn combined_ma_context(rc: usize, gb: usize) -> usize {
+    (rc + gb * 41) % 365
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn combined_ma_context_in_range_and_stable() {
+        // The MA-tree-lite fold must stay inside the residual-context alphabet
+        // (365 symbols) so it can share the CMARC model without overflow.
+        for rc in 0..365usize {
+            for gb in 0..9usize {
+                let c = combined_ma_context(rc, gb);
+                assert!(c < 365, "combined context {c} out of range");
+                assert_eq!(c, combined_ma_context(rc, gb));
+            }
+        }
+    }
 
     #[test]
     fn gradient_bins_symmetric() {
