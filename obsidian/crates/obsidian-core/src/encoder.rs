@@ -18,8 +18,8 @@ use crate::model::{
     ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX, ENTROPY_MODE_CARC_CACHE,
 };
 use crate::predict::{
-    default_weight_codebook, neighbors, predict_clamped, PredictorId, WLeaf, WeightVec, M3_WP_GAIN,
-    PREDICTOR_COUNT,
+    default_weight_codebook, neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state,
+    weight_context, PredictorId, R13State, WLeaf, WeightVec, M3_WP_GAIN, PREDICTOR_COUNT,
 };
 use crate::rans::{
     RansEncoder, RansTable, BitWriter, GrState, GR_K_INIT, gr_write_symbol, write_gamma,
@@ -69,6 +69,7 @@ pub struct EncodeStats {
 /// (e.g. `OBSIDIAN_CAPPED`) so callers (and tests) can select a backend without
 /// touching shared global state, which would otherwise race every other test
 /// that calls `encode`.
+#[derive(Clone)]
 pub struct EncodeOpts {
     /// Force the M3.5 Design B capped-and-escaped rANS backend. When unset the
     /// production `OBSIDIAN_CAPPED` env seam governs the choice.
@@ -160,6 +161,12 @@ pub struct EncodeOpts {
     /// recursive splits; `None` (default) lets the encoder pick levels greedily
     /// behind the never-expand safety net.
     pub squeeze_levels: Option<Vec<u8>>,
+    /// R13-A measurement seam: force a single predictor for the whole image.
+    /// When `Some(p)`, the analyzer restricts the candidate predictor set to just
+    /// `p` (and builds its supporting tables), so the model always selects it.
+    /// Used only to measure / lock-step test R13-A (`AdaptiveRecursive`); it is
+    /// not a production path.
+    pub forced_predictor: Option<PredictorId>,
 }
 
 impl Default for EncodeOpts {
@@ -178,6 +185,7 @@ impl Default for EncodeOpts {
             carc_cache: None,
             cfl_scale: None,
             squeeze_levels: None,
+            forced_predictor: None,
         }
     }
 }
@@ -532,6 +540,7 @@ pub fn encode_with(
             &context,
             &codebook,
             entropy_gr,
+            opts.forced_predictor,
         )
     };
     model.transform = if palette.is_some() {
@@ -905,6 +914,11 @@ fn code_planes(
         let alphabet = sizes[pi];
         let wv = model.weight_for(parent[pi]);
         let wtree = model.weighted_tree_for_band(pi, parent[pi]);
+        // R13-A: per-`weight_context`-leaf weight state, seeded from the plane's R13
+        // base leaf table (or neutral when `AdaptiveRecursive` is unused on this plane).
+        // Keyed by `weight_context` leaf, so the online LMS update stays in lockstep
+        // between encoder and decoder (both read the same signaled base weights).
+        let mut wrstate: Vec<R13State> = r13_seed_state(model.r13_table_for_band(pi, parent[pi]));
         if entropy_gr {
             // Design A: per-context adaptive Golomb-Rice. Forward raster order;
             // both sides adapt `k` from the decoded symbols (mirrored state), so
@@ -1026,9 +1040,15 @@ fn code_planes(
                                     false,
                                 );
                                 let p = model.predictor_for_band(pi, parent[pi], cid);
-                                let pred =
-                                    predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                                let wc = weight_context(&nb);
+                                let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+                                    Some(pr) => pr,
+                                    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+                                };
                                 let r = buf[i] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                                 cmarc_lz_write_literal(
                                     &mut enc,
                                     &mut models,
@@ -1058,8 +1078,15 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor_for_band(pi, parent[pi], cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                             let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                             cmarc_mix_write_residual(
                                 &mut enc,
                                 &mut models,
@@ -1095,7 +1122,11 @@ fn code_planes(
                         let nb = neighbors(plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(pi, parent[pi], cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
@@ -1135,6 +1166,9 @@ fn code_planes(
                             continue;
                         }
                         let r = plane[i] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                         cmarc_write_residual(
                             &mut enc,
                             &mut models,
@@ -1166,9 +1200,16 @@ fn code_planes(
                             let nb = neighbors(&coding_planes[pi], x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor_for_band(pi, parent[pi], cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                             let v = coding_planes[pi][idx] as i32;
                             let r = v - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                             // R3-A coding-context selection (unchanged by cache mode).
                             // Predictor selection stays on the gradient context; only the
                             // CMARC coding context switches to the residual DIFF context
@@ -1236,8 +1277,15 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(pi, parent[pi], cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                         let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                         let k = cms[cid].k_current();
                         gr_write_symbol_k(&mut bw, r, k);
                         cms[cid].adapt(r.unsigned_abs());
@@ -1311,8 +1359,15 @@ fn code_planes(
                             } else {
                                 wv.as_ref()
                             };
-                            let pred = predict_clamped(p, &nb, w, wtree, ranges[pi]);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, w, wtree, ranges[pi]),
+};
                             let r = coding_planes[pi][i] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                             gr_write_symbol(&mut data_bw, &mut gr[cid], r);
                             if m3_wp && matches!(p, PredictorId::Weighted) {
                                 wp[cid].adapt_online(r, nb.l, nb.t, nb.tl, nb.tr, M3_WP_GAIN);
@@ -1367,7 +1422,11 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor_for_band(pi, parent[pi], cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = ranges[pi].clamp(pred + bias);
                     let r_coded = val - pred_b;
@@ -1452,8 +1511,15 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(pi, parent[pi], cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                         let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                         let z = zigzag(r) as usize;
                         let sym = z.min(CAPPED_ALPHABET);
                         syms.push((cid, sym));
@@ -1489,8 +1555,15 @@ fn code_planes(
                         let nb = neighbors(&coding_planes[pi], x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(pi, parent[pi], cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                         let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
                         chosen_counts[p.to_u8() as usize] += 1;
                     }
@@ -1514,8 +1587,15 @@ fn code_planes(
                             CodecError::InvalidStream(format!("no static table for context {cid}"))
                         })?;
                     let p = model.predictor_for_band(pi, parent[pi], cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                     let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                     enc.put(zigzag(r) as usize, table);
                     chosen_counts[p.to_u8() as usize] += 1;
                 }
@@ -1537,8 +1617,15 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor_for_band(pi, parent[pi], cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                     let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                     let sym = zigzag(r) as usize;
                     let (f, c) = tables[cid].lookup(sym);
                     plan.push(((c as u64) << (2 * FREQ_BITS)) | ((f as u64) << FREQ_BITS) | tables[cid].total() as u64);
@@ -1552,8 +1639,15 @@ fn code_planes(
                     let nb = neighbors(&coding_planes[pi], x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor_for_band(pi, parent[pi], cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ranges[pi], &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
+};
                     let r = coding_planes[pi][idx] as i32 - pred;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r);
+}
                     let packed = plan[idx];
                     let total = (packed & FREQ_MASK) as u32;
                     let f = ((packed >> FREQ_BITS) & FREQ_MASK) as u32;
@@ -1826,6 +1920,7 @@ fn code_banded(
             banded_parent,
             &model,
             effort,
+            None,
         );
         model.band_maps = Some(bm);
         model.band_wc_table = Some(bt);
@@ -2732,6 +2827,44 @@ pub fn fuzz_gate(count: usize, efforts: &[u8]) -> Result<usize, CodecError> {
             assert_eq!(back, img, "R11-D MA-context roundtrip failed at effort {e}");
             let (_h, model, _off) = inspect(&bytes).unwrap();
             assert!(model.cmarc_ma_context, "MA context must be signaled when forced on");
+        }
+    }
+
+    #[test]
+    fn r13_adaptive_recursive_lockstep_bit_exact() {
+        // R13-A: the recursive self-correcting multi-tap predictor must round-trip
+        // bit-exactly when forced on, across every entropy backend. The decoder
+        // mirrors the per-`weight_context`-leaf LMS update from the identical
+        // residual stream, so lockstep holds; the signaled base leaf table is also
+        // exercised end-to-end.
+        let mut img = Image::new(128, 96, Channels::Rgb).unwrap();
+        let mut seed = 0x1234_5678u64;
+        for c in 0..3u8 {
+            for i in 0..img.area() {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let ramp = ((i % 128) as i32 + (i / 128) as i32) * 3 / 2;
+                let noise = ((seed >> 33) % 11) as i32 - 5;
+                img.planes[c as usize][i] = (ramp + noise).clamp(0, 255) as u8;
+            }
+        }
+        let backends = [
+            ("cmarc", EncodeOpts { cmarc: Some(true), forced_predictor: Some(PredictorId::AdaptiveRecursive), ..Default::default() }),
+            ("cmarc_lz", EncodeOpts { cmarc: Some(true), carc_lz: Some(true), forced_predictor: Some(PredictorId::AdaptiveRecursive), ..Default::default() }),
+            ("carc_mix", EncodeOpts { cmarc: Some(true), carc_mix: Some(true), forced_predictor: Some(PredictorId::AdaptiveRecursive), ..Default::default() }),
+            ("gr", EncodeOpts { cmarc: Some(false), forced_predictor: Some(PredictorId::AdaptiveRecursive), ..Default::default() }),
+        ];
+        for e in [4u8, 7] {
+            for (label, opts) in backends.iter().cloned() {
+                let (bytes, _stats) = encode_with(&img, e, opts).unwrap();
+                let back = decode(&bytes).unwrap();
+                assert_eq!(back, img, "R13-A lockstep failed: backend {label} effort {e}");
+                let (_h, model, _off) = inspect(&bytes).unwrap();
+                let used = model
+                    .planes
+                    .iter()
+                    .any(|p| p.map.iter().any(|&b| b == PredictorId::AdaptiveRecursive.to_u8()));
+                assert!(used, "AdaptiveRecursive must be signaled when forced on ({label})");
+            }
         }
     }
 

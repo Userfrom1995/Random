@@ -59,9 +59,20 @@ pub enum PredictorId {
     // this captures within-coarse-context variation R8-A's single fixed formula
     // cannot. Selected per context only where it lowers the summed residual.
     WeightedTree = 18,
+    // ---- R13-A recursive self-correcting adaptive multi-tap predictor (TM-WP) ----
+    // A genuine functional-form change over the 4-tap linear bank: the prediction is
+    // a linear combination of an extended causal property vector (M=9 properties: the
+    // four neighbors, the left-left / top-top longer-range samples, and three causal
+    // gradients) whose per-context weights are RECURSIVELY updated online via LMS on
+    // the residual. The base weights are a per-fine-leaf least-squares solve over the
+    // (M+1)-tuple, signaled exactly like R9-B; the online update adds zero model
+    // bytes (the decoder reconstructs the weight trajectory from the residual stream
+    // by induction). A strict superset of every fixed/4-tap predictor: with zero
+    // online updates it reduces to R9-B, so the never-expand net cannot regress.
+    AdaptiveRecursive = 19,
 }
 
-pub const PREDICTOR_COUNT: usize = 19;
+pub const PREDICTOR_COUNT: usize = 20;
 
 /// A per-leaf weight tuple for the R9-B `WeightedTree` predictor:
 /// `(wL, wT, wTL, wTR, bias, shift)`. The prediction is
@@ -105,6 +116,7 @@ impl PredictorId {
             16 => Some(PredictorId::SubTTR),
             17 => Some(PredictorId::AdaptiveWeighted),
             18 => Some(PredictorId::WeightedTree),
+            19 => Some(PredictorId::AdaptiveRecursive),
             _ => None,
         }
     }
@@ -134,6 +146,36 @@ impl PredictorId {
             PredictorId::SubTTR => "Sub(T,TR)",
             PredictorId::AdaptiveWeighted => "AdaptiveWeighted",
             PredictorId::WeightedTree => "WeightedTree",
+            PredictorId::AdaptiveRecursive => "AdaptiveRecursive",
+        }
+    }
+
+    /// Map a human-readable name back to a `PredictorId` (used by the CLI
+    /// `--predictor` measurement seam). Returns `None` for unknown names so the
+    /// caller can fall back to the default analyzer.
+    pub fn from_name(s: &str) -> Option<PredictorId> {
+        match s {
+            "Left" => Some(PredictorId::Left),
+            "Top" => Some(PredictorId::Top),
+            "TL" => Some(PredictorId::Tl),
+            "TR" => Some(PredictorId::Tr),
+            "Avg" => Some(PredictorId::Avg),
+            "MED" => Some(PredictorId::Med),
+            "GAP-lite" => Some(PredictorId::GapLite),
+            "Weighted" => Some(PredictorId::Weighted),
+            "TrueMotion" => Some(PredictorId::TrueMotion),
+            "L+(TL-T)/2" => Some(PredictorId::LPlusHalfTLMinusT),
+            "Grad2" => Some(PredictorId::Gradient2),
+            "Add(L,T)" => Some(PredictorId::AddLT),
+            "Add(L,TL)" => Some(PredictorId::AddLTL),
+            "Add(TL,T)" => Some(PredictorId::AddTLT),
+            "Sub(L,TL)" => Some(PredictorId::SubLTL),
+            "Sub(TL,T)" => Some(PredictorId::SubTLT),
+            "Sub(T,TR)" => Some(PredictorId::SubTTR),
+            "AdaptiveWeighted" => Some(PredictorId::AdaptiveWeighted),
+            "WeightedTree" => Some(PredictorId::WeightedTree),
+            "AdaptiveRecursive" => Some(PredictorId::AdaptiveRecursive),
+            _ => None,
         }
     }
 }
@@ -314,6 +356,10 @@ pub fn predict(id: PredictorId, n: &Neighbors, w: Option<&WeightVec>, wtree: Opt
             Some(table) => predict_weighted_tree(n, table),
             None => n.l,
         },
+        // R13-A is handled by the coding loops directly via `r13_predict`/`r13_adapt`
+        // (it needs the per-context weight state and the plane slice). This defensive
+        // fallback keeps `predict` total; the loops never reach it for AdaptiveRecursive.
+        PredictorId::AdaptiveRecursive => n.l,
     }
 }
 
@@ -479,6 +525,254 @@ fn weighted(n: &Neighbors, w: &WeightVec) -> i32 {
     let shift = w.shift as u32;
     let half = 1i32 << (shift - 1);
     (acc + half) >> shift
+}
+
+// ===== R13-A: recursive self-correcting adaptive multi-tap predictor (TM-WP) =====
+//
+// A genuine functional-form change over the 4-tap linear bank: the prediction is a
+// linear combination of an extended causal property vector (M=9 properties: the four
+// neighbors, the left-left / top-top longer-range samples, and three causal gradients)
+// whose per-context weights are RECURSIVELY updated online via LMS on the residual.
+// The base weights are a per-fine-leaf least-squares solve over the (M+1)-tuple,
+// signaled exactly like R9-B; the online update adds zero model bytes (the decoder
+// reconstructs the weight trajectory from the residual stream by induction). A strict
+// superset of every fixed/4-tap predictor: with zero online updates it reduces to R9-B,
+// so the never-expand net cannot regress.
+
+/// Number of causal properties feeding the R13-A predictor (see `r13_properties`).
+pub const R13_M: usize = 9;
+/// Total weight-vector dimension: `R13_M` property weights plus one bias term.
+pub const R13_DIM: usize = R13_M + 1;
+/// Fixed right-shift applied to the dot product so stored weights live near unity
+/// scale and the residual stays in `i32`. Mirrors JPEG XL's scaled weighted predictor.
+pub const R13_SHIFT: u32 = 10;
+/// Bias learning scale `SCALE_B` (the bias gradient is `r * R13_SCALED_B`).
+pub const R13_SCALED_B: i32 = 1;
+/// Online LMS learning-rate right-shift (reuses the M3-B gain schedule as a start).
+pub const R13_GAIN: u32 = M3_WP_GAIN;
+/// Clamp bounds for the per-context property weights (i16-storable, with headroom for
+/// the LMS convergence). Weights live in the `>> R13_SHIFT` scaled domain.
+pub const R13_WMIN: i32 = -32767;
+pub const R13_WMAX: i32 = 32767;
+/// Clamp bounds for the bias term (same scaled domain, i16-storable).
+pub const R13_BMIN: i32 = -32767;
+pub const R13_BMAX: i32 = 32767;
+
+/// The runtime per-context weight vector (i32 so LMS updates never overflow before the
+/// clamp; the signaled base leaf is the i16 `R13Leaf`).
+pub type R13State = [i32; R13_DIM];
+/// The signaled per-fine-leaf base weight tuple for R13-A: `(w for p1..p9, bias)`.
+pub type R13Leaf = [i16; R13_DIM];
+
+/// The neutral R13-A leaf: the LOCO-I `L+T` average extended to the (M+1) basis,
+/// `wL = wT = 8 << (R13_SHIFT-4) = 512`, rest 0, bias 0, so `predict = (L+T)/2`.
+pub const R13_NEUTRAL: R13Leaf = [512, 512, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/// Compute the R13-A extended causal property vector for pixel `(x,y)` in a
+/// `width x height` plane. All nine properties are computable from already-decoded
+/// samples (so the decoder reconstructs them identically). Out-of-bounds longer-range
+/// samples use the same `0` border rule as `neighbors` (above/left are 0).
+pub fn r13_properties(
+    n: &Neighbors,
+    plane: &[i16],
+    x: usize,
+    y: usize,
+    width: usize,
+    _height: usize,
+) -> [i32; R13_M] {
+    let l2 = if x >= 2 { plane[(x - 2) + y * width] as i32 } else { 0 };
+    let t2 = if y >= 2 { plane[x + (y - 2) * width] as i32 } else { 0 };
+    [
+        n.l,
+        n.t,
+        n.tl,
+        n.tr,
+        l2,
+        t2,
+        n.l - n.tl,
+        n.t - n.tl,
+        n.tl - n.tr,
+    ]
+}
+
+/// R13-A prediction from a weight vector: `round((bias + sum w_m*prop_m) >> R13_SHIFT)`,
+/// clamped to the plane range.
+pub fn predict_recursive(w: &R13State, props: &[i32; R13_M], range: PlaneRange) -> i32 {
+    let mut acc: i64 = w[9] as i64;
+    for m in 0..R13_M {
+        acc += (w[m] as i64) * (props[m] as i64);
+    }
+    if R13_SHIFT == 0 {
+        return range.clamp(acc as i32);
+    }
+    let half = 1i64 << (R13_SHIFT - 1);
+    range.clamp(((acc + half) >> R13_SHIFT) as i32)
+}
+
+/// R13-A online LMS weight update (the functional-form change). After each pixel the
+/// per-context weights move toward the local least-squares optimum of the held-out
+/// stream, tracking local structure. Pure function of `(r, props)`, so encoder and
+/// decoder evolve the weight vector identically with zero signaled bytes.
+pub fn adapt_recursive(w: &mut R13State, r: i32, props: &[i32; R13_M]) {
+    for m in 0..R13_M {
+        let d = ((r as i64) * (props[m] as i64)) >> R13_GAIN;
+        let s = (w[m] as i64) + d;
+        w[m] = s.clamp(R13_WMIN as i64, R13_WMAX as i64) as i32;
+    }
+    let db = ((r as i64) * (R13_SCALED_B as i64)) >> R13_GAIN;
+    let sb = (w[9] as i64) + db;
+    w[9] = sb.clamp(R13_BMIN as i64, R13_BMAX as i64) as i32;
+}
+
+/// Build the per-fine-leaf seeded R13-A weight state for a plane from a signaled table.
+/// `table` is the `WC_LEAVES` base leaves (or `None` when `AdaptiveRecursive` is unused
+/// on this plane); the returned state is keyed by `weight_context` leaf.
+pub fn r13_seed_state(table: Option<&[R13Leaf]>) -> Vec<R13State> {
+    let mut st = Vec::with_capacity(WC_LEAVES);
+    for wc in 0..WC_LEAVES {
+        let mut leaf = [0i32; R13_DIM];
+        if let Some(t) = table {
+            for m in 0..R13_DIM {
+                leaf[m] = t[wc][m] as i32;
+            }
+        } else {
+            for m in 0..R13_DIM {
+                leaf[m] = R13_NEUTRAL[m] as i32;
+            }
+        }
+        st.push(leaf);
+    }
+    st
+}
+
+/// R13-A solve the per-leaf least-squares weights from accumulated `(M+1)x(M+1)` normal
+/// equations `S` and RHS `b` (sums of outer products of `(p1..p9, 1)` and of
+/// `v*(p1..p9, 1)`), returning an integer `(w1..w9, bias)` tuple in the `>> R13_SHIFT`
+/// scaled domain, or `None` if the system is ill-conditioned. Generalizes
+/// `solve_weighted_tree` from the 4-tuple to the `(M+1)`-tuple, with a fixed shift.
+pub fn solve_r13_least_squares(
+    s: &[[i64; R13_DIM]; R13_DIM],
+    b: &[i64; R13_DIM],
+) -> Option<R13Leaf> {
+    let n = R13_DIM;
+    let mut a = *s;
+    // Ridge (Tikhonov) regularization, scaled to the normal-matrix magnitude. The
+    // raw normal equations sum `ns[i]*ns[j]` over every pixel, so their entries
+    // reach ~1e9 on photographic content; a fixed small ridge (e.g. 8) is
+    // completely drowned and leaves the system ill-conditioned, which makes the
+    // least-squares weight direction unstable (tiny feature correlations flip the
+    // solution, exploding predictions). Load the diagonal with a fraction of the
+    // mean diagonal so the solve stays well-posed regardless of image scale.
+    let tr: i64 = (0..n).map(|i| a[i][i]).sum();
+    let ridge = (tr / (n as i64)).max(1) / 32 + 8;
+    for i in 0..n {
+        a[i][i] += ridge;
+    }
+    let mut m = [[0f64; R13_DIM]; R13_DIM];
+    for i in 0..n {
+        for j in 0..n {
+            m[i][j] = a[i][j] as f64;
+        }
+    }
+    let mut rhs = [0f64; R13_DIM];
+    for i in 0..n {
+        rhs[i] = b[i] as f64;
+    }
+    for col in 0..n {
+        let mut piv = col;
+        let mut best = m[col][col].abs();
+        for r in (col + 1)..n {
+            if m[r][col].abs() > best {
+                best = m[r][col].abs();
+                piv = r;
+            }
+        }
+        if best < 1e-9 {
+            return None;
+        }
+        m.swap(col, piv);
+        rhs.swap(col, piv);
+        let d = m[col][col];
+        for j in col..n {
+            m[col][j] /= d;
+        }
+        rhs[col] /= d;
+        for r in 0..n {
+            if r != col {
+                let f = m[r][col];
+                for j in col..n {
+                    m[r][j] -= f * m[col][j];
+                }
+                rhs[r] -= f * rhs[col];
+            }
+        }
+    }
+    let w = rhs;
+    let mut maxw = 0f64;
+    for k in 0..R13_DIM {
+        maxw = maxw.max(w[k].abs());
+    }
+    if maxw < 1e-9 {
+        return None;
+    }
+    // Store the weights scaled by `1 << R13_SHIFT` (NOT normalized by `maxw`):
+    // the predictor recovers `round((w . n + bias) / 2^s)`, so the leaf must encode
+    // the true OLS coefficient magnitude. Dividing by `maxw` here would shrink every
+    // weight by the largest single coefficient, and the subsequent `>> R13_SHIFT`
+    // would then divide the prediction by `maxw` again, exploding predictions when
+    // the optimal weight vector spreads across the near-collinear feature columns
+    // (a small `maxw` amplifies the output). OLS coefficients for these features are
+    // O(1), so the `1<<SHIFT` scale fits comfortably in `i16`.
+    let scale = (1i64 << R13_SHIFT) as f64;
+    let mut leaf = [0i16; R13_DIM];
+    for k in 0..R13_DIM {
+        leaf[k] = (w[k] * scale).round().clamp(i16::MIN as f64, i16::MAX as f64) as i16;
+    }
+    if leaf[0] == 0 && leaf[1] == 0 && leaf[2] == 0 && leaf[3] == 0 && leaf[9] == 0 {
+        return None;
+    }
+    Some(leaf)
+}
+
+/// R13-A predict step for a coding loop: returns `Some(pred)` when `p` is
+/// `AdaptiveRecursive`, reading the per-`weight_context` leaf state `wr`. The caller
+/// must run `r13_adapt` with the same `nb` after computing the residual `r`.
+pub fn r13_predict(
+    p: PredictorId,
+    nb: &Neighbors,
+    plane: &[i16],
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    range: PlaneRange,
+    wr: &R13State,
+) -> Option<i32> {
+    if p != PredictorId::AdaptiveRecursive {
+        return None;
+    }
+    let props = r13_properties(nb, plane, x, y, width, height);
+    Some(predict_recursive(wr, &props, range))
+}
+
+/// R13-A adapt step for a coding loop: updates the per-`weight_context` leaf state in
+/// place. No-op unless `p` is `AdaptiveRecursive`.
+pub fn r13_adapt(
+    p: PredictorId,
+    nb: &Neighbors,
+    plane: &[i16],
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    wr: &mut R13State,
+    r: i32,
+) {
+    if p != PredictorId::AdaptiveRecursive {
+        return;
+    }
+    let props = r13_properties(nb, plane, x, y, width, height);
+    adapt_recursive(wr, r, &props);
 }
 
 /// R8-A: the JPEG XL / WebP "weighted" predictor, computed deterministically from
@@ -653,11 +947,11 @@ mod tests {
 
     #[test]
     fn r22_predictor_count_and_ids() {
-        assert_eq!(PREDICTOR_COUNT, 19);
-        for id in 0..19u8 {
+        assert_eq!(PREDICTOR_COUNT, 20);
+        for id in 0..20u8 {
             assert!(PredictorId::from_u8(id).is_some(), "id {id} must map");
         }
-        assert!(PredictorId::from_u8(19).is_none());
+        assert!(PredictorId::from_u8(20).is_none());
     }
 
     #[test]
@@ -717,7 +1011,7 @@ mod tests {
         let planes = vec![plane];
         let ctx = ContextParams::default();
         let codebook = super::default_weight_codebook();
-        let model = analyze(&planes, &[range], w as usize, h as usize, 4, &ctx, &codebook, false);
+        let model = analyze(&planes, &[range], w as usize, h as usize, 4, &ctx, &codebook, false, None);
         // With AdaptiveWeighted in the candidate set, every per-context predictor id
         // must be a valid id (encoder and decoder agree on the map).
         for &id in &model.planes[0].map {
@@ -791,7 +1085,7 @@ mod tests {
             }
         }
         let leaf = solve_weighted_tree(&s, &b).expect("solve succeeds on well-conditioned data");
-        let (w0, w1, w2, w3, bias, sh) = leaf;
+        let (w0, w1, w2, w3, _bias, sh) = leaf;
         assert!(w2.abs() <= 2 && w3.abs() <= 2, "diagonal weights ~0 for v=(L+T)/2, got {leaf:?}");
         assert!(w0 > 0 && w1 > 0, "L and T weights positive, got {leaf:?}");
         assert!((0u32..=12).contains(&(sh as u32)));

@@ -12,8 +12,9 @@ use crate::context::{zigzag, Alphabet, ContextModel, ContextParams};
 use crate::error::CodecError;
 use crate::image::Channels;
 use crate::predict::{
-    default_weight_codebook, neighbors, predict_clamped, solve_weighted_tree, weight_context,
-    PredictorId, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
+    default_weight_codebook, neighbors, predict_clamped, predict_recursive, r13_properties,
+    solve_r13_least_squares, solve_weighted_tree, weight_context, PredictorId,     R13Leaf, R13_DIM, R13_M,
+    R13_NEUTRAL, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
 };
 use crate::rans::{RansTable, CAPPED_SYMBOLS, CAPPED_ALPHABET};
 use std::io::{Read, Write};
@@ -125,6 +126,16 @@ pub struct ModelConfig {
     /// and decoder read it from the model, so lockstep is exact with zero online
     /// state.
     pub weighted_wc_table: Option<Vec<Option<Vec<WLeaf>>>>,
+    /// R13-A recursive self-correcting adaptive multi-tap predictor: per-plane
+    /// (optional) table of `WC_LEAVES` base weight tuples `(w for p1..p9, bias)` (each
+    /// an `R13Leaf = [i16; R13_M+1]`) solved per fine leaf in `analyze` over the
+    /// extended `(M+1)`-property system. Mirrors `weighted_wc_table` in size class
+    /// (`WC_LEAVES * (M+1) * 2` bytes/plane, O(1)) and is signaled only when
+    /// `AdaptiveRecursive` is actually used on a plane. The online LMS weight update
+    /// adds zero model bytes (the decoder reconstructs the trajectory from the
+    /// residual stream by induction), so a regression can never ship: with zero online
+    /// updates R13-A reduces to R9-B. Both encoder and decoder read it from the model.
+    pub weighted_r13_table: Option<Vec<Option<Vec<R13Leaf>>>>,
     /// R10-A JPEG XL-class Squeeze (recursive group transform) level per plane.
     /// `0` (the default) means the plane is coded as a single band (no Squeeze);
     /// a value `L >= 1` means the plane is split recursively `L` times into
@@ -204,6 +215,23 @@ impl ModelConfig {
         }
         self.weighted_tree_for(parent_plane)
     }
+
+    /// R13-A: the base R13 leaf table for a plane, if `AdaptiveRecursive` is in use.
+    pub fn r13_table_for(&self, plane: usize) -> Option<&[R13Leaf]> {
+        self.weighted_r13_table
+            .as_ref()
+            .and_then(|v| v.get(plane).and_then(|o| o.as_ref()).map(|x| x.as_slice()))
+    }
+
+    /// R13-A: per-band R13 leaf table lookup (mirror of `weighted_tree_for_band`).
+    pub fn r13_table_for_band(&self, band: usize, parent_plane: usize) -> Option<&[R13Leaf]> {
+        if let Some(tables) = &self.weighted_r13_table {
+            if let Some(t) = tables.get(band).and_then(|o| o.as_ref()) {
+                return Some(t.as_slice());
+            }
+        }
+        self.r13_table_for(parent_plane)
+    }
 }
 
 /// The set of predictor candidates for an effort level.
@@ -254,6 +282,19 @@ pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
         // signaled as a tiny per-plane table). A strict superset of every fixed
         // candidate, so it is selected per context only where it lowers |residual|.
         PredictorId::WeightedTree,
+        // R13-A (recursive self-correcting adaptive multi-tap predictor, TM-WP) is
+        // implemented end-to-end (9-feature least-squares base table signaled like
+        // R9-B + per-`weight_context`-leaf online LMS, bit-exact lockstep verified)
+        // but is intentionally KEPT OUT of the auto-candidate set for now. On real
+        // Kodak (effort 4) the analysis sum-of-zigzag proxy over-selects it: the wider
+        // 9-feature LMS fit drives a lower *training* residual RSS while producing
+        // fatter-tailed residuals, so auto-selecting it REGRESSES the file (9.90 bpp
+        // vs the 9.52 baseline; forced-standalone is ~11.18 bpp). The per-context
+        // 4-tap linear bank is already near-optimal for this content. It remains
+        // available via `EncodeOpts::forced_predictor` / `--predictor AdaptiveRecursive`
+        // for measurement and as the R13-B lifting groundwork. Re-enable here only
+        // once the selection proxy or the real-bit cost model accounts for its
+        // residual distribution (see progress/68-obsidian-lossless-image-codec.md).
     ]
 }
 
@@ -288,6 +329,7 @@ pub fn analyze(
     context: &ContextParams,
     weight_codebook: &[WeightVec],
     entropy_gr: bool,
+    forced: Option<PredictorId>,
 ) -> ModelConfig {
     let n_planes = planes.len();
     let context_count = context.context_count();
@@ -309,6 +351,7 @@ pub fn analyze(
         cmarc_ma_context: false,
         cmarc_use_color_cache: false,
         weighted_wc_table: None,
+        weighted_r13_table: None,
         squeeze_levels: vec![0u8; n_planes],
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
@@ -316,10 +359,15 @@ pub fn analyze(
         band_wc_table: None,
     };
 
-    let predictors = predictors_for(effort);
+    let predictors = match forced {
+        Some(p) => vec![p],
+        None => predictors_for(effort),
+    };
     let include_weighted = predictors.contains(&PredictorId::Weighted);
     let include_tree = predictors.contains(&PredictorId::WeightedTree);
+    let include_r13 = predictors.contains(&PredictorId::AdaptiveRecursive);
     let mut wtables: Vec<Option<Vec<WLeaf>>> = Vec::new();
+    let mut r13tables: Vec<Option<Vec<R13Leaf>>> = Vec::new();
 
     for (pi, plane) in planes.iter().enumerate() {
         let range = ranges[pi];
@@ -384,8 +432,66 @@ pub fn analyze(
             Vec::new()
         };
 
+        // R13-A: build the per-fine-leaf base weight table for this plane (only when
+        // `AdaptiveRecursive` is a candidate, i.e. effort >= 4). Accumulate the
+        // `(M+1)x(M+1)` normal equations per `weight_context` leaf over the extended
+        // property vector `(p1..p9, 1)` and the value `v`, solve the least-squares
+        // weights, and keep the table only if some context actually selects
+        // `AdaptiveRecursive` (so no model bytes are wasted when it does not help).
+        let r13_table: Vec<R13Leaf> = if include_r13 {
+            let mut s_leaf: Vec<[[i64; R13_DIM]; R13_DIM]> =
+                vec![[[0i64; R13_DIM]; R13_DIM]; WC_LEAVES];
+            let mut b_leaf: Vec<[i64; R13_DIM]> = vec![[0i64; R13_DIM]; WC_LEAVES];
+            let mut cnt: Vec<i64> = vec![0i64; WC_LEAVES];
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = y * width + x;
+                    let n = neighbors(plane, x, y, width, height);
+                    let wc = weight_context(&n);
+                    let props = r13_properties(&n, plane, x, y, width, height);
+                    let mut ns = [0i64; R13_DIM];
+                    for m in 0..R13_M {
+                        ns[m] = props[m] as i64;
+                    }
+                    ns[R13_M] = 1i64;
+                    for i in 0..R13_DIM {
+                        for j in 0..R13_DIM {
+                            s_leaf[wc][i][j] += ns[i] * ns[j];
+                        }
+                        b_leaf[wc][i] += (plane[idx] as i64) * ns[i];
+                    }
+                    cnt[wc] += 1;
+                }
+            }
+            let mut table = Vec::with_capacity(WC_LEAVES);
+            for lc in 0..WC_LEAVES {
+                let leaf = if cnt[lc] >= WC_MIN_SAMPLES as i64 {
+                    solve_r13_least_squares(&s_leaf[lc], &b_leaf[lc]).unwrap_or(R13_NEUTRAL)
+                } else {
+                    R13_NEUTRAL
+                };
+                table.push(leaf);
+            }
+            table
+        } else {
+            Vec::new()
+        };
+
         // Per-context predictor selection by cost.
         let mut ctx_costs: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
+        // R13-A base weight state (i32) for the cost estimate; the online LMS update is
+        // applied only during the coding pass, so the analysis uses the static base
+        // weights (an upper bound on the true residual, since adaptation only lowers it).
+        let r13_state: Vec<[i32; R13_DIM]> = r13_table
+            .iter()
+            .map(|leaf| {
+                let mut s = [0i32; R13_DIM];
+                for m in 0..R13_DIM {
+                    s[m] = leaf[m] as i32;
+                }
+                s
+            })
+            .collect();
         for y in 0..height {
             for x in 0..width {
                 let idx = y * width + x;
@@ -398,12 +504,18 @@ pub fn analyze(
                 };
                 let v = plane[idx] as i32;
                 for (k, &p) in predictors.iter().enumerate() {
-                    let wtree = if p == PredictorId::WeightedTree {
-                        Some(wt_table.as_slice())
+                    let pred = if p == PredictorId::AdaptiveRecursive {
+                        let wc = weight_context(&nb);
+                        let props = r13_properties(&nb, plane, x, y, width, height);
+                        predict_recursive(&r13_state[wc], &props, range)
                     } else {
-                        None
+                        let wtree = if p == PredictorId::WeightedTree {
+                            Some(wt_table.as_slice())
+                        } else {
+                            None
+                        };
+                        predict_clamped(p, &nb, wv, wtree, range)
                     };
-                    let pred = predict_clamped(p, &nb, wv, wtree, range);
                     ctx_costs[cid][k] += zigzag(v - pred) as u64;
                 }
             }
@@ -412,23 +524,52 @@ pub fn analyze(
         for cid in 0..context_count {
             let mut best_k = 0usize;
             let mut best_c = u64::MAX;
+            let mut best_non_r13_k = 0usize;
+            let mut best_non_r13_c = u64::MAX;
             for (k, &c) in ctx_costs[cid].iter().enumerate() {
                 let p = predictors[k];
+                let is_r13 = p == PredictorId::AdaptiveRecursive;
                 // `WeightedTree` is a strict superset of every fixed predictor (it
                 // can emulate any of them via its per-leaf table), so when its
                 // summed residual ties or beats a fixed candidate it wins the
                 // context - this is what lets it displace the simpler predictors
                 // on structured content without costing extra per-symbol bits.
-                if c < best_c || (c == best_c && p == PredictorId::WeightedTree) {
+                // `AdaptiveRecursive` (R13-A) is likewise a strict superset, but its
+                // analysis cost is only a sum-of-zigzag proxy: the 9-feature LMS fit
+                // drives a lower *training* RSS while producing fatter-tailed
+                // residuals, so the proxy over-selects it and regresses the real
+                // file. It is therefore only accepted when it strictly beats the
+                // best non-R13 predictor by a margin (R13_SELECT_MARGIN).
+                if c < best_c || (c == best_c && p == PredictorId::WeightedTree && !is_r13) {
                     best_c = c;
                     best_k = k;
                 }
+                if !is_r13 && c < best_non_r13_c {
+                    best_non_r13_c = c;
+                    best_non_r13_k = k;
+                }
             }
-            best_pred[cid] = predictors[best_k].to_u8();
+            // R13_SELECT_MARGIN: require R13 to be at least 0.1% cheaper than the
+            // best non-R13 candidate, else fall back to that candidate. When R13 is
+            // the only candidate (forced), `best_non_r13_c` stays `u64::MAX` and the
+            // guard is skipped so forced measurement still engages it.
+            const R13_SELECT_MARGIN: u128 = 1001;
+            let chosen_k = if predictors[best_k] == PredictorId::AdaptiveRecursive
+                && best_non_r13_c != u64::MAX
+                && (best_c as u128) * 1000 >= (best_non_r13_c as u128) * R13_SELECT_MARGIN
+            {
+                best_non_r13_k
+            } else {
+                best_k
+            };
+            best_pred[cid] = predictors[chosen_k].to_u8();
         }
         // Keep the table only if this plane actually uses `WeightedTree` somewhere.
         let used_tree = best_pred.iter().any(|&p| p == PredictorId::WeightedTree.to_u8());
         wtables.push(if used_tree { Some(wt_table) } else { None });
+        // Keep the R13-A table only if this plane actually uses `AdaptiveRecursive`.
+        let used_r13 = best_pred.iter().any(|&p| p == PredictorId::AdaptiveRecursive.to_u8());
+        r13tables.push(if used_r13 { Some(r13_table) } else { None });
         model.planes.push(PlaneModel {
             map: best_pred,
             weight_index,
@@ -436,6 +577,11 @@ pub fn analyze(
     }
     model.weighted_wc_table = if wtables.iter().any(|o| o.is_some()) {
         Some(wtables)
+    } else {
+        None
+    };
+    model.weighted_r13_table = if r13tables.iter().any(|o| o.is_some()) {
+        Some(r13tables)
     } else {
         None
     };
@@ -499,11 +645,15 @@ pub fn analyze_bands(
     parents: &[usize],
     base_model: &ModelConfig,
     effort: u8,
+    forced: Option<PredictorId>,
 ) -> (Vec<Vec<u8>>, Vec<Option<Vec<WLeaf>>>) {
     let context = &base_model.context;
     let context_count = base_model.context_count;
     let cm = ContextModel::new(*context);
-    let predictors = predictors_for(effort);
+    let predictors = match forced {
+        Some(p) => vec![p],
+        None => predictors_for(effort),
+    };
     let include_tree = predictors.contains(&PredictorId::WeightedTree);
     let mut band_maps: Vec<Vec<u8>> = Vec::with_capacity(banded_planes.len());
     let mut band_tables: Vec<Option<Vec<WLeaf>>> = Vec::with_capacity(banded_planes.len());
@@ -546,8 +696,13 @@ pub fn analyze_bands(
             Vec::new()
         };
         // Per-context predictor selection over the band (prefers `WeightedTree` on
-        // ties, exactly like `analyze`).
+        // ties, exactly like `analyze`). R13-A (when a candidate) reuses the parent
+        // plane's R13 base table (its analysis solve is per full-res plane; banded
+        // sub-bands share it), so the cost estimate uses the parent's static weights.
         let wv = base_model.weight_for(parent);
+        let parent_r13 = base_model
+            .r13_table_for(parent)
+            .map(|t| crate::predict::r13_seed_state(Some(t)));
         let mut ctx_costs: Vec<Vec<u64>> = vec![vec![0u64; predictors.len()]; context_count];
         for y in 0..height {
             for x in 0..width {
@@ -556,12 +711,21 @@ pub fn analyze_bands(
                 let cid = cm.context_id(&nb, x, y) % context_count;
                 let v = plane[idx] as i32;
                 for (k, &p) in predictors.iter().enumerate() {
-                    let wtree = if p == PredictorId::WeightedTree {
-                        Some(wt_table.as_slice())
+                    let pred = if p == PredictorId::AdaptiveRecursive {
+                        let wc = weight_context(&nb);
+                        let props = r13_properties(&nb, plane, x, y, width, height);
+                        let st = parent_r13.as_ref().map(|s| &s[wc]).cloned().unwrap_or_else(|| {
+                            crate::predict::r13_seed_state(None)[wc]
+                        });
+                        predict_recursive(&st, &props, range)
                     } else {
-                        None
+                        let wtree = if p == PredictorId::WeightedTree {
+                            Some(wt_table.as_slice())
+                        } else {
+                            None
+                        };
+                        predict_clamped(p, &nb, wv.as_ref(), wtree, range)
                     };
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
                     ctx_costs[cid][k] += zigzag(v - pred) as u64;
                 }
             }
@@ -570,14 +734,30 @@ pub fn analyze_bands(
         for cid in 0..context_count {
             let mut best_k = 0usize;
             let mut best_c = u64::MAX;
+            let mut best_non_r13_k = 0usize;
+            let mut best_non_r13_c = u64::MAX;
             for (k, &c) in ctx_costs[cid].iter().enumerate() {
                 let p = predictors[k];
-                if c < best_c || (c == best_c && p == PredictorId::WeightedTree) {
+                let is_r13 = p == PredictorId::AdaptiveRecursive;
+                if c < best_c || (c == best_c && p == PredictorId::WeightedTree && !is_r13) {
                     best_c = c;
                     best_k = k;
                 }
+                if !is_r13 && c < best_non_r13_c {
+                    best_non_r13_c = c;
+                    best_non_r13_k = k;
+                }
             }
-            best_pred[cid] = predictors[best_k].to_u8();
+            const R13_SELECT_MARGIN: u128 = 1001;
+            let chosen_k = if predictors[best_k] == PredictorId::AdaptiveRecursive
+                && best_non_r13_c != u64::MAX
+                && (best_c as u128) * 1000 >= (best_non_r13_c as u128) * R13_SELECT_MARGIN
+            {
+                best_non_r13_k
+            } else {
+                best_k
+            };
+            best_pred[cid] = predictors[chosen_k].to_u8();
         }
         let used_tree = best_pred
             .iter()
@@ -622,6 +802,7 @@ pub fn default_model(
         cmarc_ma_context: false,
         cmarc_use_color_cache: false,
         weighted_wc_table: None,
+        weighted_r13_table: None,
         squeeze_levels: vec![0u8; n_planes],
         cfl_scale: vec![None; n_planes],
         band_ranges: Vec::new(),
@@ -827,6 +1008,30 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
                         w.write_all(&w3.to_le_bytes())?;
                         w.write_all(&bias.to_le_bytes())?;
                         w.write_all(&[s])?;
+                    }
+                } else {
+                    w.write_all(&[0])?;
+                }
+            }
+        }
+    }
+    // R13-A R13 leaf table, appended after the R9-B weighted-tree table (still last
+    // for legacy readers). Format mirrors `weighted_wc_table`: [flag]; if 1, then per
+    // plane [flag]; if a plane's flag is 1, `WC_LEAVES` `R13Leaf` tuples (each `[i16;
+    // R13_DIM]`, the nine property weights then the bias, all little-endian). Decoder
+    // threads the table into `AdaptiveRecursive` prediction in lockstep with the encoder.
+    match &m.weighted_r13_table {
+        None => w.write_all(&[0])?,
+        Some(per_plane) => {
+            w.write_all(&[1])?;
+            for plane in per_plane {
+                if let Some(table) = plane {
+                    w.write_all(&[1])?;
+                    w.write_all(&(table.len() as u16).to_le_bytes())?;
+                    for &leaf in table {
+                        for m in 0..R13_DIM {
+                            w.write_all(&leaf[m].to_le_bytes())?;
+                        }
                     }
                 } else {
                     w.write_all(&[0])?;
@@ -1183,6 +1388,44 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         return Err(CodecError::InvalidStream("bad weighted-tree flag".into()));
     };
 
+    // R13-A R13 leaf table, appended after the weighted-tree table. Format mirrors
+    // `write_model`: a flag byte, then per plane a flag byte and (if set) the leaf
+    // count followed by the `[i16; R13_DIM]` tuples.
+    let mut r13_flag = [0u8; 1];
+    r.read_exact(&mut r13_flag)?;
+    let weighted_r13_table = if r13_flag[0] == 1 {
+        let mut per_plane: Vec<Option<Vec<R13Leaf>>> = Vec::with_capacity(plane_count);
+        for _ in 0..plane_count {
+            let mut pf = [0u8; 1];
+            r.read_exact(&mut pf)?;
+            if pf[0] == 1 {
+                let mut lc = [0u8; 2];
+                r.read_exact(&mut lc)?;
+                let n = u16::from_le_bytes(lc) as usize;
+                let mut table = Vec::with_capacity(n);
+                for _ in 0..n {
+                    let mut leaf = [0i16; R13_DIM];
+                    for m in 0..R13_DIM {
+                        let mut v = [0u8; 2];
+                        r.read_exact(&mut v)?;
+                        leaf[m] = i16::from_le_bytes(v);
+                    }
+                    table.push(leaf);
+                }
+                per_plane.push(Some(table));
+            } else if pf[0] == 0 {
+                per_plane.push(None);
+            } else {
+                return Err(CodecError::InvalidStream("bad r13 plane flag".into()));
+            }
+        }
+        Some(per_plane)
+    } else if r13_flag[0] == 0 {
+        None
+    } else {
+        return Err(CodecError::InvalidStream("bad r13 flag".into()));
+    };
+
     // R10-A Squeeze levels and R10-B CFL scales, appended last in `write_model`.
     // `plane_count` (= `alphabet_sizes.len()`) gives the exact number of trailing
     // bytes, so no length prefix is needed.
@@ -1292,6 +1535,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         cmarc_ma_context,
         cmarc_use_color_cache,
         weighted_wc_table,
+        weighted_r13_table,
         squeeze_levels,
         cfl_scale,
         band_ranges,
@@ -1413,7 +1657,7 @@ mod tests {
                     .collect()
             })
             .collect();
-        let model = analyze(&planes, &ranges, width, height, 5, &context, &codebook, false);
+        let model = analyze(&planes, &ranges, width, height, 5, &context, &codebook, false, None);
         let mut bytes = Vec::new();
         write_model(&mut bytes, &model).unwrap();
         let sizes = alphabet_sizes(&ranges);
@@ -1450,6 +1694,7 @@ mod tests {
             &context,
             &codebook,
             false,
+            None,
         );
         let mut saw_expanded = false;
         for &p in &model.planes[0].map {
@@ -1473,7 +1718,7 @@ mod tests {
         let plane: Vec<i16> = (0..width * height)
             .map(|i| ((i * 7) % 256) as i16)
             .collect();
-        let model = analyze(&[plane], &ranges, width, height, 7, &context, &codebook, false);
+        let model = analyze(&[plane], &ranges, width, height, 7, &context, &codebook, false, None);
         assert!(model.static_histograms.is_some());
         let mut bytes = Vec::new();
         write_model(&mut bytes, &model).unwrap();
@@ -1507,7 +1752,7 @@ mod tests {
                 (x + y) % 256
             })
             .collect();
-        let model = analyze(&[plane], &[range], width, height, 4, &context, &codebook, false);
+        let model = analyze(&[plane], &[range], width, height, 4, &context, &codebook, false, None);
         let used = model
             .planes
             .iter()

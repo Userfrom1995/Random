@@ -14,7 +14,10 @@ use crate::model::{
     ENTROPY_MODE_CAPPED, ENTROPY_MODE_CARC, ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX,
     ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
-use crate::predict::{neighbors, predict_clamped, PredictorId, WLeaf, WeightVec, M3_WP_GAIN};
+use crate::predict::{
+    neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state, weight_context, PredictorId,
+    R13State, WLeaf, WeightVec, M3_WP_GAIN,
+};
 use crate::transforms::{cfl_predict, squeeze_band_layout, unsqueeze};
 use crate::rans::{
     RansDecoder, RansTable, BitReader, GrState, GR_K_INIT, gr_read_symbol, read_gamma,
@@ -223,6 +226,11 @@ fn decode_plane_into(
 ) -> Result<(), CodecError> {
     let wv = model.weight_for(pi);
     let wtree = model.weighted_tree_for_band(band, pi);
+    // R13-A: per-`weight_context`-leaf weight state, seeded from the plane's R13 base
+    // leaf table (or neutral when `AdaptiveRecursive` is unused). Keyed by
+    // `weight_context` leaf so the online LMS update stays in lockstep with the encoder
+    // (both reconstruct the weight trajectory from the identical residual stream).
+    let mut wrstate: Vec<R13State> = r13_seed_state(model.r13_table_for_band(band, pi));
 
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
@@ -246,9 +254,16 @@ fn decode_plane_into(
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(band, pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+}
                         let recon = pred + r;
                         plane[idx] = recon as i16;
                         cms[cid].adapt(r.unsigned_abs());
@@ -323,8 +338,15 @@ fn decode_plane_into(
                         } else {
                             wv.as_ref()
                         };
-                        let pred = predict_clamped(p, &nb, w, wtree, range);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, w, wtree, range),
+};
                         let r = gr_read_symbol(&mut dbr, &mut gr[cid])?;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+}
                         plane[i] = (pred + r) as i16;
                         if m3_wp && matches!(p, PredictorId::Weighted) {
                             wp[cid].adapt_online(r, nb.l, nb.t, nb.tl, nb.tr, M3_WP_GAIN);
@@ -361,7 +383,11 @@ fn decode_plane_into(
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor_for_band(band, pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                     let bias = if use_bias { gr[cid].bias() as i32 } else { 0 };
                     let pred_b = range.clamp(pred + bias);
                     let r_coded = gr_read_symbol(&mut br, &mut gr[cid])?;
@@ -392,8 +418,15 @@ fn decode_plane_into(
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(band, pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+}
                         plane[idx] = (pred + r) as i16;
                     }
                 }
@@ -464,13 +497,20 @@ fn decode_plane_into(
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(band, pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                         let sym = rdec.get(&mut tables[cid])?;
                         let r = if sym != CAPPED_ALPHABET {
                             unzigzag(sym as u32)
                         } else {
                             gr_read_symbol(&mut esc_br, &mut esc_gr[cid])?
                         };
+                        if p == PredictorId::AdaptiveRecursive {
+                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                        }
                         plane[idx] = (pred + r) as i16;
                     }
                 }
@@ -626,13 +666,20 @@ fn decode_plane_into(
                             i += len;
                         } else {
                             let p = model.predictor_for_band(band, pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                             let r = cmarc_lz_read_literal(
                                 &mut dec,
                                 &mut models,
                                 slot,
                                 mag_bits,
                             )?;
+                            if p == PredictorId::AdaptiveRecursive {
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                            }
                             ctxs[cid].adapt(r.unsigned_abs());
                             plane[i] = (pred + r) as i16;
                             i += 1;
@@ -653,7 +700,11 @@ fn decode_plane_into(
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor_for_band(band, pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                             let r = cmarc_mix_read_residual(
                                 &mut dec,
                                 &mut models,
@@ -663,6 +714,9 @@ fn decode_plane_into(
                                 cid,
                                 bins_per_ctx,
                             )?;
+                            if p == PredictorId::AdaptiveRecursive {
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                            }
                             plane[idx] = (pred + r) as i16;
                         }
                     }
@@ -681,7 +735,11 @@ fn decode_plane_into(
                         let nb = neighbors(&plane, x, y, width, height);
                         let cid = cm.context_id(&nb, x, y) % model.context_count;
                         let p = model.predictor_for_band(band, pi, cid);
-                        let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                        let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                         // R3-A coding-context selection (unchanged by run mode).
                         let rcid = if model.cmarc_residual_ctx {
                             cmarc_residual_context_of(
@@ -720,6 +778,9 @@ fn decode_plane_into(
                             cid,
                             rcid,
                         )?;
+                        if p == PredictorId::AdaptiveRecursive {
+                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                        }
                         plane[i] = (pred + r) as i16;
                         i += 1;
                     }
@@ -744,7 +805,11 @@ fn decode_plane_into(
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor_for_band(band, pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                             let v = cmarc_cache_read(
                                 &mut dec,
                                 &mut models,
@@ -763,7 +828,11 @@ fn decode_plane_into(
                             let nb = neighbors(&plane, x, y, width, height);
                             let cid = cm.context_id(&nb, x, y) % model.context_count;
                             let p = model.predictor_for_band(band, pi, cid);
-                            let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                            let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                             let rcid = if model.cmarc_residual_ctx {
                                 cmarc_residual_context_of(
                                     band,
@@ -789,6 +858,9 @@ fn decode_plane_into(
                                 cid,
                                 rcid,
                             )?;
+                            if p == PredictorId::AdaptiveRecursive {
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                            }
                             plane[idx] = (pred + r) as i16;
                         }
                     }
@@ -813,7 +885,11 @@ fn decode_plane_into(
                     let nb = neighbors(&plane, x, y, width, height);
                     let cid = cm.context_id(&nb, x, y) % model.context_count;
                     let p = model.predictor_for_band(band, pi, cid);
-                    let pred = predict_clamped(p, &nb, wv.as_ref(), wtree, range);
+                    let wc = weight_context(&nb);
+let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate[wc]) {
+    Some(pr) => pr,
+    None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
+};
                     let sym = if use_static {
                         let table = static_tables[cid].as_mut().ok_or_else(|| {
                             CodecError::InvalidStream(format!("missing static table for context {cid}"))
@@ -823,6 +899,9 @@ fn decode_plane_into(
                         dec.get(&mut adaptive_tables[cid])?
                     };
                     let r = unzigzag(sym as u32);
+if p == PredictorId::AdaptiveRecursive {
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+}
                     plane[idx] = (pred + r) as i16;
                 }
             }
