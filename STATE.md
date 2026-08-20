@@ -1,11 +1,11 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~07:00Z, maintainer run 32341749235, owner `/oc maintainer` nudge at 06:56:52Z). The R13-B (CDF 5/3 lifting) build dispatched by run 32336016252 is STILL IN FLIGHT as opencode run 32336195985 (`in_progress` since 05:35:45Z, ~1h25m, no push yet, branch head still `99fdfed`). Decision this run: a single informational `ping` on PR #93, NO second `continue` (avoids Builder collision), and NO `research` (Researcher would push a doc to the same branch mid-build). Gates unchanged: PNG 13.05 MET, WebP 9.61 MET, JPEG XL 8.71 still MISSED by +0.81 bpp. No merge until all three clear bit-exactly per the owner override. Next action depends on run 32336195985's measurement.
+- **Updated:** 2026-08-20 (~07:0xZ, maintainer run 32341762231, owner `/oc maintainer` nudge). Third consecutive HOLD on the R13-B build: it is still in flight (opencode run 32336195985, no push, branch head `99fdfed`). Decision = single `ping` on PR #93; no second `continue`/`research`/`build` to avoid a branch collision. Gates unchanged (JXL 8.71 still +0.81 unmet). Next action depends on run 32336195985's measurement.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
 - **Obsidian is the fundamental goal.** Keep iterating until it beats JPEG XL, WebP, and PNG (lossless) on the Kodak dataset. Issue #68 stays OPEN until the target is met. Do NOT close it.
-- **NEVER delete PR branches after merge.** Omit `-d` from every `gh pr merge`. (#91 + #92 branches `opencode/lab-68-orphan-main-guard` intentionally left intact.)
+- **NEVER delete PR branches after merge.** Omit `-d` from every `gh pr merge` (#91 + #92 branches `opencode/lab-68-orphan-main-guard` and `opencode/orphan-main-guard-2` intentionally left intact).
 - **Website + README must track the active project.** Obsidian should be in README.md (Current Project) and promoted to Current on index.html. Still deferred; schedule once JXL nears.
 
 ## CRITICAL OWNER OVERRIDES (issue #68)
@@ -35,13 +35,14 @@
 ## CURRENT BUILD STATE (R13-B in flight; R13-B is the last genuine architectural lever)
 
 - **R13-A result (Builder run, completed 2026-08-20T05:32:44):** forced-standalone ~11.18 bpp; auto-net 9.9065 bpp (sum-of-zigzag proxy over-selects the 9-feature LMS: lower training RSS but fatter-tailed residuals); **muted to keep production at 9.5209 bpp** (baseline 9.5208). 139 lib tests pass. Head `99fdfed`.
-- **R13-B build:** dispatched by maintainer run 32336016252 via `continue`; triggered opencode run 32336195985 (created 2026-08-20T05:35:45Z, STILL `in_progress` at survey time ~07:00Z, ~1h25m elapsed, no push yet). Builder direction: implement R13-B (CDF 5/3 lifting in `transforms.rs`, reusing `squeeze_band_layout` geometry) + re-evaluate R13-A with a FAIR candidate metric (actual encoded bytes, not training RSS). Do NOT revert to R7/R8/R9-class context tuning.
+- **R13-B build:** dispatched by maintainer run 32336016252 via `continue`; triggered opencode run **32336195985** (created 2026-08-20T05:35:45Z, STILL `in_progress` at this survey, `updatedAt` frozen at 05:35:49Z which is normal for a single long job - NOT a silent stall; branch head still `99fdfed`, no push yet). Builder direction: implement R13-B (CDF 5/3 lifting in `transforms.rs`, reusing `squeeze_band_layout` geometry) + re-evaluate R13-A with a FAIR candidate metric (actual encoded bytes, not training RSS). Do NOT revert to R7/R8/R9-class context tuning.
 - **Verdict (robust, 7 axes):** the +0.81 bpp JXL gap is a **STRUCTURAL ARCHITECTURAL CEILING** of the single-pixel 4-tap linear predictor pipeline. Failed axes: R11-D MA context (wash), R11-A cross-band `wLL` (wash + slowdown, reverted), 64-leaf weight context x2 (regression, reverted), R12-A per-band decorrelation (moot; Squeeze rejected), CMARC backend (near-optimal), R13-A adaptive multi-tap (regressed under never-expand net). The ONLY untried genuine functional-form lever left in the blueprint is **R13-B (CDF 5/3 lifting)** - the corrected, non-inert form of the transform.
 - **R13-B gate math (Architect estimate):** ~9.0-9.3 bpp alone; combined with a fairly-evaluated R13-A the target is < 8.71. Honest risk: R13-B alone likely still MISSES 8.71, in which case the next step is a FRESH Researcher brief, not more tuning.
 
 ## In flight
 
-- **R13-B build (opencode run 32336195985, `in_progress` ~1h25m):** implements CDF 5/3 lifting + fairly re-evaluates R13-A; re-measures REAL Kodak effort-4 toward JXL 8.71. NO second `continue` fired this run (or by run 32341545978) to avoid a Builder collision on the same branch. Await run 32336195985's push + measurement. If R13-B + fair R13-A still cannot approach 8.71, escalate to a fresh `research` brief (documented escape hatch).
+- **R13-B build (opencode run 32336195985, `in_progress`):** implements CDF 5/3 lifting + fairly re-evaluates R13-A; re-measures REAL Kodak effort-4 toward JXL 8.71. NO second `continue`/`research`/`build` fired this run (or by runs 32341545978 / 32341749235) to avoid a Builder collision on the same branch. Await run 32336195985's push + measurement.
+- **Stray GENERAL run 32341762203:** duplicate triggered by the owner's `/oc maintainer` comment; `pending`, headSha = `d6b2894` = main (NOT the PR branch). Benign - cannot collide with the R13-B Builder. Will re-verify next survey it did not touch the PR branch.
 
 ## PENDING (deferred)
 
@@ -73,12 +74,13 @@
 
 ## Open questions
 
-- **Will R13-B (lifting) + fairly-evaluated R13-A clear the JXL 8.71 gap?** Pending run 32336195985 (in progress ~1h25m; no push at survey). Architect estimates ~9.0-9.3 for R13-B alone - likely still short; combined target < 8.71.
-- **If R13-B alone misses, what next paradigm?** Fresh Researcher brief (learned/context-tree predictor), since all single-pixel and context-tuning axes are exhausted.
+- **Will R13-B (lifting) + fairly-evaluated R13-A clear the JXL 8.71 gap?** Pending run 32336195985 (in progress; no push yet at survey, head `99fdfed` unchanged). Architect estimates ~9.0-9.3 for R13-B alone - likely still short; combined target < 8.71.
+- **If R13-B alone misses, what next paradigm?** Fresh Researcher brief (learned/context-tree predictor), since all single-pixel and context-tuning axes are exhausted. Documented escape hatch; do NOT fire until run 32336195985 lands and measures.
 - **Merge gate (owner override #2):** NOT met - default 9.5208 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** AVOIDED - no second `continue`/`research`/`build` while run 32336195985 in progress.
+- **Build collision:** AVOIDED - no second `continue`/`research`/`build` while run 32336195985 in progress (third consecutive hold run: 32341545978, 32341749235, 32341762231).
+- **Stray GENERAL run 32341762203:** benign (targets main, not PR branch); re-verify next survey.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
