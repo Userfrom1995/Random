@@ -1,99 +1,78 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~14:51Z, maintainer run 32382604273, triggered by owner `/oc maintainer` on PR #93 at 14:51:00Z). **OWNER OVERRIDE OF THE HALT/REPIVOT STALEMATE (reaffirmed).** The owner rejected recalibration and ordered a two-step plan: (1) complete documentation first, (2) build a NEW lossless codec using the most stable architecture available, goal beat JPEG XL. No merge until fully working/tested/release-ready/documented.
+- **Updated:** 2026-08-20 (~14:53Z, maintainer run 32382726407, triggered by owner `/oc maintainer` on PR #93 at 14:52:11Z with a PIVOT directive). **OWNER PIVOT (replaces the Step 2 "new codec inside PR #93" plan).**
+- **OWNER PIVOT DIRECTIVE (2026-08-20T14:52:11Z):** "keep the two projects separate. For the current project, finish the documentation, testing, and review, then close it. There is no need to continue developing the new codec in this project. I lift the JPEG XL gate for this one. After that, start a new project with a new codebase and a new name. That new project will have the JPEG XL gate: keep researching, architecting, b…"
+- **Translation:** PR #93 (Obsidian) is now a **FINISH-AND-CLOSE** job (docs → test → review → merge). The JPEG XL gate is LIFTED for PR #93. The new JXL-class codec becomes a SEPARATE project (new codebase + new name) on its own issue/branch, NOT inside PR #93.
 
-## STANDING OWNER DIRECTIVES (do not close / do not delete)
+## STANDING OWNER DIRECTIVES (active)
 
-- **Obsidian is the fundamental goal.** Keep iterating until it beats JPEG XL, WebP, and PNG (lossless) on the Kodak dataset. Issue #68 stays OPEN until the target is met. Do NOT close it.
+- **Obsidian PR #93 = finish-and-close, JXL gate lifted.** Ship the documented R10-B + CMARC codec (beats PNG 13.05 + WebP 9.61 on Kodak) with full docs; then Test + Review + merge. Keep branch (no `-d`).
+- **Separate new project for JXL:** a new codebase with a new name, carrying the JPEG XL 8.71 gate, developed on its OWN issue/branch (research → architect → build). Never folded into PR #93.
+- **ONE Obsidian PR only (now being wound down):** PR #93 is the single canonical Obsidian PR, branch `opencode/issue68-20260818070512`. After it merges, the "one-PR" rule applies to the new project's PR, not Obsidian.
 - **NEVER delete PR branches after merge.** Omit `-d` from every `gh pr merge`.
-- **Website + README must track the active project.** Obsidian should be in README.md (Current Project) and promoted to Current on index.html. Deferred; schedule once Step 2 clears gates / owner approves.
-- **ONE Obsidian PR only.** PR #93 is the single canonical, open Obsidian PR (supersedes closed #83), branch `opencode/issue68-20260818070512`.
-- **DO NOT merge the Obsidian PR until the final target is achieved AND quality bar met** (Obsidian mean bpp on Kodak < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71, lossless/bit-exact AND reproducible, by the *default* shipped codec) AND fully documented/tested/release-ready per the owner's 2026-08-20T14:37:52Z directive.
-- **Orchestrate Researcher + Architect + Builder together** on the existing single PR #93 (or issue #68 for factory/lab) - not on a new PR. A genuinely new codec (Step 2) is developed as the next phase of the Obsidian project on PR #93, honoring the one-PR rule.
+- **Issue #68 stays OPEN** as the umbrella goal until the new project beats JXL (PNG + WebP + JPEG XL lossless on Kodak). Do NOT close #68 on PR #93 merge; close it only when the JXL gate is cleared by the new project.
 
-## CRITICAL INFRASTRUCTURE STATE
+## CRITICAL INFRASTRUCTURE STATE (unchanged, healthy)
 
 - **PR #91 MERGED:** orphan-main guard. **PR #92 MERGED:** `main` = `d6b2894`, determinism guard + umbrella rule + force-with-lease pin.
 - **`main` = `d6b2894`** (healthy, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` OPEN, head `20d1162168af610642a605e76a0c4b21fe11fd94`** (Builder R15 halt escalation doc; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* remain gated off/muted). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
+- **Branch `opencode/issue68-20260818070512` OPEN, head `20d1162168af610642a605e76a0c4b21fe11fd94`** (Builder R15 halt escalation doc; Researcher R15 spec `4db4f97`; Architect R15 blueprint `ea914a8`; R14/R13-* gated off/muted). Merge-base `d6b2894` non-empty. PR #93 single canonical, one-PR rule intact.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
 - GitHub auto-closes #68 if literal `Closes #68` appears ANYWHERE. Future commits MUST use `Refs #68` / `Refs to #68`. PR #93 body is correctly `Refs #68`.
 
-## Priority project (the fundamental goal)
+## PRIORITY PROJECT (Obsidian, PR #93) - FINISH-AND-CLOSE
 
-- **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten (per owner reaffirmation). Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
-- **Default shipped codec = 9.5209 bpp mean** (R10-B CFL, CMARC backend; R13-A muted, R13-B/R14/R15 gated off). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
-- **R0-R15 codec shipped on PR #93:** R13-A committed but MUTED (9.9065 regression). R13-B committed, REGRESSION (10.17/10.58), gated off. R14 committed, REGRESSION (9.66), gated off. R15 committed, NET-NEGATIVE (byte-identical 9.5209), gated off. 152 lib tests pass.
+- **Default shipped codec = 9.5209 bpp mean** (R10-B CFL, CMARC backend; R13-A muted, R13-B/R14/R15 gated off). Beats PNG (13.05) + WebP (9.61). JXL gate LIFTED for this project.
+- **R0-R15 codec on PR #93:** R13-A committed but MUTED (9.9065 regression). R13-B committed, REGRESSION (10.17/10.58), gated off. R14 committed, REGRESSION (9.66), gated off. R15 committed, NET-NEGATIVE (byte-identical 9.5209), gated off. 152 lib tests pass.
+- **The 10-axis ceiling (data-backed, exhausted at ~9.52 bpp):** R11-D, R11-A, 64-leaf x2, R12-A, R13-A, R13-B, R14-A, R15-A, CMARC backend. Proven structural; no further tuning of that family will be dispatched. (Now moot for PR #93 anyway — JXL gate lifted.)
 
-## THE 10-AXIS CEILING (data-backed; exhausted at ~9.52 bpp) - PROVEN, DO NOT REVISIT
+## CURRENT STATE - OWNER PIVOT (this run)
 
-| Axis | Result |
-|---|---|
-| R11-D MA context | wash |
-| R11-A cross-band `wLL` | wash + 45x slowdown (reverted) |
-| 64-leaf weight context | regression x2 (per-leaf starvation) |
-| R12-A per-band decorrelation | moot (Squeeze rejected on Kodak) |
-| R13-A adaptive recursive | regression 9.9065, muted |
-| R13-B CDF 5/3 lifting | regression 10.17/10.58, gated off |
-| R14-A RCCT + MA residual | regression 9.66, gated off |
-| R15-A learned neural predictor | net-negative, gated off (10th axis) |
-| CMARC backend | near-optimal `H(p)+epsilon` |
+- **Builder run 32382581730 IN FLIGHT** (owner `/oc continue` 14:50:48Z), currently executing Step 1 (full Obsidian documentation on PR #93). The owner still wants this. **Step 2 (new codec inside PR #93) is CANCELLED by the pivot.** On this Builder's push, redirect it to STOP before any new-codec work and finalize docs only.
+- **This run's action: HOLD (empty decision list).** A Builder is in flight on the branch; firing a second `continue`/`build` would collide. A maintainer run auto-triggers on the Builder's push; I will act then. No merge (docs + test + review not yet done).
 
-The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation / context-tree-overlay / learned-overlay family. **No further tuning of that family will be dispatched (owner reaffirmed beat-JXL target).**
+## IN FLIGHT
 
-## CURRENT STATE - OWNER DIRECTIVE: DOC FIRST, THEN NEW CODEC (Step 1 NOW IN FLIGHT)
+- **Builder (docs, PR #93):** opencode run **32382581730**, branch `opencode/issue68-20260818070512`, dispatched by owner `/oc continue` 2026-08-20T14:50:48Z. Executing Step 1 (docs) — still wanted. Must be redirected away from Step 2 (new codec) on its push. No concurrent Builder at decision time.
 
-- **Owner directive 2026-08-20T14:37:52Z (overrides halt):** (1) complete documentation of Obsidian on PR #93 first (usage, all flags/options/features); (2) then develop a NEW lossless codec using the most stable architecture available, goal beat JPEG XL + WebP + PNG; (3) do NOT merge until fully working, tested, release-ready, documented.
-- **Interpretation of "most stable architecture available":** the proven, non-speculative design that reaches JXL-class lossless rates is the **FLIF / JPEG XL modular context-tree weighted predictor used as the PRIMARY predictor** (not the R14 overlay form, which was net-negative because it stacked on an already near-optimal base). Step 2 will steer the Builder toward that architecture.
-- **Step 1 status:** IN FLIGHT. A Builder (opencode run **32382581730**, dispatched by owner `/oc continue` at 2026-08-20T14:50:48Z) is currently executing Step 1 (consolidated usage/flags/options documentation) and will proceed to Step 2 on the same branch. Branch head still `20d1162168` at decision time (no push yet). The README still lacks a dedicated "Usage / all flags / options / features" section until that Builder pushes.
-- **This run's action:** HOLD (empty decision list). A Builder is already in flight on the branch, so firing a second `continue`/`build` would cause a branch collision. A maintainer run auto-triggers on the Builder's push; I will act on the real result then. No merge (owner override + quality bar).
+## PENDING (awaiting completion, in order)
 
-## In flight
+- **PR #93 docs (Step 1):** full CLI usage, every flag/option/feature, stable shipped R10-B+CMARC path + gated R13/R14/R15 experiments with honest measurements. Must cover `--effort`, `--predictor`, `--transform`, `--rcct`, `--nrp` and `OBSIDIAN_*` seams, plus stability/speed trade-offs. Required before merge.
+- **PR #93 Tester:** run `/oc test` (Tester) on PR #93 after docs land — QA + real-Kodak reproducibility.
+- **PR #93 Reviewer:** run `/oc review` (Reviewer) — strict read-only quality gate (architecture, security, static standards).
+- **PR #93 merge:** rebase-merge (`--no-delete-branch`) once docs + tests + review done. JXL gate lifted. Keep branch. Do NOT close #68 (umbrella stays open for the new project).
+- **NEW project (JXL gate):** after PR #93 merges, stand up a separate codebase with a new name on its own issue/branch. Owner to open the issue (or I dispatch `ideate` to seed candidates); then route research → architect → build for the JXL-class codec (FLIF/JXL-modular primary context-tree predictor family is the proven direction). Never in PR #93.
 
-- **Builder (Step 1 -> Step 2):** opencode run **32382581730**, branch `opencode/issue68-20260818070512`, dispatched by owner `/oc continue` 2026-08-20T14:50:48Z. Executing: Step 1 complete Obsidian documentation, then Step 2 build the new FLIF/JXL-modular primary context-tree codec. No concurrent Builder at decision time.
+## ISSUES
 
-## PENDING (awaiting completion)
-
-- **Step 1 - Documentation:** full CLI usage, every flag/option/feature, including the stable shipped R10-B+CMARC path and the gated experimental R13/R14/R15 work with honest measurements. MUST cover `--effort`, `--predictor`, `--transform`, `--rcct`, `--nrp` and `OBSIDIAN_*` seams, plus stability/speed trade-offs. Must be complete before merge and before Step 2 coding.
-- **Step 2 - New codec:** architect/blueprint the FLIF/JXL-modular PRIMARY context-tree predictor (research only if a genuinely novel algorithmic question arises; otherwise architect -> build directly since the architecture is proven/stable), implement, measure on REAL Kodak effort-4, target < 8.71 JXL AND < 9.61 WebP AND < 13.05 PNG bit-exactly.
-- **Before merge (owner override):** fully working, thoroughly tested (full lib + real-Kodak reproducible), release-ready, properly documented. Then Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`).
-- **README / index.html Obsidian promotion** (standing directive, deferred until Step 2 clears gates / owner approves).
-- **Review staleness on #93:** head `20d1162168` clean; fresh Reviewer + Tester gate required before any merge.
-- **Commit-message hygiene:** never write literal `Closes #68` token.
-
-## Issues
-
-- **#68 (Obsidian umbrella)** - OPEN, active fundamental goal, stays open until codecs beaten (owner reaffirmed).
-- **#52 / #89 / #90 / #91 / #92 infra** - all merged/closed; branches kept.
+- **#68 (Obsidian umbrella)** - OPEN, stays open until the new JXL-class project beats codecs (per pivot + standing directive).
+- **#52 / #89 / #90 / #91 / #92 infra** - merged/closed; branches kept.
 - **#70 (Lab Health)** - Auditor owns daily summary.
-- **#42 (Brainstorm Board)** - frozen until ideas wanted; Obsidian takes priority.
+- **#42 (Brainstorm Board)** - frozen until ideas wanted; new project seeding may use it post-PR #93 close.
 
-## Reviewer/Tester/model status
+## REVIEWER/TESTER/MODEL STATUS
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError`.
 - **pages.yml:** green.
 - **PR #93 checks:** opencode-pr-trigger SUCCESS on R15 push; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS.
 
-## Next steps
+## NEXT STEPS
 
-1. **Step 1 (in flight):** Builder run 32382581730 completes Obsidian documentation on PR #93 (usage, all flags/options/features) - explicitly required by owner before any Step 2 code. On its push, a maintainer run re-surveys.
-2. **Step 2 (after docs):** route architect -> build for the new FLIF/JXL-modular PRIMARY context-tree codec on PR #93; measure REAL Kodak; target all three gates bit-exactly.
-3. **Merge gate (owner override + quality bar):** do NOT merge until default codec beats PNG 13.05 + WebP 9.61 + JPEG XL 8.71 bit-exactly AND is fully tested/documented/release-ready. Then Reviewer + Tester, rebase-merge (`--no-delete-branch`), close #68 with "what was built / what remains unsolved" writeup.
+1. **PR #93 docs (in flight):** Builder run 32382581730 completes Obsidian documentation. On its push, a maintainer run re-surveys, redirects the Builder to stop before Step 2 (new codec), and confirms docs are complete.
+2. **PR #93 test+review:** dispatch Tester then Reviewer once docs land.
+3. **PR #93 merge:** rebase-merge (`--no-delete-branch`) after docs+tests+review; keep #68 open.
+4. **NEW JXL project:** stand up separate codebase/new name on its own issue/branch; route research → architect → build.
 
-## Open questions
+## OPEN QUESTIONS
 
-- **Owner's gate decision:** RESOLVED BY DIRECTIVE - recalibration rejected; build a new codec with the most stable architecture, beat JXL. #68 target reaffirmed.
-- **Most stable architecture for Step 2:** selected as FLIF/JXL-modular context-tree weighted predictor as PRIMARY (proven JXL-class). Will be confirmed via Architect blueprint before build.
-- **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
+- **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main). After merge, applies to new project's PR.
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** AVOIDED this run - Builder 32382581730 already in flight, so this run held (empty decision list); no second `continue`/`build` dispatched.
-- **Work preservation:** all R0-R15 codec work preserved on PR #93 (never-merged, branch kept per standing directive); issue #68 open; ready to document/publish/pivot on the owner's word.
+- **Build collision:** AVOIDED this run (held; Builder 32382581730 in flight). Will re-assess on Builder push.
+- **Work preservation:** all R0-R15 codec work preserved on PR #93 (never-merged, branch kept). #68 open as umbrella.
+- **New-project issue:** needs an issue. Owner may open it, or I dispatch `ideate` post-PR #93 close. Recorded as pending.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
-- **pages.yml:** green.
-- **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
-- **Silent-stall comment-delivery:** escalation comments reached the owner; owner responded with directive. No `lab` dispatch needed now.
-- **Commit-message hygiene:** PR #93 body correctly `Refs #68`; future commits must avoid literal `Closes #68`.
+- **pages.yml / billing / commit hygiene:** green; PR #93 body correctly `Refs #68`; future commits avoid literal `Closes #68`.
 
 - Mae, the Maintainer
