@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~09:42Z, maintainer run 32355207087, triggered by owner `/oc maintainer` x3 on PR #93). R14 (the 9th lever) is BUILT, MEASURED, and FAILED the JXL gate (9.66 bpp net-negative). Per the R14 Architect blueprint the R14-B gate (~8.8-9.0) is NOT met, so R14 tuning stops. This run dispatches `research` for the final documented escape-hatch lever: a learned/neural predictor.
+- **Updated:** 2026-08-20 (~11:00Z, maintainer run 32361705333, scheduled/dispatch, run 721, empty payload). R15 (learned neural residual predictor) blueprint is on the branch head `ea914a8`, but the R15 Builder build never launched: the 09:53:21 `build` dispatch was swallowed by the 09:48-09:53 owner comment burst (opencode #763 cancelled / #764 skipped on `main`, no build on the Obsidian branch). This run re-triggers `build` on PR #93. JXL 8.71 still MISSED (+0.81). One-PR rule intact.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -15,7 +15,7 @@
 
 - **PR #91 MERGED:** orphan-main guard. **PR #92 MERGED:** `main` = `d6b2894`, determinism guard + umbrella rule + force-with-lease pin.
 - **`main` = `d6b2894`** (healthy, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` OPEN, head `e9608b429984`** (R14 Builder implementation push, 142 tests pass). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
+- **Branch `opencode/issue68-20260818070512` OPEN, head `ea914a8b609bbac15c046bb9c4f1e6e5ddec07d2`** (Architect R15 NRP blueprint; Researcher R15 spec `4db4f97`; R14 Builder remain gated off). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
@@ -25,7 +25,7 @@
 
 - **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten. Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5209 bpp mean** (R10-B CFL, CMARC backend; R13-A muted, R13-B gated off, R14 gated off). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
-- **R0-R14 codec shipped on PR #93:** R13-A committed but MUTED (auto-net 9.9065 regression). R13-B (CDF 5/3 lifting) committed (`793d692d`), measured as REGRESSION (10.17 alone / 10.58 with R13-A), gated off. R14 (RCCT + MA residual model) committed (`e9608b42`), measured as REGRESSION (9.66 vs 9.52), gated off. Production unchanged. 142 lib tests pass.
+- **R0-R14 codec shipped on PR #93:** R13-A committed but MUTED (auto-net 9.9065 regression). R13-B (CDF 5/3 lifting) committed (`793d692d`), measured as REGRESSION (10.17 alone / 10.58 with R13-A), gated off. R14 (RCCT + MA residual model) committed (`e9608b42`), measured as REGRESSION (9.66 vs 9.52), gated off. R15 (learned neural residual predictor) blueprint on branch (`ea914a8`), NOT yet built. Production unchanged. 142 lib tests pass.
 
 ## THE 9-AXIS CEILING (data-backed, exhaustively measured at ~9.52 bpp)
 
@@ -40,23 +40,23 @@
 | R14-A RCCT + MA residual | regression 9.66, gated off |
 | CMARC backend | near-optimal `H(p)+epsilon` |
 
-The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation / context-tree family. No further tuning of that family can move JXL (it already clears WebP).
+The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation / context-tree family. No further tuning of that family can move JXL (it already clears WebP). R15 (learned/neural predictor) is the 10th and final documented lever.
 
-## CURRENT LEVER - LEARNED / NEURAL PREDICTOR (fresh paradigm, escape hatch)
+## CURRENT LEVER - R15 LEARNED NEURAL RESIDUAL PREDICTOR (fresh paradigm, escape hatch)
 
-- **This run (32355207087):** dispatched `research` on PR #93 (head `e9608b42`) to design a genuinely new predictor paradigm - a learned/neural predictor whose functional form differs from the 4-tap / 9-property linear map. This is the final documented escape-hatch lever (first referenced run 32332621107, re-affirmed 32345784962 / 32347142216). R14 base missed the blueprint's ~8.8-9.0 R14-B gate (landed 9.66), so R14 tuning stops and R14-B is out.
-- **R14 finalization (directive):** the R14 implementation on the branch should be landed as a gated, never-shipping ceiling-evidence feature (Builder option (a): `RCCT_EFFORT=255`, `OBSIDIAN_R14_FORCE`/`OBSIDIAN_R14_SHIP` seams) so the learned-predictor work builds on a stable base. Do NOT leave R14 half-pushed.
-- **Expected flow:** Researcher spec -> Architect blueprint -> Builder implements learned predictor -> measure REAL Kodak effort-4, target `< 8.71`.
+- **R15 spec** (`4db4f97`, Dr. Mob): per-image learned MLP `f_theta` fit on the analysis pass (SSR == entropy under CMARC), weights signaled as `O(1)` `i16`; overlay on `P0` reusing R14's `e0buf`/`rcct_properties` front-end; depth-0 zero net = byte-identical base, so never-regress is structural. Honest target ~9.1-9.4 bpp; `< 8.71` optimistic. **Halt trigger:** if R15 is also net-negative, the predictor family is exhausted (10 axes) and the honest close is a Maintainer recalibrate/repivot recommendation to the owner, NOT another tweak.
+- **R15 blueprint** (`ea914a8`, the Architect): build order R15 base (single hidden layer) on REAL Kodak first (target < 9.3, gate 8.71); if 9.0-9.3 add R15-B (stack R14 RCCT on the net's smaller residual).
+- **This run:** re-triggers `build` on PR #93 (head `ea914a8`) because the 09:53:21 `build` dispatch never launched a Builder run (comment-burst cancellation). The new build will be approved by this run's repo-wide held-run sweep.
 
 ## In flight
 
-- **Researcher (learned predictor):** the only worker dispatched this run. No Builder in flight (R14 finished + pushed `e9608b42` before this run). No branch collision.
+- **Builder (R15):** re-dispatched this run (`build` on PR #93, head `ea914a8`). No Builder was in flight before this run (verified: no in_progress/queued/held opencode run). No branch collision.
 
 ## PENDING (deferred)
 
-- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5209); current lever = learned/neural predictor (fresh paradigm). R7-class single-pixel tuning EXCLUDED (exhausted, already clears WebP).
+- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5209); current lever = R15 learned/neural predictor (fresh paradigm). R7-class single-pixel tuning EXCLUDED (exhausted, already clears WebP).
 - **README / index.html Obsidian promotion** (standing directive, deferred; schedule once JXL nears).
-- **Review staleness on #93:** head `e9608b42` clean (142 tests pass); fresh Reviewer + Tester gate required before any merge (premature until the new paradigm lands and gates near-clear).
+- **Review staleness on #93:** head `ea914a8` clean; fresh Reviewer + Tester gate required before any merge (premature until the new paradigm lands and gates near-clear).
 - **Commit-message hygiene:** never write literal `Closes #68` token.
 
 ## Issues
@@ -70,21 +70,21 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError`.
 - **pages.yml:** green.
-- **PR #93 checks:** opencode-pr-trigger on R14 push SUCCESS; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS. R14 no-op watch CLOSED (R14 pushed real measurement, unlike R13-B run 32336195985).
+- **PR #93 checks:** opencode-pr-trigger on R15 blueprint push SUCCESS; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS.
 
 ## Next steps
 
-1. **Await the Researcher's learned-predictor spec** on PR #93 (this run's `research`; a maintainer run auto-triggers on the push). Survey: if it is a viable blueprint, hand off to Architect, then Builder; measure REAL Kodak and post the number. If it also cannot approach 8.71, I will escalate a definitive halt/repivot recommendation to the owner (NOT loop silently).
+1. **Await the R15 Builder result** on PR #93 (this run's re-dispatched `build`; a maintainer run auto-triggers on the push). Survey: if it is a viable implementation, measure REAL Kodak effort-4 and post the number. If it also cannot approach 8.71, escalate a definitive halt/repivot recommendation to the owner (NOT loop silently), per the R15 blueprint halt trigger.
 2. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
 
 ## Open questions
 
-- **Can a learned/neural predictor break the 8.71 JXL wall?** UNKNOWN - the 10th lever, a genuinely different parametric family. Honest caveat: JXL hits 8.71 only with VarDCT + modular MA tree + splines (JXL-scale engineering); a learned single-pixel predictor may still fall short. If it misses, escalate halt/repivot to owner.
+- **Can R15 (learned/neural predictor) break the 8.71 JXL wall?** UNKNOWN - the 10th lever, a genuinely different parametric family. Honest caveat: JXL hits 8.71 only with VarDCT + modular MA tree + splines (JXL-scale engineering); a learned single-pixel predictor may still fall short. If it misses, escalate halt/repivot to owner.
 - **Merge gate (owner override #2):** NOT met - default 9.5209 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** CLEARED - R14 Builder finished + pushed `e9608b42` before this run; `research` dispatch is collision-safe.
-- **R13-B no-op watch:** CLOSED - R14 build did NOT no-op (real push + measurement).
+- **Build collision:** CLEARED - no Builder in flight before this run; re-dispatch collision-safe.
+- **R13-B no-op watch / R14 no-op watch:** CLOSED - both builds did NOT no-op (real pushes + measurements).
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
