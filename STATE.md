@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (maintainer run 32412155472, owner `/oc maintainer` on PR #93; re-dispatched `lab` to fix `.github/agents/builder.md`, the real docs blocker the prior lab run missed). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
+- **Updated:** 2026-08-20 (maintainer run 32412424505, owner `/oc maintainer` on PR #93; HOLD - Lab Engineer run in flight to fix `.github/agents/builder.md` docs root cause). **OWNER PIVOT (2026-08-20T14:52:11Z) REMAINS THE STANDING LAW.**
 
 ## STANDING OWNER DIRECTIVES (active)
 
@@ -13,29 +13,28 @@
 ## CRITICAL INFRASTRUCTURE STATE
 
 - **PR #93 NOT ORPHANED:** GitHub compare `ahead`/`behind 0`, shared merge-base `37f0395`. `mergeable: MERGEABLE`. Head `3a909105` at this survey.
-- **`main` = `37f0395`** (`lab: guard diagnose step against false-positive on auto-retry (Fixes #94)`). PR #95 merged (detection); `37f0395` guards the no-op diagnostic. The orphan-recovery commit `bbaf952` had deleted the diagnostic from `opencode.yml`; restored.
+- **`main` = `37f0395`** (`lab: guard diagnose step against false-positive on auto-retry (Fixes #94)`). The orphan-recovery commit `bbaf952` had deleted the diagnostic from `opencode.yml`; restored by PR #95 at `37f0395`.
 - **MODEL PINS:** worker workflows `opencode/nemotron-3-ultra-free`. `opencode.json` on main still `hy3-free`/`mimo-v2.5-free` (both free, non-blocking).
-- **THE DOCS BLOCKER ROOT CAUSE (still open):** `.github/agents/builder.md` resume/BUILD logic re-reads the stale `progress/68-*.md` "Current step" (final `Decision: maintainer` = pre-pivot beat-JXL escalation) and hollows Step-1 docs ~10x (never edits README/STATUS). The prior `lab` run (32411944594) fixed `opencode.yml` but did NOT fix `builder.md`. Re-dispatched `lab` this run to fix `builder.md` only.
+- **DOCS ROOT CAUSE (in flight):** `.github/agents/builder.md` resume/BUILD logic re-reads the stale `progress/68-*.md` "Current step" (final `Decision: maintainer` = pre-pivot beat-JXL escalation) and hollows Step-1 docs ~10x (never edits README/STATUS). A Lab Engineer run (32412403666, owner `/oc lab` 20:07:44Z) is IN FLIGHT to fix `builder.md` and add the circuit-breaker the Lab Engineer escalated. PRIOR `lab` (32411944594) only restored `opencode.yml`, missing this.
 
 ## PRIORITY PROJECT (Obsidian, PR #93) - FINISH-AND-CLOSE (JXL gate lifted)
 
 - **Default shipped codec = 9.5209 bpp mean** (R10-B CFL + CMARC backend; R13-A muted, R13-B/R14/R15 gated OFF, all byte-identical base so never-regressive). Beats PNG (13.05) + WebP (9.61). JXL 8.71 gate LIFTED by owner pivot.
 - **Test-isolation fix landed:** clean parallel suite = **148 passed / 0 failed / 2 ignored** (earlier "152 pass" claims were false positives from shared process-global Mutex poisoning, since fixed).
 - **R15 halt:** 10-axis predictor-family exhaustion proven (residual near-incompressible after R9-B); all decorrelation/learned overlays gated OFF, byte-identical base.
-- **THE BLOCKER (persistent):** `obsidian/README.md` STALE ("46 lib tests, 27.82 bpp", "approach or match JPEG XL"), `obsidian/STATUS.md` ABSENT. Verified at head `3a909105`.
-- **PRIOR `lab` (32411944594) MISSED IT:** restored `opencode.yml` diagnostic, did not patch `builder.md`. Re-dispatched `lab` this run (head `3a909105`) to fix `builder.md` ONLY.
+- **THE BLOCKER (persistent):** `obsidian/README.md` STALE ("46 lib tests, 27.82 bpp", "M1 gate still open"), `obsidian/STATUS.md` ABSENT. Verified at head `3a909105`.
 
 ## IN FLIGHT
 
-- **Lab (builder.md fix):** `lab` dispatched this run (head `3a909105`) to fix `.github/agents/builder.md` resume re-task on the 2026-08-20T14:52:11Z pivot docs close-out. Secondary: circuit-breaker in opencode.yml dispatch path.
-- **PR #93 docs (Step 1):** `continue`/`build` re-driven AFTER the lab fix merges; accurate README + STATUS.md, codec byte-identical at 9.5209 bpp, no stray codec commits.
+- **Lab (builder.md fix, run 32412403666):** IN FLIGHT (owner `/oc lab` 20:07:44Z). Fixes `.github/agents/builder.md` so `/oc continue`/`/oc build` re-task on the 2026-08-20T14:52:11Z pivot directive (finish-and-close docs) instead of the stale `Decision: maintainer` progress line; adds the circuit-breaker so a documented halt trigger escalates to owner instead of looping. NO Builder/continue dispatched this run to avoid colliding with the buggy prompt.
+- **PR #93 docs (Step 1):** AFTER the lab fix merges - re-drive `continue`/`build` for accurate README + STATUS.md; codec byte-identical at 9.5209 bpp, no stray codec commits.
 - **PR #93 Tester:** `/oc test` after docs land - QA + real-Kodak reproducibility.
 - **PR #93 Reviewer:** `/oc review` - strict read-only quality gate.
 - **PR #93 merge:** rebase-merge (`--no-delete-branch`) after docs + tests + review; JXL gate lifted. Keep #68 open.
 
 ## PENDING (awaiting completion, in order)
 
-1. Lab fixes `.github/agents/builder.md` (re-task on newest divergent directive). Merge its PR/branch.
+1. Lab fixes `.github/agents/builder.md` (re-task on newest divergent directive) + circuit-breaker. Merge its PR/branch.
 2. PR #93 docs (Step 1): `continue`/`build` re-driven after the lab fix; accurate README + STATUS.md.
 3. PR #93 Tester (`/oc test`).
 4. PR #93 Reviewer (`/oc review`).
@@ -57,7 +56,7 @@
 
 ## NEXT STEPS
 
-1. Await the re-dispatched `lab` fix to `.github/agents/builder.md`; on its merge, verify the change re-tasks on the 2026-08-20T14:52:11Z pivot directive (not the stale `Decision: maintainer` progress line).
+1. AWAIT the in-flight Lab run (32412403666) to merge the `builder.md` fix. On its merge a maintainer run auto-triggers.
 2. Re-drive `continue`/`build` on PR #93 for README/STATUS docs; confirm codec unchanged at 9.5209 bpp and NO stray codec commits (pivot Step 2 canceled).
 3. On docs push -> re-survey, then dispatch Tester then Reviewer.
 4. Merge PR #93 (rebase, keep branch, JXL gate lifted), keep #68 open.
@@ -65,12 +64,12 @@
 
 ## OPEN QUESTIONS
 
-- **Will THIS `lab` run actually patch `.github/agents/builder.md` (not just opencode.yml)?** PENDING its run (prior 32411944594 sidetracked). Directive is tight and explicitly within lab domain.
+- **Will THIS lab run (32412403666) actually patch `.github/agents/builder.md` (not just opencode.yml)?** PENDING its run (prior 32411944594 sidetracked).
 - **Docs quality (hollow-build watch):** after the lab fix, will the Builder write REAL README/STATUS? Monitored by the restored opencode.yml no-op diagnostic + explicit directive + live thread.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, NOT orphaned).
 - **Orphan-main break:** RESOLVED (shared merge-base `37f0395`).
 - **mergeable_state:** MERGEABLE (ahead/behind 0) at survey; rebase merge clean.
-- **Build collision:** AVOIDED (no Builder in flight at dispatch; `lab` is infra track).
+- **Build collision:** AVOIDED this run (no Builder dispatched; lab in flight is infra track).
 - **Pivot Step 2 cancellation honored?** VERIFY on docs push - no new codec commits in PR #93; all decorrelation/learned overlays already gated off.
 - **New-project issue:** needs an issue; owner may open or I dispatch `ideate` post-PR #93 close (hard rule: I do not create issues myself).
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
