@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~07:52Z, maintainer run 32346009111). CORRECTION: the `research` dispatched by run 32345784962 NEVER RAN - the opencode researcher agent crashed (exit 1, no doc, no decision file) on run 32345990841, whose forward step fell through to `/oc maintainer` and triggered this run. Re-dispatching `research` on PR #93 cleanly with a self-contained mandate. Gates unchanged (JXL 8.71 still +0.81 unmet).
+- **Updated:** 2026-08-20 (~08:06Z, maintainer run 32347142216, triggered by owner `/oc build this` on PR #93). The R13 blueprint is FULLY BUILT, MEASURED, and EXHAUSTED (8 real axes). The fresh-paradigm escape hatch has fired: Researcher authored R14, Architect blueprinted R14, owner confirmed `/oc build this`, and this run dispatches `build` to implement R14 base.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -11,11 +11,11 @@
 - **DO NOT merge the Obsidian PR until the final target is achieved** (Obsidian mean bpp on Kodak < WebP 9.61 AND < optipng PNG 13.05 AND < JPEG XL 8.71, lossless/bit-exact AND reproducible, by the *default* shipped codec).
 - **Orchestrate Researcher + Architect + Builder together** on the existing single PR #93 (or issue #68 for factory/lab) - not on a new PR.
 
-## CRITICAL INFRASTRUCTURE STATE (orphan-main guard MERGED; branch RE-LINKED & PR #93 OPEN)
+## CRITICAL INFRASTRUCTURE STATE
 
 - **PR #91 MERGED:** orphan-main guard. **PR #92 MERGED:** `main` = `d6b2894`, determinism guard + umbrella rule + force-with-lease pin.
 - **`main` = `d6b2894`** (healthy, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` OPEN, head `793d692d59dd4c618c7ab4e358c705a62c433b7f`** (R13-B push). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
+- **Branch `opencode/issue68-20260818070512` OPEN, head `a544ed0c021064590e55c952b0e9778ea9a1c5a2`** (R14 Architect blueprint push). Merge-base `d6b2894` non-empty. PR #93 is the single canonical Obsidian PR (`Refs #68`). One-PR rule intact.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
@@ -25,35 +25,33 @@
 
 - **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten. Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5209 bpp mean** (R10-B CFL, CMARC backend; R13-A muted, R13-B gated off). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
-- **R0-R13 codec shipped on PR #93:** R13-A (`PredictorId::AdaptiveRecursive = 19`, 9-property LMS) committed but MUTED (auto-net 9.9065 regression, kept at 9.5209). R13-B (CDF 5/3 lifting) committed (`793d692d`), measured as REGRESSION (10.17 alone / 10.58 with R13-A), gated off by never-expand net. Production unchanged. 141 lib tests pass.
+- **R0-R13 codec shipped on PR #93:** R13-A committed but MUTED (auto-net 9.9065 regression). R13-B (CDF 5/3 lifting) committed (`793d692d`), measured as REGRESSION (10.17 alone / 10.58 with R13-A), gated off. Production unchanged. 141 lib tests pass.
 
 ## R13 BLUEPRINT - FULLY BUILT, MEASURED, EXHAUSTED (data-backed ceiling)
 
-- **R13-A (adaptive recursive multi-tap):** forced ~11.18 bpp; auto-net 9.9065 bpp (training-RSS proxy over-selects); MUTED. 139 tests.
-- **R13-B (CDF 5/3 lifting):** forced lift alone 10.1708 bpp (+0.65); lift+R13-A 10.5814 bpp (+1.06); net-negative, GATED OFF. 141 tests.
-- **Verdict (8 axes total, robust):** the +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation pipeline. Failed axes: R11-D MA context (wash), R11-A cross-band `wLL` (wash+slowdown), 64-leaf weight context x2 (regress), R12-A per-band decorrelation (moot; Squeeze rejected), R13-A adaptive multi-tap (regress), R13-B lifting (regress), CMARC backend (near-optimal). All refine context granularity / decorrelation family of a near-optimal predictor. None move JXL.
+- **8 real, measured axes, all fail to close JXL:** R11-D MA context (wash), R11-A cross-band `wLL` (wash+slowdown), 64-leaf weight context x2 (regress), R12-A per-band decorrelation (moot; Squeeze rejected), R13-A adaptive multi-tap (regress 9.9065, muted), R13-B lifting (regress 10.17/10.58, gated off), plus CMARC backend (near-optimal). None move JXL. The +0.81 bpp gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel predict-and-code / decorrelation family.
 
-## RESEARCH DISPATCH STATUS (CORRECTION THIS RUN)
+## FRESH-PARADIGM ESCAPE HATCH - R14 (current lever)
 
-- **The `research` from run 32345784962 did NOT execute.** Run 32345990841 (owner `/oc research`, 07:51:51Z) shows the `research` job `Run opencode researcher agent` exiting code 1 with NO spec doc and NO `/tmp/random-lab-decision.json`; the forward step posted `/oc maintainer` (comment 5353012675), which triggered this run. So the fresh-paradigm brief was never authored.
-- **This run (32346009111) RE-DISPATCHES `research` on PR #93 (head `793d692d`)** with a self-contained mandate: design a fundamentally NEW paradigm (learned/neural predictor, OR context-tree weighted prediction at the transform level) for the +0.81 bpp JXL gap; explicitly EXCLUDE all R7/R8/R9/R11/R12/R13-class single-pixel/decorrelation widening (exhausted, already clears WebP). Findings feed an Architect blueprint, then the Builder.
-- **Watch item:** if the re-dispatched research ALSO exits 1, dispatch `lab` to inspect the researcher agent wiring / model (agent runtime fault), rather than re-looping.
+- **Researcher R14 spec** (`obsidian/docs/research-r14-context-tree-ma-residual-model.md`, commit `b90e7e9`, Dr. Mob): residual-conditioned context tree (RCCT) + multiplier-additive (MA) residual model that consumes decode-available **base errors `e0` of the four causal neighbors** as predictor features. Strict superset (depth-0 = base predictor); bit-exact lockstep proven; targets `< 8.71`. Includes optional R14-B (RCCT on a lifting LL).
+- **Architect R14 blueprint** (`obsidian/docs/architect-r14-rcct-ma-blueprint.md`, commit `a544ed0c`): an overlay on the existing per-context pixel predictor `P0` (does NOT replace `P0`, does NOT touch the entropy backend). Coded residual becomes `r = (v - P0) - r_pred`, where `r_pred` is an MA model of the residual conditioned on `e0` of the four causal neighbors (stored in per-plane `e0buf` in raster order). Zero signaled bytes at depth-0 (`r_pred=0` = byte-identical to current codec) so the never-expand net makes regression structurally impossible; selection on ACTUAL encoded bytes (avoids the R13-A training-RSS proxy pitfall). Build order: `predict.rs` (RCCT types, `rcct_properties`, `rcct_predict`, `solve_ma_least_squares`) -> `model.rs` (`rcct` field, `build_rcct` greedy split, signaling) -> `encoder.rs`/`decoder.rs` (thread `e0buf`, overlay in all 8 backends) -> CLI `--rcct` seam -> measure REAL Kodak; then R14-B only if base lands ~8.8-9.0.
+- **This run (32347142216):** dispatched `build` on PR #93 (head `a544ed0c`) to implement R14 base. No Builder in flight at dispatch (safe, no collision).
 
-## CURRENT BUILD STATE (fresh paradigm, pending Researcher)
+## CURRENT BUILD STATE
 
-- **No build in flight** except this maintainer run (32346009111, in_progress). R13-B Builder run 32345674366 is `completed`. The research re-dispatch will push a doc to the branch (no collision with an active Builder).
+- **Builder (DISPATCHED this run, `build` on PR #93):** implement R14 RCCT + MA residual model per the Architect blueprint; measure REAL Kodak effort-4; target `< 8.71`; R14-B only if base ~8.8-9.0; never-regress guard + fair (actual-bytes) candidate metric.
 - R13-A / R13-B remain in the code, muted/gated off: production identical to 9.5209 bpp; legacy decode byte-identical; no regression ships. They are documented evidence of the ceiling, not dead weight.
 
 ## In flight
 
-- **Researcher (RE-DISPATCHED this run, `research` on PR #93):** author a fundamentally new base predictor/transform paradigm. Start fresh - on-branch R7/R8/R9 blueprints (single-pixel weighted predictors) are already implemented and are NOT the answer. Findings feed an Architect blueprint, then the Builder. No merge until all three gates clear.
+- **Builder (R14 base):** the only build in flight once dispatched. Researcher/Architect are done (docs pushed). No other builds.
 - **No other builds in flight.**
 
 ## PENDING (deferred)
 
-- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5209); current lever = fresh-paradigm `research` (re-dispatched this run). R7-class single-pixel tuning explicitly EXCLUDED.
+- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5209); current lever = R14 (fresh paradigm). R7-class single-pixel tuning explicitly EXCLUDED (exhausted, already clears WebP).
 - **README / index.html Obsidian promotion** (standing directive, deferred; schedule once JXL nears).
-- **Review staleness on #93:** head `793d692d` clean (141 tests pass); fresh Reviewer + Tester gate required before any merge (premature until new paradigm lands and gates near-clear).
+- **Review staleness on #93:** head `a544ed0c` clean (141 tests pass); fresh Reviewer + Tester gate required before any merge (premature until R14 lands and gates near-clear).
 - **Commit-message hygiene:** never write literal `Closes #68` token.
 
 ## Issues
@@ -67,22 +65,22 @@
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError`.
 - **pages.yml:** green.
-- **PR #93 checks:** opencode-pr-trigger SUCCESS on R13-B push; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS. Research run 32345990841 FAILED (agent exit 1) - being re-dispatched.
+- **PR #93 checks:** opencode-pr-trigger SUCCESS on R14 Architect push; pages deploy SKIPPED (PR preview); GitGuardian SUCCESS. No in-flight Builder at survey time.
 
 ## Next steps
 
-1. **Await the Researcher's fresh-paradigm spec** on PR #93 (this run's re-dispatched `research`; a maintainer run auto-triggers on the push). When a Researcher doc lands, dispatch `architect` to blueprint it, then `build` for the Builder.
-2. **If the re-dispatched research ALSO exits 1:** dispatch `lab` to inspect the researcher agent / opencode.yml research-mode wiring and model config.
-3. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
+1. **Await the Builder's R14 implementation + real-Kodak measurement** on PR #93 (this run's `build`; a maintainer run auto-triggers on the push). When the Builder posts a number, survey: if R14 base clears `< 8.71`, proceed to R14-B and then the Reviewer/Tester gate; if it lands ~8.8-9.0, authorize R14-B; if it still misses, evaluate whether R14-B is the last realistic lever or whether a deeper paradigm shift (learned predictor) is required.
+2. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
+3. **Watch item:** the R13-B no-op incident (run 32336195985 completed green but pushed no commit) - if the R14 build ALSO no-ops (no push), dispatch `lab` to inspect opencode.yml `verify pushed` / `forward builder decision`. Re-drive once before escalating.
 
 ## Open questions
 
-- **Can a fundamentally new (learned / context-tree-transform-level) paradigm break the 8.71 JXL wall?** UNKNOWN - the single-pixel/decorrelation family is exhausted (8 real axes, data-backed). This is the only honest lever left; the Researcher must produce a real spec this time.
-- **Research-agent reliability:** run 32345990841 crashed (exit 1) with no output. Is this a recurring agent runtime fault? Monitor the re-dispatch; escalate to `lab` if it repeats.
+- **Can R14 (RCCT + MA residual model consuming neighbor base errors) break the 8.71 JXL wall?** UNKNOWN - genuinely new paradigm (the 9th lever), never instantiated in Obsidian before. It targets the exact JXL/FLIF mechanism (neighbor residual conditioning + decision tree) that the 8 exhausted axes never touched. This is the strongest remaining lever.
+- **If R14 base still misses 8.71, what then?** R14-B (RCCT on lifting LL) is the additive follow-on. Beyond that, a learned/neural predictor would be a further paradigm step - escalate to the owner before authorizing if R14-B also falls short.
 - **Merge gate (owner override #2):** NOT met - default 9.5209 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** CLEARED - no Builder in flight; the research re-dispatch pushes only a doc, safe.
+- **Build collision:** CLEARED - no Builder in flight at dispatch; the `build` this run is the first R14 build.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
