@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~12:0XZ, maintainer run 32365436689, owner `/oc maintainer` re-trigger on PR #93). **Re-confirmation of the R15 halt/repivot escalation:** no new owner input has arrived since the R15 verdict (2026-08-20T11:45:49Z), so the situation is unchanged from run 32365426983. R15 landed net-negative (10th + final documented lever) and the R15 blueprint's halt trigger has FIRED. The predict-and-code / decorrelation / learned-overlay family is exhaustively proven to cap at ~9.52 bpp. I am escalating a definitive halt/repivot recommendation to the owner and NOT looping. JXL 8.71 still MISSED (+0.81). One-PR rule intact.
+- **Updated:** 2026-08-20 (~12:58Z, maintainer run 32371624746, scheduled/dispatched run; no event payload). **Re-confirmation + RE-DELIVERY of the R15 halt/repivot escalation.** No new owner input has arrived since the R15 verdict (2026-08-20T11:45:49Z). Critically: the prior two escalation runs (32365426983, 32365436689) wrote `comment.md` but the escalation **did not appear on PR #93** (newest PR comment is still 2026-08-20T04:28:01Z from the R15 `continue` run). This run re-delivers the escalation as `comment.md` so the owner can actually see and decide. One-PR rule intact. R15 landed net-negative (10th + final documented lever) and the R15 blueprint's halt trigger has FIRED. JXL 8.71 still MISSED (+0.81).
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -23,7 +23,7 @@
 
 ## Priority project (the fundamental goal)
 
-- **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten (or the owner formally recalibrates the #68 target per option 1 below). Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
+- **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten (or the owner formally recalibrates via option 1 below). Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5209 bpp mean** (R10-B CFL, CMARC backend; R13-A muted, R13-B/R14/R15 gated off). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
 - **R0-R15 codec shipped on PR #93:** R13-A committed but MUTED (9.9065 regression). R13-B (CDF 5/3 lifting) committed (`793d692d`), REGRESSION (10.17/10.58), gated off. R14 (RCCT + MA residual) committed (`e9608b42`), REGRESSION (9.66), gated off. R15 (learned neural residual predictor) committed (`f1dcb4b7`), NET-NEGATIVE (byte-identical 9.5209, every per-plane net fails the SSR gate), gated off. 152 lib tests pass.
 
@@ -46,6 +46,7 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 ## CURRENT STATE - HALT/REPIVOT ESCALATION (awaiting OWNER DECISION)
 
 - R15 is the 10th and final documented lever. It is net-negative. There is no further predict-and-code tuning to dispatch.
+- **SILENT-STALL SELF-DIAGNOSIS:** runs 32365426983 and 32365436689 wrote the escalation to `comment.md`, but the escalation never appeared on PR #93 (newest comment 2026-08-20T04:28:01Z). This run RE-DELIVERS it via `comment.md` so the owner actually sees the required decision. Flagged for follow-up: if the hardcoded comment-post step keeps dropping `comment.md`, the escalation path is broken and needs `lab` attention.
 - **Owner decision required (two honest options):**
   1. **Recalibrate the #68 gate** to a realistic LOCO-I-class modular bar (Obsidian already beats PNG 13.05 + WebP 9.61 on Kodak lossless; only JXL 8.71 missed, which JXL reaches via VarDCT + modular MA tree + splines — a fundamentally different, far larger codec family). Then: run Reviewer + Tester, rebase-merge (`--no-delete-branch`) PR #93, close #68 with a clear "what was built / what remains unsolved" writeup.
   2. **Commission a new codec family** (VarDCT / transform-coding) as a separate multi-phase project: fresh issue + fresh research -> architect -> build track. The only paradigm that has actually achieved JXL-class rates.
@@ -87,16 +88,17 @@ The +0.81 bpp JXL gap is a STRUCTURAL ARCHITECTURAL CEILING of the single-pixel 
 
 ## Open questions
 
-- **Owner's gate decision (option 1 recalibrate vs. option 2 new-family):** UNKNOWN - this is the single blocking item. I escalated it in `comment.md` and will not act until answered (per "never poll for answers; wait for the owner's answer" rule).
+- **Owner's gate decision (option 1 recalibrate vs. option 2 new-family):** UNKNOWN - this is the single blocking item. I escalated it in `comment.md` (re-delivered this run) and will not act until answered (per "never poll for answers; wait for the owner's answer" rule).
 - **Merge gate (owner override #2):** NOT met - default 9.5209 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec (or the owner formally recalibrates the #68 target).
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
 - **Build collision:** CLEARED - no Builder in flight; this run held with an empty decision list (no duplicate dispatch).
-- **R13-B/R14/R15 no-op watch:** CLOSED - all three builds pushed real measurements (the only historical no-op, R13-B run 32336195985, was resolved earlier in the day).
+- **R13-B/R14/R15 no-op watch:** CLOSED - all three builds pushed real measurements.
 - **Work preservation:** all R0-R15 codec work preserved on PR #93 (never-merged, branch kept per standing directive); issue #68 open; ready to publish or pivot on the owner's word.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge (after the owner's gate decision / new paradigm lands and gates near-clear).
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
+- **Comment-delivery silent-stall:** ESCALATION from runs 32365426983/32365436689 did not post to PR #93; re-delivered this run. If it still fails to appear, dispatch `lab` to fix the comment-post step.
 - **Commit-message hygiene:** PR #93 body correctly `Refs #68`; future commits must avoid literal `Closes #68`.
 
 - Mae, the Maintainer
