@@ -13,8 +13,10 @@ use crate::error::CodecError;
 use crate::image::Channels;
 use crate::predict::{
     default_weight_codebook, neighbors, predict_clamped, predict_recursive, r13_properties,
-    solve_r13_least_squares, solve_weighted_tree, weight_context, PredictorId,     R13Leaf, R13_DIM, R13_M,
-    R13_NEUTRAL, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
+    rcct_properties, rcct_predict, solve_ma_least_squares, solve_r13_least_squares, solve_weighted_tree,
+    weight_context, PredictorId, R13Leaf, R13_DIM, R13_M, R13_NEUTRAL, RCCT_DIM, RCCT_K,
+    RCCT_LEAF_TAG, RCCT_MAX_DEPTH, RCCT_MIN_LEAF, RCCT_THR_CANDIDATES, RcctLeaf, RcctNode,
+    RcctTree, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
 };
 use crate::rans::{RansTable, CAPPED_SYMBOLS, CAPPED_ALPHABET};
 use std::io::{Read, Write};
@@ -177,6 +179,14 @@ pub struct ModelConfig {
     /// so each Squeeze sub-band gets its own least-squares optimum (the JPEG XL
     /// per-band decorrelation edge the R11 escalation named as missing).
     pub band_wc_table: Option<Vec<Option<Vec<WLeaf>>>>,
+    /// R14: per-plane residual-conditioned context tree with MA leaf model. `Some`
+    /// only when R14 is selected for the plane (effort >= `RCCT_EFFORT` and the
+    /// never-expand net accepts it, or forced via `OBSIDIAN_R14_FORCE` /
+    /// `EncodeOpts::rcct`). `None` on the legacy/non-RCCT path so every stream
+    /// without R14 decodes byte-identically. The overlay is a strict superset: a
+    /// depth-0 tree (`r_pred = 0`) is byte-identical to the current codec, so the
+    /// never-expand net cannot regress.
+    pub rcct: Option<Vec<Option<crate::predict::RcctTree>>>,
 }
 
 impl ModelConfig {
@@ -239,7 +249,28 @@ impl ModelConfig {
         }
         self.r13_table_for(parent_plane)
     }
+
+    /// R14: the residual-conditioned context tree for a plane, if R14 is in use.
+    /// `parent_plane` is the owning original plane (so banded coding falls back to
+    /// `rcct_for` indexes the tree list by the *band* index `plane` (the same
+    /// index `build_rcct_trees` assigns: one `RcctTree` per coding band, in band
+    /// order). Squeeze/CFL can produce many bands per original plane, so the band
+    /// index, not `parent_plane`, is the correct key. `None` when R14 is off for
+    /// this band, so the coding loop takes the base path and decodes
+    /// byte-identically.
+    pub fn rcct_for(&self, plane: usize, _parent_plane: usize) -> Option<&crate::predict::RcctTree> {
+        self.rcct
+            .as_ref()
+            .and_then(|v| v.get(plane).and_then(|o| o.as_ref()))
+    }
 }
+
+/// Effort at or above which R14 (RCCT + MA residual model) becomes a candidate
+/// in the never-expand safety net. Kept above any production effort so R14 is
+/// OFF by default (the cipher stays on the verified pre-R14 path); the
+/// `OBSIDIAN_R14_FORCE` seam enables it for direct measurement against the
+/// JPEG XL 8.71 gate. See `obsidian/docs/architect-r14-rcct-ma-blueprint.md`.
+pub const RCCT_EFFORT: u8 = 255;
 
 /// The set of predictor candidates for an effort level.
 pub fn predictors_for(effort: u8) -> Vec<PredictorId> {
@@ -336,6 +367,7 @@ pub fn analyze(
     context: &ContextParams,
     weight_codebook: &[WeightVec],
     entropy_gr: bool,
+    _rcct: bool,
     forced: Option<PredictorId>,
 ) -> ModelConfig {
     let n_planes = planes.len();
@@ -365,6 +397,7 @@ pub fn analyze(
         band_ranges: Vec::new(),
         band_maps: None,
         band_wc_table: None,
+        rcct: None,
     };
 
     let predictors = match forced {
@@ -594,6 +627,14 @@ pub fn analyze(
         None
     };
 
+    // R14 (residual-conditioned context tree): the per-plane tree is NOT built
+    // here. It must be fit on the exact transform/representation that is finally
+    // encoded (the winning Squeeze/CFL/Lift config), so `encode_with` builds it
+    // after the never-expand winner is chosen (see the R14 net there). Building it
+    // here, on the untransformed analysis planes, would mispredict at encode time
+    // and expand the file. A depth-0 tree is byte-identical to the base codec, so
+    // the never-expand net cannot regress.
+
     // Static histograms at effort >= 6. Skipped under the Golomb-Rice backend
     // (M0/M1), where per-context k is implicit mirrored state and the histogram
     // pass would be wasted work and memory; `static_histograms` stays `None`.
@@ -817,7 +858,331 @@ pub fn default_model(
         band_ranges: Vec::new(),
         band_maps: None,
         band_wc_table: None,
+        rcct: None,
     }
+}
+
+/// Feature value for the R14 MA leaf model: the first `RCCT_K` entries are the
+/// context properties, the last (`RCCT_K == RCCT_DIM - 1`) is the bias (constant 1).
+#[inline]
+fn rcct_feat(p: &[i32; RCCT_K], di: usize) -> i64 {
+    if di < RCCT_K {
+        p[di] as i64
+    } else {
+        1
+    }
+}
+
+/// Accumulate the MA normal equations `S x = b` (with `t2 = sum target^2`) over a
+/// set of pixel indices for plane `pi`, using property vector `props` and target
+/// `r0`. Layout matches `solve_ma_least_squares` and `rcct_leaf_predict`.
+fn rcct_accumulate(
+    indices: &[usize],
+    props: &[[i32; RCCT_K]],
+    r0: &[i32],
+) -> ([[i64; RCCT_DIM]; RCCT_DIM], [i64; RCCT_DIM], i64) {
+    let mut s = [[0i64; RCCT_DIM]; RCCT_DIM];
+    let mut b = [0i64; RCCT_DIM];
+    let mut t2 = 0i64;
+    for &i in indices {
+        let p = &props[i];
+        let target = r0[i] as i64;
+        for di in 0..RCCT_DIM {
+            let fv = rcct_feat(p, di);
+            b[di] += target * fv;
+            for dj in 0..RCCT_DIM {
+                s[di][dj] += fv * rcct_feat(p, dj);
+            }
+        }
+        t2 += target * target;
+    }
+    (s, b, t2)
+}
+
+/// Fit the MA model over a normal-equation set and return the unshifted
+/// `sum-of-squared-residuals` (`t2 - b^T x`, where `x = S^{-1} b`). Returns `None`
+/// when the system is singular/ill-conditioned so the caller can skip the split.
+fn rcct_ssr(s: &[[i64; RCCT_DIM]; RCCT_DIM], b: &[i64; RCCT_DIM], t2: i64) -> Option<i64> {
+    let mut m = [[0f64; RCCT_DIM]; RCCT_DIM];
+    let mut v = [0f64; RCCT_DIM];
+    for di in 0..RCCT_DIM {
+        for dj in 0..RCCT_DIM {
+            m[di][dj] = s[di][dj] as f64;
+        }
+        v[di] = b[di] as f64;
+    }
+    // Gauss-Jordan, with pivot check for ill-conditioning.
+    let mut inv = [[0f64; RCCT_DIM]; RCCT_DIM];
+    for di in 0..RCCT_DIM {
+        inv[di][di] = 1.0;
+    }
+    for col in 0..RCCT_DIM {
+        let mut piv = col;
+        let mut best_abs = 0f64;
+        for r in col..RCCT_DIM {
+            let a = m[r][col].abs();
+            if a > best_abs {
+                best_abs = a;
+                piv = r;
+            }
+        }
+        if best_abs < 1e-9 {
+            return None;
+        }
+        if piv != col {
+            m.swap(piv, col);
+            inv.swap(piv, col);
+        }
+        let d = m[col][col];
+        for c in 0..RCCT_DIM {
+            m[col][c] /= d;
+            inv[col][c] /= d;
+        }
+        for r in 0..RCCT_DIM {
+            if r != col {
+                let f = m[r][col];
+                if f != 0.0 {
+                    for c in 0..RCCT_DIM {
+                        m[r][c] -= f * m[col][c];
+                        inv[r][c] -= f * inv[col][c];
+                    }
+                }
+            }
+        }
+    }
+    let mut bx = 0f64;
+    for di in 0..RCCT_DIM {
+        let mut x = 0f64;
+        for dj in 0..RCCT_DIM {
+            x += inv[di][dj] * v[dj];
+        }
+        bx += v[di] * x;
+    }
+    let ssr = t2 as f64 - bx;
+    if ssr < 0.0 {
+        Some(0)
+    } else {
+        Some(ssr as i64)
+    }
+}
+
+/// Recursively grow one RCCT node/leaf over `indices`.
+fn rcct_recurse(
+    indices: &[usize],
+    depth: usize,
+    props: &[[i32; RCCT_K]],
+    r0: &[i32],
+    nodes: &mut Vec<RcctNode>,
+    leaves: &mut Vec<RcctLeaf>,
+) -> u32 {
+    let (s_total, b_total, t2_total) = rcct_accumulate(indices, props, r0);
+    let single_ssr = rcct_ssr(&s_total, &b_total, t2_total);
+
+    if indices.len() < RCCT_MIN_LEAF || depth >= RCCT_MAX_DEPTH {
+        let li = leaves.len();
+        leaves.push(solve_ma_least_squares::<RCCT_DIM>(&s_total, &b_total).unwrap_or([0i16; RCCT_DIM]));
+        return RCCT_LEAF_TAG | li as u32;
+    }
+
+    let mut best: Option<(usize, i32, usize, i64)> = None; // (prop, thr, left_count, ssr)
+    let m = indices.len();
+    for k in 0..RCCT_K {
+        // Sort pixel indices by this property.
+        let mut order: Vec<usize> = indices.to_vec();
+        order.sort_by_key(|&i| props[i][k]);
+        // Skip properties with no variation.
+        if m >= 2 && props[order[0]][k] == props[order[m - 1]][k] {
+            continue;
+        }
+        // Candidate split positions (left-set sizes) at quantile cut points.
+        let mut cand: Vec<usize> = Vec::new();
+        for c in 1..RCCT_THR_CANDIDATES {
+            let pos = (m * c) / RCCT_THR_CANDIDATES;
+            if pos > 0 && pos < m {
+                cand.push(pos);
+            }
+        }
+        cand.sort_unstable();
+        cand.dedup();
+        if cand.is_empty() {
+            continue;
+        }
+        // Incremental prefix accumulation up to each candidate position.
+        let mut rs = [[0i64; RCCT_DIM]; RCCT_DIM];
+        let mut rb = [0i64; RCCT_DIM];
+        let mut rt2 = 0i64;
+        let mut prev = 0usize;
+        for &t in &cand {
+            while prev < t {
+                let pix = order[prev];
+                let p = &props[pix];
+                let target = r0[pix] as i64;
+                for di in 0..RCCT_DIM {
+                    let fv = rcct_feat(p, di);
+                    rb[di] += target * fv;
+                    for dj in 0..RCCT_DIM {
+                        rs[di][dj] += fv * rcct_feat(p, dj);
+                    }
+                }
+                rt2 += target * target;
+                prev += 1;
+            }
+            let lssr = match rcct_ssr(&rs, &rb, rt2) {
+                Some(v) => v,
+                None => continue,
+            };
+            // Right side = total minus left prefix.
+            let mut rsr = [[0i64; RCCT_DIM]; RCCT_DIM];
+            let mut rbr = [0i64; RCCT_DIM];
+            for di in 0..RCCT_DIM {
+                rsr[di][di] = s_total[di][di] - rs[di][di];
+                rbr[di] = b_total[di] - rb[di];
+                for dj in 0..di {
+                    rsr[di][dj] = s_total[di][dj] - rs[di][dj];
+                    rsr[dj][di] = s_total[dj][di] - rs[dj][di];
+                }
+            }
+            let rssr = match rcct_ssr(&rsr, &rbr, t2_total - rt2) {
+                Some(v) => v,
+                None => continue,
+            };
+            let sum = lssr.saturating_add(rssr);
+            match best {
+                Some((_, _, _, bssr)) if sum >= bssr => {}
+                _ => best = Some((k, props[order[t - 1]][k], t, sum)),
+            }
+        }
+    }
+
+    let split = match (best, single_ssr) {
+        (Some((k, thr, t, sssr)), Some(single)) => {
+            // Only split if it strictly improves over a single leaf.
+            if sssr < single.saturating_sub(1) {
+                Some((k, thr, t))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+
+    match split {
+        None => {
+            let li = leaves.len();
+            leaves.push(
+                solve_ma_least_squares::<RCCT_DIM>(&s_total, &b_total).unwrap_or([0i16; RCCT_DIM]),
+            );
+            RCCT_LEAF_TAG | li as u32
+        }
+        Some((k, thr, t)) => {
+            // Partition `indices` into left (prop[k] <= thr) and right.
+            let mut left: Vec<usize> = Vec::with_capacity(t);
+            let mut right: Vec<usize> = Vec::with_capacity(m - t);
+            for &i in indices {
+                if props[i][k] <= thr {
+                    left.push(i);
+                } else {
+                    right.push(i);
+                }
+            }
+            let node_idx = nodes.len();
+            nodes.push(RcctNode {
+                prop: k as u8,
+                thr,
+                le: 0,
+                gt: 0,
+            });
+            let le = rcct_recurse(&left, depth + 1, props, r0, nodes, leaves);
+            let gt = rcct_recurse(&right, depth + 1, props, r0, nodes, leaves);
+            nodes[node_idx] = RcctNode {
+                prop: k as u8,
+                thr,
+                le,
+                gt,
+            };
+            node_idx as u32
+        }
+    }
+}
+
+/// R14: build the residual-conditioned context tree (one `RcctTree` per plane)
+/// from the chosen per-context predictor's residual `r0`. The tree is an overlay:
+/// a depth-0 (single-leaf) tree yields `r_pred = 0` and decodes byte-identically to
+/// the base codec, so the caller's never-expand net can drop R14 without loss.
+/// Build RCCT trees from *precomputed base residuals* `r0s[pi]` (and their
+/// value `ranges[pi]`). The residuals must be exactly the ones the encoder
+/// produces during coding (use `collect_rcct_r0` in the encoder), otherwise
+/// the tree is fit on a slightly different signal than the one it sees at
+/// encode/decode time and will mispredict. The overlay is then
+/// decode-available by construction.
+pub fn build_rcct_trees(
+    planes: &[Vec<i16>],
+    r0s: &[Vec<i32>],
+    ranges: &[PlaneRange],
+    dims: &[(usize, usize)],
+    parents: &[usize],
+    model: &ModelConfig,
+) -> Vec<Option<RcctTree>> {
+    let _ = model;
+    let _ = parents;
+    planes
+        .iter()
+        .enumerate()
+        .map(|(pi, plane)| {
+            let (width, height) = dims[pi];
+            let n = width * height;
+            if n == 0 {
+                return None;
+            }
+            let range = ranges[pi];
+            let r0 = &r0s[pi];
+            // Property vector per pixel, mixing neighbours' base errors.
+            let mut props = vec![[0i32; RCCT_K]; n];
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = y * width + x;
+                    let nb = neighbors(plane, x, y, width, height);
+                    let e0 = [
+                        if x > 0 { r0[idx - 1] } else { 0 },
+                        if y > 0 { r0[idx - width] } else { 0 },
+                        if x > 0 && y > 0 { r0[idx - width - 1] } else { 0 },
+                        if x + 1 < width && y > 0 { r0[idx - width + 1] } else { 0 },
+                    ];
+                    let g1 = nb.l - nb.t;
+                    let g2 = nb.t - nb.tl;
+                    let g3 = nb.tl - nb.tr;
+                    props[idx] = rcct_properties(&nb, &e0, g1, g2, g3);
+                }
+            }
+            let all: Vec<usize> = (0..n).collect();
+            let mut nodes = Vec::new();
+            let mut leaves = Vec::new();
+            rcct_recurse(&all, 0, &props, r0, &mut nodes, &mut leaves);
+            if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
+                let tree = RcctTree { nodes: nodes.clone(), leaves: leaves.clone() };
+                let mut ss_r0 = 0i64;
+                let mut ss_eps = 0i64;
+                for i in 0..n {
+                    let r0v = r0[i];
+                    let rp = rcct_predict(&tree, &props[i], range);
+                    let eps = r0v - rp;
+                    ss_r0 += (r0v as i64) * (r0v as i64);
+                    ss_eps += (eps as i64) * (eps as i64);
+                }
+                eprintln!(
+                    "[R14-analyze] plane {} n={} ss_r0={} ss_eps={} ratio={:.3} range=[{},{}]",
+                    pi,
+                    n,
+                    ss_r0,
+                    ss_eps,
+                    if ss_r0 > 0 { ss_eps as f64 / ss_r0 as f64 } else { 1.0 },
+                    range.min,
+                    range.max,
+                );
+            }
+            Some(RcctTree { nodes, leaves })
+        })
+        .collect()
 }
 
 /// Build per-context histograms over the capped residual alphabet (`CAPPED_SYMBOLS`)
@@ -1111,6 +1476,36 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
     // every legacy reader that stops earlier still parses the model body. A
     // legacy stream has no such byte; `read_model` defaults it to `Squeeze`.
     w.write_all(&[m.transform_kind.to_u8()])?;
+    // R14: rcct block, appended after `transform_kind` so legacy readers (which
+    // stop at the body) ignore it; an R14 stream with no rcct writes a single 0.
+    match &m.rcct {
+        None => w.write_all(&[0])?,
+        Some(trees) => {
+            w.write_all(&[1])?;
+            w.write_all(&[trees.len() as u8])?;
+            for t in trees {
+                match t {
+                    None => w.write_all(&[0])?,
+                    Some(tree) => {
+                        w.write_all(&[1])?;
+                        w.write_all(&(tree.nodes.len() as u32).to_le_bytes())?;
+                        for n in &tree.nodes {
+                            w.write_all(&[n.prop])?;
+                            w.write_all(&n.thr.to_le_bytes())?;
+                            w.write_all(&n.le.to_le_bytes())?;
+                            w.write_all(&n.gt.to_le_bytes())?;
+                        }
+                        w.write_all(&(tree.leaves.len() as u32).to_le_bytes())?;
+                        for l in &tree.leaves {
+                            for c in l.iter() {
+                                w.write_all(&c.to_le_bytes())?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1544,6 +1939,59 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         }
     };
 
+    // R14: rcct block (after `transform_kind`). A leading 0 means no rcct (legacy
+    // or base codec); a 1 precedes the per-plane tree list.
+    let mut rcct = None;
+    let mut rb = [0u8; 1];
+    if r.read_exact(&mut rb).is_ok() && rb[0] == 1 {
+        let mut n = [0u8; 1];
+        r.read_exact(&mut n)?;
+        let mut trees: Vec<Option<RcctTree>> = Vec::with_capacity(n[0] as usize);
+        for _ in 0..n[0] {
+            let mut present = [0u8; 1];
+            r.read_exact(&mut present)?;
+            if present[0] == 0 {
+                trees.push(None);
+                continue;
+            }
+            let mut ncount = [0u8; 4];
+            r.read_exact(&mut ncount)?;
+            let nc = u32::from_le_bytes(ncount) as usize;
+            let mut nodes = Vec::with_capacity(nc);
+            for _ in 0..nc {
+                let mut pb = [0u8; 1];
+                r.read_exact(&mut pb)?;
+                let mut tb = [0u8; 4];
+                r.read_exact(&mut tb)?;
+                let mut leb = [0u8; 4];
+                r.read_exact(&mut leb)?;
+                let mut gtb = [0u8; 4];
+                r.read_exact(&mut gtb)?;
+                nodes.push(RcctNode {
+                    prop: pb[0],
+                    thr: i32::from_le_bytes(tb),
+                    le: u32::from_le_bytes(leb),
+                    gt: u32::from_le_bytes(gtb),
+                });
+            }
+            let mut lcount = [0u8; 4];
+            r.read_exact(&mut lcount)?;
+            let lc = u32::from_le_bytes(lcount) as usize;
+            let mut leaves = Vec::with_capacity(lc);
+            for _ in 0..lc {
+                let mut leaf = [0i16; RCCT_DIM];
+                for c in leaf.iter_mut() {
+                    let mut cb = [0u8; 2];
+                    r.read_exact(&mut cb)?;
+                    *c = i16::from_le_bytes(cb);
+                }
+                leaves.push(leaf);
+            }
+            trees.push(Some(RcctTree { nodes, leaves }));
+        }
+        rcct = Some(trees);
+    }
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -1568,6 +2016,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         band_ranges,
         band_maps,
         band_wc_table,
+        rcct,
     })
 }
 
@@ -1684,7 +2133,7 @@ mod tests {
                     .collect()
             })
             .collect();
-        let model = analyze(&planes, &ranges, width, height, 5, &context, &codebook, false, None);
+        let model = analyze(&planes, &ranges, width, height, 5, &context, &codebook, false, false, None);
         let mut bytes = Vec::new();
         write_model(&mut bytes, &model).unwrap();
         let sizes = alphabet_sizes(&ranges);
@@ -1721,6 +2170,7 @@ mod tests {
             &context,
             &codebook,
             false,
+            false,
             None,
         );
         let mut saw_expanded = false;
@@ -1745,7 +2195,7 @@ mod tests {
         let plane: Vec<i16> = (0..width * height)
             .map(|i| ((i * 7) % 256) as i16)
             .collect();
-        let model = analyze(&[plane], &ranges, width, height, 7, &context, &codebook, false, None);
+        let model = analyze(&[plane], &ranges, width, height, 7, &context, &codebook, false, false, None);
         assert!(model.static_histograms.is_some());
         let mut bytes = Vec::new();
         write_model(&mut bytes, &model).unwrap();
@@ -1779,7 +2229,7 @@ mod tests {
                 (x + y) % 256
             })
             .collect();
-        let model = analyze(&[plane], &[range], width, height, 4, &context, &codebook, false, None);
+        let model = analyze(&[plane], &[range], width, height, 4, &context, &codebook, false, false, None);
         let used = model
             .planes
             .iter()

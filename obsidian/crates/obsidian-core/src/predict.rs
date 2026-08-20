@@ -734,6 +734,296 @@ pub fn solve_r13_least_squares(
     Some(leaf)
 }
 
+// ===== R14: residual-conditioned context tree (RCCT) with a multiplier-additive
+// (MA) residual model (the JPEG XL 8.71 gate) =====
+//
+// Every prior Obsidian predictor predicted the pixel as a function of neighbor
+// *pixel values* (and/or refined the entropy *context*). R14 instead predicts the
+// *residual* as a function of the decode-available base errors `e0` of the four
+// causal neighbors, through an adaptively-partitioned decision tree whose leaves
+// carry a small MA linear model `r_pred = a + sum_k b_k * p_k`. The coder emits
+// the residual-of-residual `epsilon = r0 - r_pred` (where `r0 = v - P0` is the
+// base residual of the existing per-context pixel predictor `P0`) and the decoder
+// reconstructs `v = P0 + r_pred + epsilon`. This is exactly the mechanism behind
+// JPEG XL's modular mode and FLIF, and it is a strict superset overlay on the
+// production predictor: with a depth-0 tree (`r_pred = 0`) the stream is
+// byte-identical to the current codec, so the never-expand net cannot regress.
+
+/// Number of causal properties feeding the R14 MA leaf model (see `rcct_properties`).
+pub const RCCT_K: usize = 10;
+/// Total MA coefficient dimension: `RCCT_K` property weights plus one bias term.
+pub const RCCT_DIM: usize = RCCT_K + 1;
+/// Max tree depth for the greedy split (research default 6).
+pub const RCCT_MAX_DEPTH: usize = 6;
+/// Minimum pixels in a leaf before splitting is forbidden (research default 256).
+pub const RCCT_MIN_LEAF: usize = 256;
+/// Number of threshold candidates (quantiles of the property over the node set).
+pub const RCCT_THR_CANDIDATES: usize = 16;
+/// Right-shift applied to the MA dot product so stored coefficients live near
+/// unity scale; the leaf stores `round((a + sum b_k p_k) >> RCCT_SHIFT)`.
+pub const RCCT_SHIFT: u32 = 8;
+/// High-bit tag distinguishing a leaf reference from an internal-node reference
+/// when traversing the flattened tree (see `rcct_predict`).
+pub const RCCT_LEAF_TAG: u32 = 1 << 31;
+
+/// The signaled per-leaf MA coefficient tuple for R14: `(b0..b9, a)` in the
+/// `>> RCCT_SHIFT` scaled domain, stored as `i16` (like `R13Leaf`).
+pub type RcctLeaf = [i16; RCCT_DIM];
+
+/// An internal RCCT node: split on property `prop` (0..RCCT_K) at threshold `thr`;
+/// route left when `prop <= thr`, right otherwise. `le`/`gt` are references to
+/// either an internal node (`< RCCT_LEAF_TAG`) or a leaf (`RCCT_LEAF_TAG | index`).
+#[derive(Clone)]
+pub struct RcctNode {
+    pub prop: u8,
+    pub thr: i32,
+    pub le: u32,
+    pub gt: u32,
+}
+
+/// A complete per-plane RCCT. `nodes` is the (possibly empty) internal-node list;
+/// `leaves` is the leaf list. A depth-0 tree has `nodes = []` and one leaf
+/// `(all-zero)` => `r_pred = 0` => byte-identical to the current codec.
+#[derive(Clone)]
+pub struct RcctTree {
+    pub nodes: Vec<RcctNode>,
+    pub leaves: Vec<RcctLeaf>,
+}
+
+/// Compute the R14 property vector for pixel `i` from its `Neighbors` and the four
+/// decode-available base errors `e0 = [e0_L, e0_T, e0_TL, e0_TR]` (read from the
+/// `e0buf`, border = 0). All ten are pure functions of already-decoded samples,
+/// identical on both sides. `g1,g2,g3` are the existing GAP gradients
+/// (`g1 = L - T`, `g2 = T - TL`, `g3 = TL - TR`) reused so the pixel-edge signal
+/// matches the existing gradient context.
+pub fn rcct_properties(_nb: &Neighbors, e0: &[i32; 4], g1: i32, g2: i32, g3: i32) -> [i32; RCCT_K] {
+    [
+        e0[0],                                     // p1  e0_L
+        e0[1],                                     // p2  e0_T
+        e0[2],                                     // p3  e0_TL
+        e0[3],                                     // p4  e0_TR
+        e0[0] - e0[2],                             // p5  e0_L - e0_TL
+        e0[1] - e0[3],                             // p6  e0_T - e0_TR
+        e0[2] - e0[3],                             // p7  e0_TL - e0_TR
+        (e0[0] + e0[1]) >> 1,                      // p8  (e0_L + e0_T)/2
+        g1,                                        // p9  L - T
+        (g1 + g2 + g3) >> 1,                       // p10 GAP-style pixel gradient
+    ]
+}
+
+/// R14 leaf prediction `r_pred = clamp(a + sum b_k p_k, ...) >> RCCT_SHIFT`.
+#[inline]
+fn rcct_leaf_predict(leaf: &RcctLeaf, props: &[i32; RCCT_K], range: PlaneRange) -> i32 {
+    // `leaf[0..RCCT_K]` are the property weights `b_k`; `leaf[RCCT_K]` is the bias `a`.
+    let mut acc: i64 = leaf[RCCT_K] as i64;
+    for k in 0..RCCT_K {
+        acc += (leaf[k] as i64) * (props[k] as i64);
+    }
+    if RCCT_SHIFT == 0 {
+        return range.clamp(acc as i32);
+    }
+    let half = 1i64 << (RCCT_SHIFT - 1);
+    range.clamp(((acc + half) >> RCCT_SHIFT) as i32)
+}
+
+/// R14 leaf prediction traversal. With a depth-0 tree (no nodes) the single leaf
+/// is used directly. Otherwise traverse the flattened node list to the leaf using
+/// the signaled `le`/`gt` references (a tagged `RCCT_LEAF_TAG | idx` means leaf).
+#[inline]
+pub fn rcct_predict(tree: &RcctTree, props: &[i32; RCCT_K], range: PlaneRange) -> i32 {
+    if tree.nodes.is_empty() {
+        return rcct_leaf_predict(&tree.leaves[0], props, range);
+    }
+    let mut cur = 0usize;
+    loop {
+        let n = &tree.nodes[cur];
+        let next = if props[n.prop as usize] <= n.thr {
+            n.le
+        } else {
+            n.gt
+        };
+        if next & RCCT_LEAF_TAG != 0 {
+            return rcct_leaf_predict(&tree.leaves[(next ^ RCCT_LEAF_TAG) as usize], props, range);
+        } else {
+            cur = next as usize;
+        }
+    }
+}
+
+/// Apply the R14 overlay to a base residual `r0` at pixel `(x, y)` (index `idx`).
+///
+/// Reads the four decode-available base errors from `e0buf` (already stored for
+/// every causal neighbor), computes the R14 property vector, traverses the
+/// signaled tree to its leaf, and returns the coded residual `epsilon = r0 -
+/// r_pred`. When `tree` is `None` (no RCCT on this plane) the base residual is
+/// returned unchanged, so non-RCCT streams are unaffected. The caller is
+/// responsible for storing `r0` into `e0buf[idx]` AFTER this call so that future
+/// neighbors see the correct base error.
+#[inline]
+pub fn rcct_apply(
+    tree: Option<&RcctTree>,
+    r0: i32,
+    nb: &Neighbors,
+    e0buf: &[i32],
+    idx: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    _height: usize,
+    range: PlaneRange,
+) -> i32 {
+    let tree = match tree {
+        Some(t) => t,
+        None => return r0,
+    };
+    let e0 = [
+        if x > 0 { e0buf[idx - 1] } else { 0 },
+        if y > 0 { e0buf[idx - width] } else { 0 },
+        if x > 0 && y > 0 { e0buf[idx - width - 1] } else { 0 },
+        if x + 1 < width && y > 0 {
+            e0buf[idx - width + 1]
+        } else {
+            0
+        },
+    ];
+    let g1 = nb.l - nb.t;
+    let g2 = nb.t - nb.tl;
+    let g3 = nb.tl - nb.tr;
+    let props = rcct_properties(nb, &e0, g1, g2, g3);
+    let r_pred = rcct_predict(tree, &props, range);
+    r0 - r_pred
+}
+
+/// R14 decoder-side companion to `rcct_apply`: returns only the residual-model
+/// correction `r_pred` for a pixel, WITHOUT the `r0` subtract. The decoder has
+/// the coded residual `r` already and recovers the base residual as `r0 = r +
+/// r_pred`, then reconstructs `v = pred + r0`. `r_pred` depends solely on the
+/// decode-available base errors of the causal neighbors (and the spatial
+/// neighbors), so it is identical to the encoder's value. `tree` is `None` when
+/// R14 is off, yielding `0`.
+#[inline]
+pub fn rcct_compute_pred(
+    tree: Option<&RcctTree>,
+    nb: &Neighbors,
+    e0buf: &[i32],
+    idx: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    _height: usize,
+    range: PlaneRange,
+) -> i32 {
+    let tree = match tree {
+        Some(t) => t,
+        None => return 0,
+    };
+    let e0 = [
+        if x > 0 { e0buf[idx - 1] } else { 0 },
+        if y > 0 { e0buf[idx - width] } else { 0 },
+        if x > 0 && y > 0 { e0buf[idx - width - 1] } else { 0 },
+        if x + 1 < width && y > 0 {
+            e0buf[idx - width + 1]
+        } else {
+            0
+        },
+    ];
+    let g1 = nb.l - nb.t;
+    let g2 = nb.t - nb.tl;
+    let g3 = nb.tl - nb.tr;
+    let props = rcct_properties(nb, &e0, g1, g2, g3);
+    rcct_predict(tree, &props, range)
+}
+
+/// Generic MA (multiplier-additive) least-squares solver over `D` basis terms,
+/// generalizing `solve_r13_least_squares` to an arbitrary dimension (R14 uses
+/// `D = RCCT_DIM`). Fits `target ~ a + sum b_k p_k` by ridge-regularized
+/// Gauss-Jordan on the accumulated `(D)x(D)` normal equations `S` and RHS `b`,
+/// returning the integer coefficients in the `>> RCCT_SHIFT` scaled domain.
+/// Returns `None` (ill-conditioned) => the caller falls back to a zero leaf.
+pub fn solve_ma_least_squares<const D: usize>(
+    s: &[[i64; D]; D],
+    b: &[i64; D],
+) -> Option<[i16; D]> {
+    let n = D;
+    let mut a = *s;
+    // Tiny absolute ridge only for numerical conditioning: it must NOT shrink the
+    // fitted coefficients, so it stays well below the feature variance (the bias
+    // term has diagonal = sample count, which dominates this constant on real
+    // images). A relative ridge would distort the bias feature on large inputs.
+    let ridge = 1i64;
+    for i in 0..n {
+        a[i][i] += ridge;
+    }
+    let mut m = [[0f64; D]; D];
+    for i in 0..n {
+        for j in 0..n {
+            m[i][j] = a[i][j] as f64;
+        }
+    }
+    let mut rhs = [0f64; D];
+    for i in 0..n {
+        rhs[i] = b[i] as f64;
+    }
+    for col in 0..n {
+        let mut piv = col;
+        let mut best = m[col][col].abs();
+        for r in (col + 1)..n {
+            if m[r][col].abs() > best {
+                best = m[r][col].abs();
+                piv = r;
+            }
+        }
+        if best < 1e-9 {
+            return None;
+        }
+        m.swap(col, piv);
+        rhs.swap(col, piv);
+        let d = m[col][col];
+        for j in col..n {
+            m[col][j] /= d;
+        }
+        rhs[col] /= d;
+        for r in 0..n {
+            if r != col {
+                let f = m[r][col];
+                for j in col..n {
+                    m[r][j] -= f * m[col][j];
+                }
+                rhs[r] -= f * rhs[col];
+            }
+        }
+    }
+    let w = rhs;
+    let mut maxw = 0f64;
+    for k in 0..n {
+        maxw = maxw.max(w[k].abs());
+    }
+    if maxw < 1e-9 {
+        return None;
+    }
+    // Store the coefficients scaled by `1 << RCCT_SHIFT` (NOT normalized by
+    // `maxw`): the predictor recovers `round((a + sum b_k p_k) / 2^SHIFT)`, so the
+    // leaf must encode the true OLS coefficient magnitude.
+    let scale = (1i64 << RCCT_SHIFT) as f64;
+    let mut leaf = [0i16; D];
+    for k in 0..n {
+        leaf[k] = (w[k] * scale)
+            .round()
+            .clamp(i16::MIN as f64, i16::MAX as f64) as i16;
+    }
+    // A fully-zero leaf would never lower the residual; treat as ill-conditioned.
+    let mut any = false;
+    for k in 0..n {
+        if leaf[k] != 0 {
+            any = true;
+        }
+    }
+    if !any {
+        return None;
+    }
+    Some(leaf)
+}
+
 /// R13-A predict step for a coding loop: returns `Some(pred)` when `p` is
 /// `AdaptiveRecursive`, reading the per-`weight_context` leaf state `wr`. The caller
 /// must run `r13_adapt` with the same `nb` after computing the residual `r`.
@@ -824,11 +1114,47 @@ pub fn predict_clamped(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+ mod tests {
+     use super::*;
 
-    #[test]
-    fn med_hand_vectors() {
+     #[test]
+     fn ma_least_squares_recovers_linear() {
+         const D: usize = RCCT_DIM;
+         let mut s = [[0i64; D]; D];
+         let mut b = [0i64; D];
+         let mut t2 = 0i64;
+         for i in 0..256u32 {
+             let p0 = (i % 13) as i32 - 6;
+             let p1 = (i % 7) as i32 - 3;
+             let p2 = (i % 5) as i32 - 2;
+             // Exact synthetic relation: r0 = 4 + 3*p0 - 2*p1 + p2
+             let r0 = 4 + 3 * p0 - 2 * p1 + p2;
+             let mut feat = [0i64; D];
+             let props = [p0, p1, p2];
+             for di in 0..D {
+                 feat[di] = if di < RCCT_K { props.get(di).copied().unwrap_or(0) as i64 } else { 1 };
+             }
+             for di in 0..D {
+                 b[di] += r0 as i64 * feat[di];
+                 for dj in 0..D {
+                     s[di][dj] += feat[di] * feat[dj];
+                 }
+             }
+             t2 += (r0 * r0) as i64;
+         }
+         let coef = solve_ma_least_squares::<D>(&s, &b).expect("solve must succeed");
+        // Tiny ridge (1) leaves a rounding error of a few units in the scaled
+        // coefficients; assert within tolerance rather than exact equality.
+        let tol = 8i16;
+        assert!((coef[RCCT_K] - (4 << RCCT_SHIFT)).abs() <= tol, "bias: {}", coef[RCCT_K]);
+        assert!((coef[0] - (3 << RCCT_SHIFT)).abs() <= tol, "b0: {}", coef[0]);
+        assert!((coef[1] - ((-2) << RCCT_SHIFT)).abs() <= tol, "b1: {}", coef[1]);
+        assert!((coef[2] - (1 << RCCT_SHIFT)).abs() <= tol, "b2: {}", coef[2]);
+        let _ = t2;
+     }
+
+     #[test]
+     fn med_hand_vectors() {
         let n = Neighbors {
             l: 100,
             t: 90,
@@ -1011,7 +1337,7 @@ mod tests {
         let planes = vec![plane];
         let ctx = ContextParams::default();
         let codebook = super::default_weight_codebook();
-        let model = analyze(&planes, &[range], w as usize, h as usize, 4, &ctx, &codebook, false, None);
+        let model = analyze(&planes, &[range], w as usize, h as usize, 4, &ctx, &codebook, false, false, None);
         // With AdaptiveWeighted in the candidate set, every per-context predictor id
         // must be a valid id (encoder and decoder agree on the map).
         for &id in &model.planes[0].map {

@@ -15,8 +15,8 @@ use crate::model::{
     ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
 use crate::predict::{
-    neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state, weight_context, PredictorId,
-    R13State, WLeaf, WeightVec, M3_WP_GAIN,
+    neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state, rcct_compute_pred,
+    Neighbors, weight_context, PredictorId, R13State, WLeaf, WeightVec, M3_WP_GAIN,
 };
 use crate::transforms::{cfl_predict, squeeze_band_layout};
 use crate::rans::{
@@ -210,6 +210,31 @@ pub fn decode(bytes: &[u8]) -> Result<Image, CodecError> {
 
     // Decode planes.
     let mut decoded: Vec<Vec<i16>> = Vec::with_capacity(plane_count);
+/// R14 decoder-side overlay: returns the residual-model correction `r_pred` for
+/// a pixel (0 when R14 is off), so the caller recovers the base residual as
+/// `r0 = r + r_pred` and reconstructs `v = pred + r0`. Mirrors the encoder's
+/// `rcct_overlay`; `r_pred` depends only on decode-available neighbor base errors
+/// and the spatial neighbors, so encoder and decoder compute identical values.
+#[inline]
+fn rcct_decoder_pred(
+    model: &ModelConfig,
+    pi: usize,
+    band: usize,
+    nb: &Neighbors,
+    e0buf: &[i32],
+    idx: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    height: usize,
+    range: PlaneRange,
+) -> i32 {
+    match model.rcct_for(band, pi) {
+        Some(t) => rcct_compute_pred(Some(t), nb, e0buf, idx, x, y, width, height, range),
+        None => 0,
+    }
+}
+
 fn decode_plane_into(
     plane: &mut [i16],
     payload: &[u8],
@@ -231,6 +256,9 @@ fn decode_plane_into(
     // `weight_context` leaf so the online LMS update stays in lockstep with the encoder
     // (both reconstruct the weight trajectory from the identical residual stream).
     let mut wrstate: Vec<R13State> = r13_seed_state(model.r13_table_for_band(band, pi));
+    // R14: per-pixel decode-available base residual `r0 = v - pred`, backing the
+    // residual-conditioned context tree overlay at every reconstruction site.
+    let mut e0buf: Vec<i32> = vec![0i32; width * height];
 
         if model.entropy_mode == ENTROPY_MODE_GR {
             // Design A: per-context adaptive Golomb-Rice, forward raster order.
@@ -261,11 +289,14 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
 };
                         let k = cms[cid].k_current();
                         let r = gr_read_symbol_k(&mut br, k)?;
+                        let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                        let r0 = r + r_pred;
 if p == PredictorId::AdaptiveRecursive {
-    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
 }
-                        let recon = pred + r;
+                        let recon = pred + r0;
                         plane[idx] = recon as i16;
+                        e0buf[idx] = r0;
                         cms[cid].adapt(r.unsigned_abs());
                     }
                 }
@@ -344,10 +375,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
     None => predict_clamped(p, &nb, w, wtree, range),
 };
                         let r = gr_read_symbol(&mut dbr, &mut gr[cid])?;
+                        let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, i, x, y, width, height, range);
+                        let r0 = r + r_pred;
 if p == PredictorId::AdaptiveRecursive {
-    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
 }
-                        plane[i] = (pred + r) as i16;
+                        e0buf[i] = r0;
+                        plane[i] = (pred + r0) as i16;
                         if m3_wp && matches!(p, PredictorId::Weighted) {
                             wp[cid].adapt_online(r, nb.l, nb.t, nb.tl, nb.tr, M3_WP_GAIN);
                         }
@@ -424,10 +458,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, range),
 };
                         let r = gr_read_symbol(&mut br, &mut gr[cid])?;
+                        let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                        let r0 = r + r_pred;
 if p == PredictorId::AdaptiveRecursive {
-    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
 }
-                        plane[idx] = (pred + r) as i16;
+                        e0buf[idx] = r0;
+                        plane[idx] = (pred + r0) as i16;
                     }
                 }
             }
@@ -508,10 +545,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                         } else {
                             gr_read_symbol(&mut esc_br, &mut esc_gr[cid])?
                         };
+                        let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                        let r0 = r + r_pred;
                         if p == PredictorId::AdaptiveRecursive {
-                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
                         }
-                        plane[idx] = (pred + r) as i16;
+                        e0buf[idx] = r0;
+                        plane[idx] = (pred + r0) as i16;
                     }
                 }
         } else if matches!(
@@ -677,11 +717,14 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                                 slot,
                                 mag_bits,
                             )?;
+                            let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, i, x, y, width, height, range);
+                            let r0 = r + r_pred;
                             if p == PredictorId::AdaptiveRecursive {
-                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
                             }
                             ctxs[cid].adapt(r.unsigned_abs());
-                            plane[i] = (pred + r) as i16;
+                            e0buf[i] = r0;
+                            plane[i] = (pred + r0) as i16;
                             i += 1;
                         }
                     }
@@ -714,10 +757,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                                 cid,
                                 bins_per_ctx,
                             )?;
+                            let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                            let r0 = r + r_pred;
                             if p == PredictorId::AdaptiveRecursive {
-                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
                             }
-                            plane[idx] = (pred + r) as i16;
+                            e0buf[idx] = r0;
+                            plane[idx] = (pred + r0) as i16;
                         }
                     }
                 } else if model.cmarc_run {
@@ -778,10 +824,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                             cid,
                             rcid,
                         )?;
+                        let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, i, x, y, width, height, range);
+                        let r0 = r + r_pred;
                         if p == PredictorId::AdaptiveRecursive {
-                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                            r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
                         }
-                        plane[i] = (pred + r) as i16;
+                        e0buf[i] = r0;
+                        plane[i] = (pred + r0) as i16;
                         i += 1;
                     }
                 } else if is_cache {
@@ -858,10 +907,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                                 cid,
                                 rcid,
                             )?;
+                            let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                            let r0 = r + r_pred;
                             if p == PredictorId::AdaptiveRecursive {
-                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+                                r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
                             }
-                            plane[idx] = (pred + r) as i16;
+                            e0buf[idx] = r0;
+                            plane[idx] = (pred + r0) as i16;
                         }
                     }
                 }
@@ -899,10 +951,13 @@ let pred = match r13_predict(p, &nb, plane, x, y, width, height, range, &wrstate
                         dec.get(&mut adaptive_tables[cid])?
                     };
                     let r = unzigzag(sym as u32);
+                    let r_pred = rcct_decoder_pred(model, pi, band, &nb, &e0buf, idx, x, y, width, height, range);
+                    let r0 = r + r_pred;
 if p == PredictorId::AdaptiveRecursive {
-    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r);
+    r13_adapt(p, &nb, plane, x, y, width, height, &mut wrstate[wc], r0);
 }
-                    plane[idx] = (pred + r) as i16;
+                    e0buf[idx] = r0;
+                    plane[idx] = (pred + r0) as i16;
                 }
             }
         }
