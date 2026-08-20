@@ -212,6 +212,13 @@ fn cmd_roundtrip(args: &[String]) -> i32 {
             rest.remove(pos);
         }
     }
+    // R15 measurement seam: `--nrp` enables the learned neural residual predictor
+    // as a candidate in the never-expand safety net (mirrors `--predictor`).
+    let mut nrp = false;
+    if let Some(pos) = rest.iter().position(|a| a == "--nrp") {
+        nrp = true;
+        rest.remove(pos);
+    }
     let (effort, json, positional) = match parse_effort(&rest) {
         Ok(v) => v,
         Err(c) => return c,
@@ -233,6 +240,7 @@ fn cmd_roundtrip(args: &[String]) -> i32 {
             EncodeOpts {
                 forced_predictor: forced,
                 transform_kind: forced_transform,
+                nrp: if nrp { Some(true) } else { None },
                 ..Default::default()
             },
         )

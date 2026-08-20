@@ -13,12 +13,12 @@ use crate::error::CodecError;
 use crate::header::{Header, HEADER_LEN};
 use crate::image::{Channels, Image};
 use crate::model::{
-    alphabet_sizes, analyze, build_rcct_trees, build_static_tables, build_capped_histograms, default_model,
+    alphabet_sizes, analyze, build_nrp_nets, build_rcct_trees, build_static_tables, build_capped_histograms, default_model,
     estimate_cost, plane_ranges,     write_model, ModelConfig, ENTROPY_MODE_CAPPED, ENTROPY_MODE_GR, ENTROPY_MODE_CARC,
     ENTROPY_MODE_CARC_LZ, ENTROPY_MODE_CARC_MIX, ENTROPY_MODE_CARC_CACHE,
 };
 use crate::predict::{
-    default_weight_codebook, neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state,
+    default_weight_codebook, neighbors, nrp_apply, predict_clamped, r13_adapt, r13_predict, r13_seed_state,
     rcct_apply, Neighbors, weight_context, PredictorId, R13State, WLeaf, WeightVec, M3_WP_GAIN,
     PREDICTOR_COUNT,
 };
@@ -173,6 +173,10 @@ pub struct EncodeOpts {
     /// the legacy quincunx subsampling; `None` (default) lets the never-expand safety
     /// net pick. Used to measure R13-B; not a production path on its own.
     pub transform_kind: Option<crate::transforms::TransformKind>,
+    /// R15 measurement seam: enable the learned neural residual predictor (NRP) as a
+    /// candidate in the never-expand safety net. Mirrors `EncodeOpts::rcct`; the
+    /// `OBSIDIAN_R15_FORCE` env seam is the primary trigger for isolated measurement.
+    pub nrp: Option<bool>,
 }
 
 impl Default for EncodeOpts {
@@ -193,6 +197,7 @@ impl Default for EncodeOpts {
             squeeze_levels: None,
             forced_predictor: None,
             transform_kind: None,
+            nrp: None,
         }
     }
 }
@@ -523,6 +528,12 @@ pub fn encode_with(
     // still governs whether R14 actually ships.
     let force_rcct = std::env::var("OBSIDIAN_R14_FORCE").ok().as_deref() == Some("1");
     let rcct_on = force_rcct || effort >= crate::model::RCCT_EFFORT;
+    // R15 measurement seam: force the learned neural residual predictor (NRP) to
+    // ship so its raw contribution can be measured directly against the JPEG XL
+    // 8.71 gate. Never used in production; the never-expand net still governs
+    // whether R15 actually ships.
+    let force_nrp = std::env::var("OBSIDIAN_R15_FORCE").ok().as_deref() == Some("1");
+    let nrp_on = force_nrp || opts.nrp.unwrap_or(false) || effort >= crate::model::NRP_EFFORT;
     // Capture the backend the model would have chosen without CMARC. The CMARC
     // safety net must beat THIS candidate, not just plain v1 GR, or enabling
     // CMARC would regress the file versus the production backend selection.
@@ -849,6 +860,98 @@ pub fn encode_with(
             }
         }
     }
+    // R15 never-expand net (fixed): the learned neural residual predictor (NRP) is
+    // fit HERE, on the WINNER's exact banded planes + model, exactly like the R14
+    // net (mirroring its probe-collect approach so the net is fit on the identical
+    // base residuals the encoder produces). A zero net is byte-identical to the
+    // base codec, so the net keeps R15 only when it strictly shrinks the container
+    // (model bytes + payload) vs the winner without R15; `OBSIDIAN_R15_SHIP=1`
+    // bypasses the gate for isolated measurement. R15 can therefore never regress.
+    if nrp_on {
+        let (planes_w, dims_w, _parents_w): (&[Vec<i16>], &[(usize, usize)], &[usize]) = match win_tag {
+            'a' => (&cfl_planes_a, &cfl_dims_a, &cfl_parent_a),
+            'b' => (&cfl_planes_b, &cfl_dims_b, &cfl_parent_b),
+            'c' => (coding_planes, &identity_dims, &identity_parent),
+            _ => (&cfl_planes_d, &cfl_dims_d, &cfl_parent_d),
+        };
+        let mut ranges_w: Vec<PlaneRange> = Vec::with_capacity(planes_w.len());
+        for (pi, p) in planes_w.iter().enumerate() {
+            let (w, h) = dims_w[pi];
+            let mut lo = i16::MAX;
+            let mut hi = i16::MIN;
+            for yy in 0..h {
+                for xx in 0..w {
+                    let v = p[yy * w + xx];
+                    if v < lo {
+                        lo = v;
+                    }
+                    if v > hi {
+                        hi = v;
+                    }
+                }
+            }
+            ranges_w.push(PlaneRange { min: lo as i32, max: hi as i32 });
+        }
+        let coll: Vec<Vec<i32>> = (0..planes_w.len())
+            .map(|pi| {
+                let (w, h) = dims_w[pi];
+                vec![0i32; w * h]
+            })
+            .collect();
+        *R15_COLLECT.lock().unwrap() = Some(coll);
+        match win_tag {
+            'a' => {
+                let _ = code_banded(
+                    &cfl_planes_a, &cfl_dims_a, &cfl_parent_a, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
+                )?;
+            }
+            'b' => {
+                let _ = code_banded(
+                    &cfl_planes_b, &cfl_dims_b, &cfl_parent_b, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
+                )?;
+            }
+            'c' => {
+                let _ = code_banded(
+                    coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
+                )?;
+            }
+            _ => {
+                let _ = code_banded(
+                    &cfl_planes_d, &cfl_dims_d, &cfl_parent_d, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model.clone(),
+                )?;
+            }
+        };
+        let r0s = R15_COLLECT.lock().unwrap().take().unwrap();
+        let nets = build_nrp_nets(planes_w, &r0s, &ranges_w, dims_w);
+        if nets.iter().any(|o| o.is_some()) {
+            let mut model_nrp = model.clone();
+            model_nrp.nrp = Some(nets);
+            let (nrp_coded, nrp_model, nrp_gcm, nrp_glz, nrp_gm2) = match win_tag {
+                'a' => code_banded(
+                    &cfl_planes_a, &cfl_dims_a, &cfl_parent_a, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model_nrp,
+                )?,
+                'b' => code_banded(
+                    &cfl_planes_b, &cfl_dims_b, &cfl_parent_b, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model_nrp,
+                )?,
+                'c' => code_banded(
+                    coding_planes, &identity_dims, &identity_parent, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model_nrp,
+                )?,
+                _ => code_banded(
+                    &cfl_planes_d, &cfl_dims_d, &cfl_parent_d, coding_planes, &palette, transform, &ranges, &sizes, &context, effort, &codebook, entropy_gr, m3_wp, use_cmarc, use_carc_lz, use_cmarc_mix, use_carc_run, use_carc_cache, opts.cmarc_residual_ctx_auto, opts.cmarc_ma_context_auto, force_carc, force_carc_lz, force_carc_mix, force_carc_run, force_carc_cache, orig_gr_cm, orig_gr_lz, orig_gr_m2, use_static, use_capped, gr_cm, gr_lz, gr_m2, model_nrp,
+                )?,
+            };
+            let total_nrp = config_total(&nrp_model, &nrp_coded.streams);
+            let total_off = config_total(&model, &coded.streams);
+            let force_ship = std::env::var("OBSIDIAN_R15_SHIP").ok().as_deref() == Some("1");
+            if force_ship || total_nrp < total_off {
+                coded = nrp_coded;
+                model = nrp_model;
+                gr_cm = nrp_gcm;
+                gr_lz = nrp_glz;
+                gr_m2 = nrp_gm2;
+            }
+        }
+    }
     // Serialize the model now that `entropy_mode` (and any `cmarc_priors`) is
     // finalized.
     let mut model_bytes = Vec::new();
@@ -1070,6 +1173,11 @@ static R14_RNG: Mutex<Vec<(i32, i32)>> = Mutex::new(Vec::new());
 /// on the *exact* residuals the encoder produces (decode-available by
 /// construction) instead of a re-implementation that can drift.
 static R14_COLLECT: Mutex<Option<Vec<Vec<i32>>>> = Mutex::new(None);
+/// R15 analog of `R14_COLLECT`: when `Some`, `rcct_overlay` writes the base
+/// residual `r0` of every pixel into this buffer during a probe coding pass, so
+/// the learned neural residual predictor can be fit on the *exact* residuals the
+/// encoder produces (decode-available by construction).
+static R15_COLLECT: Mutex<Option<Vec<Vec<i32>>>> = Mutex::new(None);
 fn r14_dbg_add(pi: usize, r0: i32, r: i32, range: PlaneRange) {
     if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
         let mut v = R14_SS.lock().unwrap();
@@ -1126,14 +1234,22 @@ fn rcct_overlay(
     height: usize,
     range: PlaneRange,
 ) -> i32 {
-    let r = match model.rcct_for(pi, parent_plane) {
-        Some(t) => rcct_apply(Some(t), r0, nb, e0buf, idx, x, y, width, height, range),
-        None => r0,
+    let r = match model.nrp_for(pi, parent_plane) {
+        Some(net) => nrp_apply(Some(net), r0, nb, e0buf, idx, x, y, width, height, range),
+        None => match model.rcct_for(pi, parent_plane) {
+            Some(t) => rcct_apply(Some(t), r0, nb, e0buf, idx, x, y, width, height, range),
+            None => r0,
+        },
     };
     if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
         r14_dbg_add(pi, r0, r, range);
     }
     if let Some(buf) = R14_COLLECT.lock().unwrap().as_mut() {
+        if pi < buf.len() && idx < buf[pi].len() {
+            buf[pi][idx] = r0;
+        }
+    }
+    if let Some(buf) = R15_COLLECT.lock().unwrap().as_mut() {
         if pi < buf.len() && idx < buf[pi].len() {
             buf[pi][idx] = r0;
         }
@@ -3492,5 +3608,45 @@ pub fn fuzz_gate(count: usize, efforts: &[u8]) -> Result<usize, CodecError> {
             sq.len(),
             plain.len()
         );
+    }
+
+    #[test]
+    fn r15_nrp_forced_roundtrip_bit_exact() {
+        // Force the learned neural residual predictor to ship and confirm the
+        // stream decodes bit-exact (encoder/decoder lockstep on f_theta).
+        std::env::set_var("OBSIDIAN_R15_FORCE", "1");
+        std::env::set_var("OBSIDIAN_R15_SHIP", "1");
+        let mut img = Image::new(40, 32, Channels::Rgb).unwrap();
+        for c in 0..3 {
+            for y in 0..32 {
+                for x in 0..40 {
+                    let i = y * 40 + x;
+                    img.planes[c][i] = ((x * 3 + y * 5 + c * 11) & 0xFF) as u8;
+                }
+            }
+        }
+        let (bytes, _stats, back) = roundtrip(&img, 4u8).unwrap();
+        assert_eq!(back, img, "R15 forced roundtrip must be bit-exact");
+        // A non-R15 stream must still decode (backward compatible).
+        std::env::remove_var("OBSIDIAN_R15_FORCE");
+        std::env::remove_var("OBSIDIAN_R15_SHIP");
+        let (bytes2, _, back2) = roundtrip(&img, 4u8).unwrap();
+        assert_eq!(back2, img);
+        // Both are valid Obsidian streams of similar size (R15 net adds a few bytes).
+        assert!(bytes.len() > 0 && bytes2.len() > 0);
+    }
+
+    #[test]
+    fn r15_legacy_stream_decodable() {
+        // A stream encoded without R15 decodes byte-identically under the R15
+        // decoder (the gated flag is backward compatible).
+        let mut img = Image::new(28, 22, Channels::Gray).unwrap();
+        for i in 0..img.area() {
+            img.planes[0][i] = (i * 7 & 0xFF) as u8;
+        }
+        let (bytes, _, back) = roundtrip(&img, 4u8).unwrap();
+        assert_eq!(back, img);
+        let decoded = decode(&bytes).unwrap();
+        assert_eq!(decoded, img);
     }
 }

@@ -15,7 +15,7 @@ use crate::model::{
     ENTROPY_MODE_CARC_CACHE, ENTROPY_MODE_GR,
 };
 use crate::predict::{
-    neighbors, predict_clamped, r13_adapt, r13_predict, r13_seed_state, rcct_compute_pred,
+    neighbors, nrp_compute_pred, predict_clamped, r13_adapt, r13_predict, r13_seed_state, rcct_compute_pred,
     Neighbors, weight_context, PredictorId, R13State, WLeaf, WeightVec, M3_WP_GAIN,
 };
 use crate::transforms::{cfl_predict, squeeze_band_layout};
@@ -229,9 +229,12 @@ fn rcct_decoder_pred(
     height: usize,
     range: PlaneRange,
 ) -> i32 {
-    match model.rcct_for(band, pi) {
-        Some(t) => rcct_compute_pred(Some(t), nb, e0buf, idx, x, y, width, height, range),
-        None => 0,
+    match model.nrp_for(band, pi) {
+        Some(net) => nrp_compute_pred(Some(net), nb, e0buf, idx, x, y, width, height, range),
+        None => match model.rcct_for(band, pi) {
+            Some(t) => rcct_compute_pred(Some(t), nb, e0buf, idx, x, y, width, height, range),
+            None => 0,
+        },
     }
 }
 

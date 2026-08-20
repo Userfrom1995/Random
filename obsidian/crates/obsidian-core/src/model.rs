@@ -12,9 +12,10 @@ use crate::context::{zigzag, Alphabet, ContextModel, ContextParams};
 use crate::error::CodecError;
 use crate::image::Channels;
 use crate::predict::{
-    default_weight_codebook, neighbors, predict_clamped, predict_recursive, r13_properties,
-    rcct_properties, rcct_predict, solve_ma_least_squares, solve_r13_least_squares, solve_weighted_tree,
-    weight_context, PredictorId, R13Leaf, R13_DIM, R13_M, R13_NEUTRAL, RCCT_DIM, RCCT_K,
+    default_weight_codebook, neighbors, nrp_features, nrp_forward, predict_clamped, predict_recursive,
+    r13_properties, rcct_properties, rcct_predict, solve_ma_least_squares, solve_r13_least_squares,
+    solve_weighted_tree, weight_context, NrpNet, NRP_ACT_CLAMP, NRP_ACT_SHIFT, NRP_D, NRP_H,
+    NRP_OUT_SHIFT, PredictorId, R13Leaf, R13_DIM, R13_M, R13_NEUTRAL, RCCT_DIM, RCCT_K,
     RCCT_LEAF_TAG, RCCT_MAX_DEPTH, RCCT_MIN_LEAF, RCCT_THR_CANDIDATES, RcctLeaf, RcctNode,
     RcctTree, WLeaf, WC_LEAVES, WC_MIN_SAMPLES, UNIT_LEAF, WeightVec,
 };
@@ -187,6 +188,14 @@ pub struct ModelConfig {
     /// depth-0 tree (`r_pred = 0`) is byte-identical to the current codec, so the
     /// never-expand net cannot regress.
     pub rcct: Option<Vec<Option<crate::predict::RcctTree>>>,
+    /// R15: per-plane learned neural residual predictor (NRP). `Some` only when
+    /// R15 is selected for the plane (effort >= `NRP_EFFORT` and the never-expand
+    /// net accepts it, or forced via `OBSIDIAN_R15_FORCE` / `EncodeOpts::nrp`).
+    /// `None` on the legacy/non-NRP path so every stream without R15 decodes
+    /// byte-identically. The overlay is a strict superset: a zero net (`f = 0`)
+    /// is byte-identical to the current codec, so the never-expand net cannot
+    /// regress. See `obsidian/docs/architect-r15-nrp-blueprint.md`.
+    pub nrp: Option<Vec<Option<crate::predict::NrpNet>>>,
 }
 
 impl ModelConfig {
@@ -263,7 +272,34 @@ impl ModelConfig {
             .as_ref()
             .and_then(|v| v.get(plane).and_then(|o| o.as_ref()))
     }
+
+    /// R15: the learned neural residual predictor for a plane, if R15 is in use.
+    /// `parent_plane` is the owning original plane (so banded coding falls back to
+    /// the per-plane net when `nrp` was built per original plane); the band index
+    /// `plane` is the correct key (one `NrpNet` per coding band, in band order).
+    /// `None` when R15 is off for this band, so the coding loop takes the base
+    /// path and decodes byte-identically.
+    pub fn nrp_for(&self, plane: usize, _parent_plane: usize) -> Option<&crate::predict::NrpNet> {
+        self.nrp
+            .as_ref()
+            .and_then(|v| v.get(plane).and_then(|o| o.as_ref()))
+    }
 }
+
+/// Effort at or above which R15 (learned neural residual predictor) becomes a
+/// candidate in the never-expand safety net. Kept above any production effort so
+/// R15 is OFF by default (the cipher stays on the verified pre-R15 path); the
+/// `OBSIDIAN_R15_FORCE` seam enables it for direct measurement against the
+/// JPEG XL 8.71 gate. See `obsidian/docs/architect-r15-nrp-blueprint.md`.
+pub const NRP_EFFORT: u8 = 255;
+
+/// R15 training budget: full-batch SGD epochs over the plane. Small (the per-plane
+/// residual is fit once in the analysis pass); kept modest so effort-4 stays fast.
+pub const NRP_ITERS: usize = 60;
+/// R15 SGD learning rate (full-batch gradient descent with momentum).
+const NRP_LR: f64 = 0.03;
+/// R15 SGD momentum coefficient.
+const NRP_MOMENTUM: f64 = 0.85;
 
 /// Effort at or above which R14 (RCCT + MA residual model) becomes a candidate
 /// in the never-expand safety net. Kept above any production effort so R14 is
@@ -398,6 +434,7 @@ pub fn analyze(
         band_maps: None,
         band_wc_table: None,
         rcct: None,
+        nrp: None,
     };
 
     let predictors = match forced {
@@ -859,6 +896,7 @@ pub fn default_model(
         band_maps: None,
         band_wc_table: None,
         rcct: None,
+        nrp: None,
     }
 }
 
@@ -1185,6 +1223,167 @@ pub fn build_rcct_trees(
         .collect()
 }
 
+/// R15: build the learned neural residual predictor (one `NrpNet` per plane) from
+/// the chosen per-context predictor's base residual `r0`. The net is an overlay:
+/// a zero net (`f = 0`) decodes byte-identically to the base codec, so the
+/// caller's never-expand net can drop R15 without loss. Build nets from
+/// *precomputed base residuals* `r0s[pi]` (exactly the ones the encoder produces
+/// during coding, captured by the probe pass) so the net is fit on the identical
+/// signal it sees at encode/decode time and remains decode-available by
+/// construction. `build_nrp_nets` returns `None` for a plane when the quantized
+/// integer net does not strictly lower the residual SSR vs the base `r0` (the
+/// byte-honest gate), so a plane that cannot be helped simply stays on the base
+/// path and never regresses.
+pub fn build_nrp_nets(
+    planes: &[Vec<i16>],
+    r0s: &[Vec<i32>],
+    ranges: &[PlaneRange],
+    dims: &[(usize, usize)],
+) -> Vec<Option<NrpNet>> {
+    planes
+        .iter()
+        .enumerate()
+        .map(|(pi, plane)| {
+            let (width, height) = dims[pi];
+            let n = width * height;
+            if n == 0 {
+                return None;
+            }
+            let range = ranges[pi];
+            let r0 = &r0s[pi];
+            let mut phi = vec![[0i32; NRP_D]; n];
+            let mut ss_base = 0i64;
+            for y in 0..height {
+                for x in 0..width {
+                    let idx = y * width + x;
+                    let nb = neighbors(plane, x, y, width, height);
+                    let e0 = [
+                        if x > 0 { r0[idx - 1] } else { 0 },
+                        if y > 0 { r0[idx - width] } else { 0 },
+                        if x > 0 && y > 0 { r0[idx - width - 1] } else { 0 },
+                        if x + 1 < width && y > 0 { r0[idx - width + 1] } else { 0 },
+                    ];
+                    let g1 = nb.l - nb.t;
+                    let g2 = nb.t - nb.tl;
+                    let g3 = nb.tl - nb.tr;
+                    phi[idx] = nrp_features(&nb, &e0, g1, g2, g3);
+                    let rv = r0[idx];
+                    ss_base += (rv as i64) * (rv as i64);
+                }
+            }
+            let net = train_nrp_plane(&phi, r0, range);
+            let mut ss_net = 0i64;
+            for i in 0..n {
+                let f = nrp_forward(&net, &phi[i], range) as i64;
+                let e = r0[i] as i64 - f;
+                ss_net += e * e;
+            }
+            if ss_net < ss_base {
+                Some(net)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Deterministic LCG (xorshift-style) for reproducible R15 weight initialization.
+struct NrpRng {
+    s: u64,
+}
+impl NrpRng {
+    fn new(seed: u64) -> Self {
+        NrpRng { s: seed | 1 }
+    }
+    fn next(&mut self) -> u64 {
+        self.s ^= self.s << 13;
+        self.s ^= self.s >> 7;
+        self.s ^= self.s << 17;
+        self.s
+    }
+}
+
+/// Float MLP trainer for one plane. Minimizes `sum (r0 - f)^2` via full-batch SGD
+/// with momentum, using a smooth `tanh` surrogate that mirrors the integer
+/// `nrp_forward` math. The final weights are quantized to `i16` and returned as an
+/// `NrpNet`; the caller's SSR gate keeps the net only when it strictly helps.
+fn train_nrp_plane(phi: &[[i32; NRP_D]], r0: &[i32], _range: PlaneRange) -> NrpNet {
+    let h = NRP_H;
+    let d = NRP_D;
+    let n = phi.len();
+    let act_shift = (1u64 << NRP_ACT_SHIFT) as f64;
+    let out_shift = (1u64 << NRP_OUT_SHIFT) as f64;
+    let clamp = NRP_ACT_CLAMP as f64;
+    let mut rng = NrpRng::new(0x9E3779B9 ^ (n as u64).wrapping_mul(0x85EBCA6B));
+    let mut w = vec![0f64; h * d];
+    let mut w_out = vec![0f64; h];
+    let mut b = vec![0f64; h + 1];
+    for x in w.iter_mut() {
+        *x = ((rng.next() & 0xffff) as f64 / 65535.0 - 0.5) * 0.2;
+    }
+    for x in w_out.iter_mut() {
+        *x = ((rng.next() & 0xffff) as f64 / 65535.0 - 0.5) * 4.0;
+    }
+    let mut vw = vec![0f64; h * d];
+    let mut vwo = vec![0f64; h];
+    let mut vb = vec![0f64; h + 1];
+    for _it in 0..NRP_ITERS {
+        let mut gw = vec![0f64; h * d];
+        let mut gwo = vec![0f64; h];
+        let mut gb = vec![0f64; h + 1];
+        for i in 0..n {
+            let mut z = vec![0f64; h];
+            let mut hidden = [0f64; NRP_H];
+            for hh in 0..h {
+                let mut acc = b[hh];
+                for dd in 0..d {
+                    acc += w[hh * d + dd] * phi[i][dd] as f64;
+                }
+                z[hh] = acc;
+                hidden[hh] = (acc / act_shift).tanh() * clamp;
+            }
+            let mut out = b[h];
+            for hh in 0..h {
+                out += w_out[hh] * hidden[hh];
+            }
+            let f = out / out_shift;
+            let err = r0[i] as f64 - f;
+            let dloss_df = -2.0 * err / n as f64;
+            for hh in 0..h {
+                gwo[hh] += dloss_df * hidden[hh] / out_shift;
+                let dh = dloss_df * w_out[hh] / out_shift;
+                // d hidden[hh] / d z[hh] = (1 - tanh^2(z/act_shift)) / act_shift
+                let t = (z[hh] / act_shift).tanh();
+                let dz = dh * (1.0 - t * t) / act_shift;
+                gb[hh] += dz;
+                let base = hh * d;
+                for dd in 0..d {
+                    gw[base + dd] += dz * phi[i][dd] as f64;
+                }
+            }
+            gb[h] += dloss_df / out_shift;
+        }
+        for k in 0..h * d {
+            vw[k] = NRP_MOMENTUM * vw[k] - NRP_LR * gw[k];
+            w[k] += vw[k];
+        }
+        for k in 0..h {
+            vwo[k] = NRP_MOMENTUM * vwo[k] - NRP_LR * gwo[k];
+            w_out[k] += vwo[k];
+            vb[k] = NRP_MOMENTUM * vb[k] - NRP_LR * gb[k];
+            b[k] += vb[k];
+        }
+        vb[h] = NRP_MOMENTUM * vb[h] - NRP_LR * gb[h];
+        b[h] += vb[h];
+    }
+    let q = |x: f64| x.round().clamp(i16::MIN as f64, i16::MAX as f64) as i16;
+    NrpNet {
+        w: w.iter().map(|&x| q(x)).collect(),
+        w_out: w_out.iter().map(|&x| q(x)).collect(),
+        b: b.iter().map(|&x| q(x)).collect(),
+    }
+}
+
 /// Build per-context histograms over the capped residual alphabet (`CAPPED_SYMBOLS`)
 /// for the M3.5 Design B capped-and-escaped rANS backend. Uses the same per-context
 /// predictor selection and `zigzag` mapping as the coding pass, so the resulting
@@ -1500,6 +1699,34 @@ pub fn write_model(w: &mut impl Write, m: &ModelConfig) -> Result<(), CodecError
                             for c in l.iter() {
                                 w.write_all(&c.to_le_bytes())?;
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // R15: nrp block, appended after `rcct` so legacy readers (which stop at the
+    // body) ignore it; an NRP stream with no nrp writes a single 0.
+    match &m.nrp {
+        None => w.write_all(&[0])?,
+        Some(nets) => {
+            w.write_all(&[1])?;
+            w.write_all(&[nets.len() as u8])?;
+            for net in nets {
+                match net {
+                    None => w.write_all(&[0])?,
+                    Some(net) => {
+                        w.write_all(&[1])?;
+                        w.write_all(&[crate::predict::NRP_H as u8])?;
+                        w.write_all(&[crate::predict::NRP_D as u8])?;
+                        for x in &net.w {
+                            w.write_all(&x.to_le_bytes())?;
+                        }
+                        for x in &net.w_out {
+                            w.write_all(&x.to_le_bytes())?;
+                        }
+                        for x in &net.b {
+                            w.write_all(&x.to_le_bytes())?;
                         }
                     }
                 }
@@ -1992,6 +2219,50 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         rcct = Some(trees);
     }
 
+    // R15: nrp block (after `rcct`). A leading 0 means no nrp (legacy or base
+    // codec); a 1 precedes the per-plane net list.
+    let mut nrp: Option<Vec<Option<crate::predict::NrpNet>>> = None;
+    let mut nb_flag = [0u8; 1];
+    if r.read_exact(&mut nb_flag).is_ok() && nb_flag[0] == 1 {
+        let mut n = [0u8; 1];
+        r.read_exact(&mut n)?;
+        let mut nets: Vec<Option<crate::predict::NrpNet>> = Vec::with_capacity(n[0] as usize);
+        for _ in 0..n[0] {
+            let mut present = [0u8; 1];
+            r.read_exact(&mut present)?;
+            if present[0] == 0 {
+                nets.push(None);
+                continue;
+            }
+            let mut hd = [0u8; 1];
+            let mut dd = [0u8; 1];
+            r.read_exact(&mut hd)?;
+            r.read_exact(&mut dd)?;
+            let h = hd[0] as usize;
+            let d = dd[0] as usize;
+            let mut w = vec![0i16; h * d];
+            for x in w.iter_mut() {
+                let mut cb = [0u8; 2];
+                r.read_exact(&mut cb)?;
+                *x = i16::from_le_bytes(cb);
+            }
+            let mut w_out = vec![0i16; h];
+            for x in w_out.iter_mut() {
+                let mut cb = [0u8; 2];
+                r.read_exact(&mut cb)?;
+                *x = i16::from_le_bytes(cb);
+            }
+            let mut b = vec![0i16; h + 1];
+            for x in b.iter_mut() {
+                let mut cb = [0u8; 2];
+                r.read_exact(&mut cb)?;
+                *x = i16::from_le_bytes(cb);
+            }
+            nets.push(Some(crate::predict::NrpNet { w, w_out, b }));
+        }
+        nrp = Some(nets);
+    }
+
     Ok(ModelConfig {
         transform,
         cross_channel,
@@ -2017,6 +2288,7 @@ pub fn read_model(r: &mut impl Read, alphabet_sizes: &[usize]) -> Result<ModelCo
         band_maps,
         band_wc_table,
         rcct,
+        nrp,
     })
 }
 
@@ -2287,5 +2559,59 @@ mod tests {
         let (bytes, _stats) = encode(&img, 4).unwrap();
         let out = decode(&bytes).unwrap();
         assert_eq!(out.planes, img.planes, "R9-B WeightedTree roundtrip must be bit-exact");
+    }
+
+    #[test]
+    fn nrp_training_reduces_ssr_on_learnable_residual() {
+        // Verify the R15 trainer actually learns: given a base residual that is a
+        // known (near-)linear function of the decode-available features, the
+        // quantized integer net must strictly lower the residual SSR vs the base
+        // `r0` (so `build_nrp_nets` returns `Some`). This proves the mechanism is
+        // live and not inert on photographic content where the residual happens
+        // to be near-incompressible.
+        let width = 48;
+        let height = 32;
+        let n = width * height;
+        let plane: Vec<i16> = (0..n).map(|i| ((i * 7 + (i / width) * 3) % 256) as i16).collect();
+        let ranges = [PlaneRange { min: 0, max: 255 }; 1];
+        let dims = [(width, height)];
+        // Craft a learnable base residual that is a known function of the
+        // neighbor pixels (bounded): r0 = 2*L - T + TL/32 + 5.
+        let mut r0s = vec![vec![0i32; n]; 1];
+        for y in 0..height {
+            for x in 0..width {
+                let idx = y * width + x;
+                let nb = neighbors(&plane, x, y, width, height);
+                let v = 2 * nb.l - nb.t + (nb.tl as i32) / 32 + 5;
+                r0s[0][idx] = v;
+            }
+        }
+        let nets = build_nrp_nets(&[plane.clone()], &r0s, &ranges, &dims);
+        assert!(nets[0].is_some(), "R15 must learn the synthetic residual");
+        // Integer SSR must be below the base (zero-net) SSR.
+        let net = nets[0].as_ref().unwrap();
+        let mut ss_base = 0i64;
+        let mut ss_net = 0i64;
+        for y in 0..height {
+            for x in 0..width {
+                let idx = y * width + x;
+                let nb = neighbors(&plane, x, y, width, height);
+                let e0 = [
+                    if x > 0 { r0s[0][idx - 1] } else { 0 },
+                    if y > 0 { r0s[0][idx - width] } else { 0 },
+                    if x > 0 && y > 0 { r0s[0][idx - width - 1] } else { 0 },
+                    if x + 1 < width && y > 0 { r0s[0][idx - width + 1] } else { 0 },
+                ];
+                let g1 = nb.l - nb.t;
+                let g2 = nb.t - nb.tl;
+                let g3 = nb.tl - nb.tr;
+                let phi = nrp_features(&nb, &e0, g1, g2, g3);
+                let f = nrp_forward(net, &phi, ranges[0]) as i64;
+                let rv = r0s[0][idx];
+                ss_base += (rv as i64) * (rv as i64);
+                ss_net += (rv as i64 - f) * (rv as i64 - f);
+            }
+        }
+        assert!(ss_net < ss_base, "R15 net must lower SSR: base={ss_base} net={ss_net}");
     }
 }

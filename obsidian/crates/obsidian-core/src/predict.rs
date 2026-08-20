@@ -934,6 +934,192 @@ pub fn rcct_compute_pred(
     rcct_predict(tree, &props, range)
 }
 
+// ===== R15: per-image learned neural residual predictor (NRP) =====
+//
+// The final predictor-family lever (after nine measured axes, including R14's
+// piecewise-linear context tree, all net-negative vs the JPEG XL 8.71 gate).
+// R14 conditioned the residual on the decode-available neighbor base-errors
+// `e0` but in a *tree* parameterization whose byte cost exceeded its gain. R15
+// keeps the exact same signal (`e0`, reused via the R14 `e0buf` ring) and
+// switches to a *continuous, globally-shared* residual model: a small integer
+// multilayer perceptron. One weight set covers the whole plane, so it expresses
+// the smooth curved residual manifold with `O(H*D)` bytes independent of how
+// wiggly it is - the parameterization with the best chance of net-winning.
+//
+// Strict superset / never-regress: an all-zero net yields `f = 0`, so the coded
+// residual equals `r0` and the stream is byte-identical to the base codec. Any
+// non-trivial fit only lowers the residual SSR, and the never-expand net plus
+// per-plane model-byte accounting accept R15 only when it strictly lowers total
+// bytes. R15 is an overlay on the existing per-context pixel predictor `P0`
+// (GAP / R9-B `WeightedTree`): the single coding-loop change is `r = (v - P0) -
+// f_theta(phi)` instead of `r = v - P0`; the entropy backend codes the smaller
+// `r` unchanged. The decoder reconstructs `v = P0 + f_theta + r`.
+
+/// Hidden-layer width (compile-time). Research default 8; raise to 16 only if
+/// the shallow net plateaus. The full i16 weight count is `H*(D+1) + (H+1)`.
+pub const NRP_H: usize = 8;
+/// Input feature dimension (see `nrp_features`).
+pub const NRP_D: usize = 14;
+/// Right-shift applied to the hidden pre-activation so weights live near unity
+/// scale (mirrors `RCCT_SHIFT`).
+pub const NRP_ACT_SHIFT: u32 = 4;
+/// Right-shift applied to the final output sum so `f_theta` lands in the
+/// residual magnitude range (mirrors `R13_OUT_SHIFT`).
+pub const NRP_OUT_SHIFT: u32 = 8;
+/// Clamp bound on the clamped hidden activation `sigma(z)`.
+pub const NRP_ACT_CLAMP: i32 = 1 << (NRP_ACT_SHIFT + 3); // 128 in pre-shift units
+
+/// Per-feature fixed divisors (decode-available, identical both sides) that keep
+/// the raw causal signals (base errors, neighbor pixels, GAP gradients) in a
+/// modest ~[-128, 128] range so the i16 weights stay near unity and the integer
+/// forward is numerically stable. The net learns in this scaled domain; the
+/// divisors are constant so encoder and decoder agree bit-exactly.
+const NRP_E0_DIV: i32 = 8;
+const NRP_G_DIV: i32 = 32;
+const NRP_PX_DIV: i32 = 32;
+
+/// A complete per-plane NRP: integer 1-hidden-layer MLP weights, all `i16`.
+/// `w` is the flat hidden weight matrix `[h*D + d]`; `w_out[h]` is the output
+/// weight of hidden neuron `h`; `b[h]` is the hidden bias of neuron `h`;
+/// `b_out` is the final bias (last entry of `b`). A zero net (all `0`) yields
+/// `f_theta = 0` => byte-identical to base.
+#[derive(Clone)]
+pub struct NrpNet {
+    pub w: Vec<i16>,      // NRP_H * NRP_D
+    pub w_out: Vec<i16>,  // NRP_H
+    pub b: Vec<i16>,      // NRP_H + 1 (b_out is last)
+}
+
+/// Build the R15 `D=14` input vector from the decoded neighborhood. Reuses the
+/// R14 `K=10` properties (the four base errors, their gradients, and the GAP
+/// gradient) and appends the four raw centered causal pixels. All entries are
+/// pure functions of already-decoded samples + `e0buf`, identical on both sides.
+/// `D` is a compile-time const, so widening it never breaks lockstep.
+pub fn nrp_features(_nb: &Neighbors, e0: &[i32; 4], g1: i32, g2: i32, g3: i32) -> [i32; NRP_D] {
+    [
+        e0[0] / NRP_E0_DIV,                       // p1  e0_L
+        e0[1] / NRP_E0_DIV,                       // p2  e0_T
+        e0[2] / NRP_E0_DIV,                       // p3  e0_TL
+        e0[3] / NRP_E0_DIV,                       // p4  e0_TR
+        (e0[0] - e0[2]) / NRP_E0_DIV,             // p5  e0_L - e0_TL
+        (e0[1] - e0[3]) / NRP_E0_DIV,             // p6  e0_T - e0_TR
+        (e0[2] - e0[3]) / NRP_E0_DIV,             // p7  e0_TL - e0_TR
+        ((e0[0] + e0[1]) >> 1) / NRP_E0_DIV,      // p8  (e0_L + e0_T)/2
+        g1 / NRP_G_DIV,                           // p9  L - T
+        ((g1 + g2 + g3) >> 1) / NRP_G_DIV,        // p10 GAP-style pixel gradient
+        (_nb.l - 2048) / NRP_PX_DIV,              // p11 L - 2048
+        (_nb.t - 2048) / NRP_PX_DIV,              // p12 T - 2048
+        (_nb.tl - 2048) / NRP_PX_DIV,             // p13 TL - 2048
+        (_nb.tr - 2048) / NRP_PX_DIV,             // p14 TR - 2048
+    ]
+}
+
+/// Integer MLP forward pass. `sigma(z) = clamp(z >> NRP_ACT_SHIFT, -CLAMP,
+/// CLAMP)`. `f = (b_out + sum_h w_out[h]*sigma(b_h + sum_d W[h*D+d]*phi[d])) >>
+/// NRP_OUT_SHIFT`, clamped to the plane range. Deterministic, side-effect free
+/// => identical on encoder and decoder (weights come from the signaled model).
+pub fn nrp_forward(net: &NrpNet, phi: &[i32; NRP_D], range: PlaneRange) -> i32 {
+    let mut hidden = [0i32; NRP_H];
+    for h in 0..NRP_H {
+        let mut acc: i64 = net.b[h] as i64;
+        let base = h * NRP_D;
+        for d in 0..NRP_D {
+            acc += (net.w[base + d] as i64) * (phi[d] as i64);
+        }
+        // Arithmetic right shift keeps negative activations exact on both sides.
+        let shifted = acc >> NRP_ACT_SHIFT as i64;
+        let c = shifted
+            .max(-(NRP_ACT_CLAMP as i64))
+            .min(NRP_ACT_CLAMP as i64) as i32;
+        hidden[h] = c;
+    }
+    let mut out: i64 = net.b[NRP_H] as i64; // b_out
+    for h in 0..NRP_H {
+        out += (net.w_out[h] as i64) * (hidden[h] as i64);
+    }
+    let half = 1i64 << (NRP_OUT_SHIFT - 1);
+    range.clamp(((out + half) >> NRP_OUT_SHIFT as i64) as i32)
+}
+
+/// Apply the R15 overlay to a base residual `r0` at pixel `(x, y)` (index
+/// `idx`). Reads the four decode-available base errors from `e0buf`, computes
+/// the R15 feature vector, runs the MLP, and returns the coded residual
+/// `epsilon = r0 - f`. When `net` is `None` the base residual is returned
+/// unchanged. The caller stores `r0` into `e0buf[idx]` AFTER this call.
+#[inline]
+pub fn nrp_apply(
+    net: Option<&NrpNet>,
+    r0: i32,
+    nb: &Neighbors,
+    e0buf: &[i32],
+    idx: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    _height: usize,
+    range: PlaneRange,
+) -> i32 {
+    let net = match net {
+        Some(t) => t,
+        None => return r0,
+    };
+    let e0 = [
+        if x > 0 { e0buf[idx - 1] } else { 0 },
+        if y > 0 { e0buf[idx - width] } else { 0 },
+        if x > 0 && y > 0 { e0buf[idx - width - 1] } else { 0 },
+        if x + 1 < width && y > 0 {
+            e0buf[idx - width + 1]
+        } else {
+            0
+        },
+    ];
+    let g1 = nb.l - nb.t;
+    let g2 = nb.t - nb.tl;
+    let g3 = nb.tl - nb.tr;
+    let phi = nrp_features(nb, &e0, g1, g2, g3);
+    let f = nrp_forward(net, &phi, range);
+    r0 - f
+}
+
+/// R15 decoder-side companion to `nrp_apply`: returns only the residual-model
+/// correction `f` for a pixel (without the `r0` subtract). The decoder has the
+/// coded residual `r` already and recovers the base residual as `r0 = r + f`,
+/// then reconstructs `v = pred + r0`. `f` depends solely on the decode-available
+/// base errors of the causal neighbors, so it is identical to the encoder's
+/// value. `net` is `None` when R15 is off, yielding `0`.
+#[inline]
+pub fn nrp_compute_pred(
+    net: Option<&NrpNet>,
+    nb: &Neighbors,
+    e0buf: &[i32],
+    idx: usize,
+    x: usize,
+    y: usize,
+    width: usize,
+    _height: usize,
+    range: PlaneRange,
+) -> i32 {
+    let net = match net {
+        Some(t) => t,
+        None => return 0,
+    };
+    let e0 = [
+        if x > 0 { e0buf[idx - 1] } else { 0 },
+        if y > 0 { e0buf[idx - width] } else { 0 },
+        if x > 0 && y > 0 { e0buf[idx - width - 1] } else { 0 },
+        if x + 1 < width && y > 0 {
+            e0buf[idx - width + 1]
+        } else {
+            0
+        },
+    ];
+    let g1 = nb.l - nb.t;
+    let g2 = nb.t - nb.tl;
+    let g3 = nb.tl - nb.tr;
+    let phi = nrp_features(nb, &e0, g1, g2, g3);
+    nrp_forward(net, &phi, range)
+}
+
 /// Generic MA (multiplier-additive) least-squares solver over `D` basis terms,
 /// generalizing `solve_r13_least_squares` to an arbitrary dimension (R14 uses
 /// `D = RCCT_DIM`). Fits `target ~ a + sum b_k p_k` by ridge-regularized
@@ -1429,5 +1615,77 @@ pub fn predict_clamped(
         let s2 = [[0i64; 5]; 5];
         let b2 = [0i64; 5];
         assert!(solve_weighted_tree(&s2, &b2).is_none());
+    }
+
+    #[test]
+    fn nrp_zero_net_is_base() {
+        // An all-zero NrpNet yields f = 0 for any pixel, so the coded residual
+        // equals the base residual r0 (strict-superset / never-regress contract).
+        let net = NrpNet {
+            w: vec![0i16; NRP_H * NRP_D],
+            w_out: vec![0i16; NRP_H],
+            b: vec![0i16; NRP_H + 1],
+        };
+        let nb = Neighbors { l: 1234, t: 2100, tl: 1800, tr: 1500 };
+        let e0 = [10i32, -20, 5, 7];
+        let g1 = nb.l - nb.t;
+        let g2 = nb.t - nb.tl;
+        let g3 = nb.tl - nb.tr;
+        let phi = nrp_features(&nb, &e0, g1, g2, g3);
+        let range = PlaneRange { min: 0, max: 4095 };
+        assert_eq!(nrp_forward(&net, &phi, range), 0);
+        // nrp_apply must return r0 unchanged for a zero net.
+        let e0buf = vec![0i32; 64];
+        let r0 = 37;
+        assert_eq!(
+            nrp_apply(Some(&net), r0, &nb, &e0buf, 10, 3, 2, 8, 8, range),
+            r0
+        );
+        assert_eq!(
+            nrp_compute_pred(Some(&net), &nb, &e0buf, 10, 3, 2, 8, 8, range),
+            0
+        );
+    }
+
+    #[test]
+    fn nrp_forward_deterministic_and_in_range() {
+        // The integer forward is a pure function of its inputs, so encoder and
+        // decoder compute the identical f per pixel (bit-exact lockstep).
+        let mut w = vec![3i16; NRP_H * NRP_D];
+        // Keep magnitudes bounded so activations do not all saturate.
+        for (i, x) in w.iter_mut().enumerate() {
+            *x = ((i % 5) as i16) - 2;
+        }
+        let w_out = vec![-7i16; NRP_H];
+        let b = vec![5i16; NRP_H + 1];
+        let net = NrpNet { w, w_out, b };
+        let nb = Neighbors { l: 2000, t: 1500, tl: 1700, tr: 1900 };
+        let e0 = [64i32, -32, 16, -8];
+        let g1 = nb.l - nb.t;
+        let g2 = nb.t - nb.tl;
+        let g3 = nb.tl - nb.tr;
+        let phi = nrp_features(&nb, &e0, g1, g2, g3);
+        let range = PlaneRange { min: 0, max: 255 };
+        let a = nrp_forward(&net, &phi, range);
+        let b2 = nrp_forward(&net, &phi, range);
+        assert_eq!(a, b2);
+        assert!((0..=255).contains(&a));
+    }
+
+    #[test]
+    fn nrp_features_decode_available_shape() {
+        // nrp_features is a pure function of the decoded neighborhood + e0buf
+        // (border reads = 0), so the decoder can reproduce the encoder's vector.
+        let nb = Neighbors { l: 1000, t: 1200, tl: 1100, tr: 900 };
+        let e0 = [1i32, 2, 3, 4];
+        let g1 = nb.l - nb.t;
+        let g2 = nb.t - nb.tl;
+        let g3 = nb.tl - nb.tr;
+        let phi = nrp_features(&nb, &e0, g1, g2, g3);
+        assert_eq!(phi.len(), NRP_D);
+        // Centered raw pixels: L - 2048.
+        assert_eq!(phi[10], (nb.l - 2048) / NRP_PX_DIV);
+        // Base-error gradient feature.
+        assert_eq!(phi[4], (e0[0] - e0[2]) / NRP_E0_DIV);
     }
 }
