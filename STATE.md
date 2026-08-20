@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~04:13Z, maintainer event run 32331099954, triggered by owner `/oc continue` on PR #93 after the Builder completed R12-A). Decision: dispatch `continue` on PR #93 so the Builder pivots to a deeper BASE predictor/transform (the R12 Squeeze-gated premise is now proven moot). One-PR rule intact; orphan re-link remains fixed.
+- **Updated:** 2026-08-20 (~04:27Z, maintainer event run 32331889345, triggered by owner `/oc maintainer` x3 on PR #93 after the Builder's R9-B deepening session committed `bd88b145` with 2 broken M3-B tests). Decision: dispatch `continue` on PR #93 so the Builder resolves the test breakage and re-measures REAL Kodak toward the JXL 8.71 gate. One-PR rule intact; orphan re-link remains fixed.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -19,8 +19,7 @@
 - **PR #91 MERGED:** orphan-main guard (`c043b7e`, carries literal `Closes #68` commit token; #68 reopened same run).
 - **PR #92 MERGED:** `main` = `d6b2894`. Determinism guard + "do not auto-close umbrella" rule + force-with-lease pin. Body `Refs #68`.
 - **`main` = `d6b2894`** (healthy, 370 commits, clean descendant of prior main).
-- **Branch `opencode/issue68-20260818070512` RE-LINKED** (current head `1471a3f8`), shares history with `main` (merge-base `d6b2894`). PR #93 is the single canonical Obsidian PR (`Refs #68`). ORPHAN PROBLEM RESOLVED.
-- Root cause of the prior stall (Lab Engineer refused the re-link; Mae hard-barred from pushing) resolved by the Builder's `/oc continue` rebuild + reopen as PR #93.
+- **Branch `opencode/issue68-20260818070512` RE-LINKED** (current head `bd88b145`, merge-base `d6b2894` non-empty). PR #93 is the single canonical Obsidian PR (`Refs #68`). ORPHAN PROBLEM RESOLVED.
 
 ## SYSTEMIC INFRASTRUCTURE BLOCKER (commit-message auto-close) - UNDER CONTROL
 
@@ -30,26 +29,23 @@
 
 - **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten. Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5208 bpp mean** (R10-B CFL). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
-- **R0-R11 codec shipped on PR #93:** Golomb-Rice, CMARC binary range coder (R4), context-tree weighted predictor (R9-B), R10 Squeeze + chroma-from-luma, R11 cross-band in-loop predictor, R11-D MA-tree-lite combined gradient+residual context (opt-in `OBSIDIAN_CARC_MA_CTX=1`), R11-A cross-band `wLL` (reverted - wash + 45x slowdown).
-- **R12-A (per-band weighted predictor) NOW COMMITTED (non-regressive 9.5209 vs 9.5208).** BUT the key finding: the never-expand net REJECTS Squeeze on photographic Kodak because `transforms::squeeze` is a quincunx **subsampling**, not a wavelet - HF bands carry ~as much entropy as the original, so Squeeze is net-negative and correctly rejected. Therefore the R12 escalation premise (per-band decorrelation = missing JXL edge) is **WRONG**.
-- **CONCLUSION (robust, 4 independent axes):** the +0.81 bpp gap to JXL 8.71 is the **BASE PREDICTOR** (LOCO-I GAP's residual entropy already near-optimal), NOT context refinement (R3-A/R11-D/64-leaf), NOT Squeeze-gated decorrelation (R12-A/R12-B). Closing JXL needs a genuinely better base predictor/transform (R7 weighted / R8 adaptive-weighted / R9 spatial-weighted blueprints on-branch; or a true wavelet/lifting transform with real energy compaction).
+- **R0-R11 codec shipped on PR #93:** Golomb-Rice, CMARC binary range coder (R4), context-tree weighted predictor (R9-B), R10 Squeeze + chroma-from-luma, R11 cross-band in-loop predictor, R11-D MA-tree-lite combined gradient+residual context (opt-in), R11-A cross-band `wLL` (reverted). R12-A (per-band weighted predictor) committed, proven moot (Squeeze never selected on photographic Kodak).
 
-## R12 ARCHITECT BLUEPRINT (DELIVERED, on PR #93 branch)
+## CURRENT BUILD STATE (base-predictor pivot)
 
-- File `obsidian/docs/architect-r12-per-band-weighted-ma-tree-blueprint.md` committed + pushed.
-- **R12-A (IMPLEMENTED, committed `1055955`):** per-band `analyze_bands` - one `WeightedTree` table + predictor map per Squeeze band. Non-regressive (9.5209). Moot on this corpus because Squeeze is never selected.
-- **R12-B (NOT implemented, deprioritized):** replace the uniform `combined_ma_context` fold with a per-band-kind `ma_tree_context`. Also Squeeze-gated -> equally insufficient on its own. Deprioritize; do not sink effort here until a base predictor makes Squeeze beneficial.
+- **R12-A premise refuted (robust, 4 axes):** the +0.81 bpp JXL gap is the **BASE PREDICTOR** (LOCO-I GAP's residual entropy near-optimal), NOT context refinement (R3-A/R11-D/64-leaf) and NOT Squeeze-gated decorrelation (R12-A/R12-B). `transforms::squeeze` is a quincunx *subsampling*, not a wavelet, so HF bands carry ~as much entropy as the original and Squeeze is net-negative and correctly rejected by the never-expand net.
+- **Current experiment (in flight, head `bd88b145`):** deeper base-predictor weight context - `WC_LEAVES` 15→64 in `predict.rs` with a 4-tier-per-gradient `weight_context` so every leaf is populated (the earlier 64-leaf regression left most bins empty). Status: the Builder's session (run 564, 2026-08-20T04:26:35) committed this as `bd88b14 "Deepened predictor; broke 2 M3-B tests, investigating."` - it **broke two M3-B tests** (`m3_wp_improves_over_v1`, `m3_wp_self_correcting_roundtrip`) that pass on the stashed baseline, and is investigating the interaction before compiling a final real-Kodak measurement. The branch currently has 2 failing lib tests; no merge risk yet (JXL gate unmet regardless).
 
 ## In flight
 
-- **`continue` on PR #93 (DISPATCHED THIS run, 32331099954):** the Builder pivots from Squeeze-gated R12 work to a deeper BASE predictor/transform toward the JXL 8.71 gate, using R7/R8/R9 blueprints (adaptive/learned per-context weighted predictor, or a true wavelet/lifting transform). Loop via `continue` until all three gates clear. The owner's manual `/oc continue` at 04:13:30 hit the skipped opencode path, so this run re-drives it cleanly.
+- **`continue` on PR #93 (DISPATCHED THIS run, 32331889345):** the Builder resolves the M3-B test breakage from `bd88b145`, then re-measures REAL Kodak effort-4 against the JXL 8.71 gate. If the 64-leaf deepening regresses or is neutral (consistent with the 5-axis context-exhaustion conclusion), the Builder reverts and the verdict strengthens: a fundamentally different base predictor functional form is needed (true wavelet/lifting transform with real energy compaction, or a genuinely adaptive/learned per-context predictor - R7/R8/R9 blueprints are the design basis). Loop via `continue` until all three gates clear.
 
 ## PENDING (deferred)
 
 - **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5208); next lever = a genuinely better BASE predictor/transform (in flight via `continue`).
-- **Resume Builder (base predictor) via `continue`** - dispatched THIS run.
+- **Resume Builder (base predictor) via `continue`** - dispatched THIS run (head `bd88b145`).
 - **README / index.html Obsidian promotion** (standing directive, deferred; schedule once JXL nears).
-- **Review staleness on #93:** head `1471a3f8` is builder self-pushed; fresh Reviewer + Tester gate required before any merge.
+- **Review staleness on #93:** head `bd88b145` is builder self-pushed; fresh Reviewer + Tester gate required before any merge.
 - **Commit-message hygiene:** never write literal `Closes #68` token in ANY commit message or PR body.
 
 ## Issues
@@ -62,23 +58,23 @@
 ## Reviewer/Tester/model status
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError` in recent runs.
-- **pages.yml:** green.
-- **PR #93 checks:** opencode-pr-trigger SUCCESS, pages deploy SKIPPED (expected for PR preview), GitGuardian SUCCESS. No Reviewer/Tester run yet.
+- **pages.yml:** green; deploying (run 566 in progress at 04:26:47Z).
+- **PR #93 checks:** opencode-pr-trigger SUCCESS on recent pushes; pages deploy SKIPPED (expected for PR preview), GitGuardian SUCCESS. No Reviewer/Tester run yet.
 
 ## Next steps
 
-1. **Builder `continue` (in flight):** implement a genuinely better BASE predictor/transform (R7/R8/R9 basis; adaptive/learned per-context weighted predictor OR a true wavelet/lifting transform), re-measure REAL Kodak effort-4 against the JXL 8.71 gate. Deprioritize R12-B. Loop until all three gates clear.
+1. **Builder `continue` (in flight):** resolve M3-B breakage on `bd88b145`, re-measure REAL Kodak effort-4 against JXL 8.71. If 64-leaf deepening is neutral/regressive, revert and pivot to a fundamentally different base predictor (true wavelet/lifting transform OR adaptive/learned per-context weighted predictor per R7/R8/R9). Loop until all three gates clear.
 2. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
 3. **README / index.html promotion:** schedule once JXL nears / PR clears.
 
 ## Open questions
 
-- **Will a better BASE predictor/transform clear the +0.81 JPEG XL gap on REAL Kodak?** Verdict pending the Builder's next `continue` + real-Kodak re-measure. Four independent axes now prove context refinement AND Squeeze-gated decorrelation are exhausted; the base predictor's functional form is the only seen lever.
+- **Will the deeper base-predictor weight context (64-leaf, fully populated) clear the JXL gap?** Pending the Builder's measurement on `bd88b145`. Five independent axes (R11-D, R11-A, 64-leaf 27->15 modulo, R12-A Squeeze rejection, now the 15->64 WC_LEAVES deepening) all point to context granularity being exhausted; a genuinely different functional form is the only seen lever.
 - **Merge gate (owner override #2):** NOT met - default 9.5208 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
-- **pages.yml:** green.
+- **pages.yml:** green; re-deploying (run 566 in progress).
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
 - **Commit-message hygiene:** PR #93 body is correctly `Refs #68`; future commits/blueprints must avoid literal `Closes #68`.
 
