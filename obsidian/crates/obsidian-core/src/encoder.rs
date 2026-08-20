@@ -792,7 +792,7 @@ pub fn encode_with(
                 vec![0i32; w * h]
             })
             .collect();
-        *R14_COLLECT.lock().unwrap() = Some(coll);
+        *R14_COLLECT.lock().unwrap_or_else(|e| e.into_inner()) = Some(coll);
         match win_tag {
             'a' => {
                 let _ = code_banded(
@@ -815,7 +815,11 @@ pub fn encode_with(
                 )?;
             }
         };
-        let r0s = R14_COLLECT.lock().unwrap().take().unwrap();
+        let r0s = R14_COLLECT
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+            .unwrap_or_default();
         let trees = build_rcct_trees(planes_w, &r0s, &ranges_w, dims_w, parents_w, &model);
         if trees.iter().any(|o| o.is_some()) {
             let mut model_rcct = model.clone();
@@ -898,7 +902,7 @@ pub fn encode_with(
                 vec![0i32; w * h]
             })
             .collect();
-        *R15_COLLECT.lock().unwrap() = Some(coll);
+        *R15_COLLECT.lock().unwrap_or_else(|e| e.into_inner()) = Some(coll);
         match win_tag {
             'a' => {
                 let _ = code_banded(
@@ -921,7 +925,11 @@ pub fn encode_with(
                 )?;
             }
         };
-        let r0s = R15_COLLECT.lock().unwrap().take().unwrap();
+        let r0s = R15_COLLECT
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+            .unwrap_or_default();
         let nets = build_nrp_nets(planes_w, &r0s, &ranges_w, dims_w);
         if nets.iter().any(|o| o.is_some()) {
             let mut model_nrp = model.clone();
@@ -1180,13 +1188,13 @@ static R14_COLLECT: Mutex<Option<Vec<Vec<i32>>>> = Mutex::new(None);
 static R15_COLLECT: Mutex<Option<Vec<Vec<i32>>>> = Mutex::new(None);
 fn r14_dbg_add(pi: usize, r0: i32, r: i32, range: PlaneRange) {
     if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
-        let mut v = R14_SS.lock().unwrap();
+        let mut v = R14_SS.lock().unwrap_or_else(|e| e.into_inner());
         if v.len() <= pi {
             v.resize(pi + 1, (0, 0));
         }
         v[pi].0 += (r0 as i64 * r0 as i64) as u64;
         v[pi].1 += (r as i64 * r as i64) as u64;
-        let mut rng = R14_RNG.lock().unwrap();
+        let mut rng = R14_RNG.lock().unwrap_or_else(|e| e.into_inner());
         if rng.len() <= pi {
             rng.resize(pi + 1, (0, 0));
         }
@@ -1196,13 +1204,13 @@ fn r14_dbg_add(pi: usize, r0: i32, r: i32, range: PlaneRange) {
     }
 }
 fn r14_dbg_reset() {
-    R14_SS.lock().unwrap().clear();
-    R14_RNG.lock().unwrap().clear();
+    R14_SS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    R14_RNG.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 fn r14_dbg_report(tag: &str) {
     if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
-        let v = R14_SS.lock().unwrap();
-        let rng = R14_RNG.lock().unwrap();
+        let v = R14_SS.lock().unwrap_or_else(|e| e.into_inner());
+        let rng = R14_RNG.lock().unwrap_or_else(|e| e.into_inner());
         for (pi, (a, b)) in v.iter().enumerate() {
             let r = if pi < rng.len() { rng[pi] } else { (0, 0) };
             eprintln!(
@@ -1244,12 +1252,12 @@ fn rcct_overlay(
     if std::env::var("OBSIDIAN_R14_DEBUG").ok().as_deref() == Some("1") {
         r14_dbg_add(pi, r0, r, range);
     }
-    if let Some(buf) = R14_COLLECT.lock().unwrap().as_mut() {
+    if let Some(buf) = R14_COLLECT.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
         if pi < buf.len() && idx < buf[pi].len() {
             buf[pi][idx] = r0;
         }
     }
-    if let Some(buf) = R15_COLLECT.lock().unwrap().as_mut() {
+    if let Some(buf) = R15_COLLECT.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
         if pi < buf.len() && idx < buf[pi].len() {
             buf[pi][idx] = r0;
         }

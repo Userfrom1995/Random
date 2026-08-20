@@ -1163,10 +1163,14 @@ pub fn build_rcct_trees(
 ) -> Vec<Option<RcctTree>> {
     let _ = model;
     let _ = parents;
-    planes
-        .iter()
-        .enumerate()
-        .map(|(pi, plane)| {
+    let n_planes = planes
+        .len()
+        .min(r0s.len())
+        .min(dims.len())
+        .min(ranges.len());
+    (0..n_planes)
+        .map(|pi| {
+            let plane = &planes[pi];
             let (width, height) = dims[pi];
             let n = width * height;
             if n == 0 {
@@ -1240,10 +1244,14 @@ pub fn build_nrp_nets(
     ranges: &[PlaneRange],
     dims: &[(usize, usize)],
 ) -> Vec<Option<NrpNet>> {
-    planes
-        .iter()
-        .enumerate()
-        .map(|(pi, plane)| {
+    let n_planes = planes
+        .len()
+        .min(r0s.len())
+        .min(dims.len())
+        .min(ranges.len());
+    (0..n_planes)
+        .map(|pi| {
+            let plane = &planes[pi];
             let (width, height) = dims[pi];
             let n = width * height;
             if n == 0 {
