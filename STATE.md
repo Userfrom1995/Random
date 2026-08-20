@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-20 (~06:53Z, maintainer scheduled run 32341545978). The R13-B (CDF 5/3 lifting) build dispatched by the prior run (32336016252) is IN FLIGHT as opencode run 744 (`in_progress`, no push yet, branch head still `99fdfed`). Decision this run: a single informational `ping` on PR #93, NO second `continue` (avoids Builder collision), no merge (JXL gate unmet). Next action depends on run 744's measurement.
+- **Updated:** 2026-08-20 (~07:00Z, maintainer run 32341749235, owner `/oc maintainer` nudge at 06:56:52Z). The R13-B (CDF 5/3 lifting) build dispatched by run 32336016252 is STILL IN FLIGHT as opencode run 32336195985 (`in_progress` since 05:35:45Z, ~1h25m, no push yet, branch head still `99fdfed`). Decision this run: a single informational `ping` on PR #93, NO second `continue` (avoids Builder collision), and NO `research` (Researcher would push a doc to the same branch mid-build). Gates unchanged: PNG 13.05 MET, WebP 9.61 MET, JPEG XL 8.71 still MISSED by +0.81 bpp. No merge until all three clear bit-exactly per the owner override. Next action depends on run 32336195985's measurement.
 
 ## STANDING OWNER DIRECTIVES (do not close / do not delete)
 
@@ -30,27 +30,27 @@
 - **Issue #68 (Obsidian):** OPEN, stays open until codecs beaten. Single-PR + no-merge-until-target + orchestrate-R/A/B overrides active.
 - **Default shipped codec = 9.5208 bpp mean** (R10-B CFL, CMARC backend). Beats PNG (13.05) + WebP (9.61). **JPEG XL 8.71 MISSED by ~0.81 bpp.** Bit-exact.
 - **R0-R11 codec shipped on PR #93:** Golomb-Rice, CMARC binary range coder (R4, H(p)+epsilon), context-tree weighted predictor (R9-B), R10 Squeeze + chroma-from-luma, R11 cross-band in-loop predictor, R11-D MA-tree-lite combined gradient+residual context (opt-in). R11-A cross-band `wLL` reverted (45x slowdown, wash). R12-A per-band weighted predictor committed but moot (Squeeze rejected on photographic Kodak; `transforms::squeeze` is quincunx subsampling, not a wavelet).
-- **R13 blueprint (Architect, committed `3e1f88c`):** two levers - R13-A (recursive self-correcting adaptive multi-tap predictor, TM-WP class) + R13-B (CDF 5/3 lifting wavelet replacing inert quincunx subsampling). R13-A implemented (`ba0ac46` + progress fix `99fdfed`), **REGRESSED** (auto-selected -> 9.9065 bpp; muted to keep 9.5209), 139 tests pass. R13-B NOT yet implemented (IN FLIGHT, run 744).
+- **R13 blueprint (Architect, committed `3e1f88c`):** two levers - R13-A (recursive self-correcting adaptive multi-tap predictor, TM-WP class) + R13-B (CDF 5/3 lifting wavelet replacing inert quincunx subsampling). R13-A implemented (`ba0ac46` + progress fix `99fdfed`), **REGRESSED** (auto-selected -> 9.9065 bpp; muted to keep 9.5209), 139 tests pass. R13-B NOT yet implemented (IN FLIGHT, run 32336195985).
 
 ## CURRENT BUILD STATE (R13-B in flight; R13-B is the last genuine architectural lever)
 
 - **R13-A result (Builder run, completed 2026-08-20T05:32:44):** forced-standalone ~11.18 bpp; auto-net 9.9065 bpp (sum-of-zigzag proxy over-selects the 9-feature LMS: lower training RSS but fatter-tailed residuals); **muted to keep production at 9.5209 bpp** (baseline 9.5208). 139 lib tests pass. Head `99fdfed`.
-- **R13-B build:** dispatched by maintainer run 32336016252 via `continue`; triggered opencode run 744 (created 2026-08-20T05:35:45Z, `in_progress` at survey time 06:53Z). No push yet. Builder direction: implement R13-B (CDF 5/3 lifting in `transforms.rs`, reusing `squeeze_band_layout` geometry) + re-evaluate R13-A with a FAIR candidate metric (actual encoded bytes, not training RSS). Do NOT revert to R7/R8/R9-class context tuning.
+- **R13-B build:** dispatched by maintainer run 32336016252 via `continue`; triggered opencode run 32336195985 (created 2026-08-20T05:35:45Z, STILL `in_progress` at survey time ~07:00Z, ~1h25m elapsed, no push yet). Builder direction: implement R13-B (CDF 5/3 lifting in `transforms.rs`, reusing `squeeze_band_layout` geometry) + re-evaluate R13-A with a FAIR candidate metric (actual encoded bytes, not training RSS). Do NOT revert to R7/R8/R9-class context tuning.
 - **Verdict (robust, 7 axes):** the +0.81 bpp JXL gap is a **STRUCTURAL ARCHITECTURAL CEILING** of the single-pixel 4-tap linear predictor pipeline. Failed axes: R11-D MA context (wash), R11-A cross-band `wLL` (wash + slowdown, reverted), 64-leaf weight context x2 (regression, reverted), R12-A per-band decorrelation (moot; Squeeze rejected), CMARC backend (near-optimal), R13-A adaptive multi-tap (regressed under never-expand net). The ONLY untried genuine functional-form lever left in the blueprint is **R13-B (CDF 5/3 lifting)** - the corrected, non-inert form of the transform.
 - **R13-B gate math (Architect estimate):** ~9.0-9.3 bpp alone; combined with a fairly-evaluated R13-A the target is < 8.71. Honest risk: R13-B alone likely still MISSES 8.71, in which case the next step is a FRESH Researcher brief, not more tuning.
 
 ## In flight
 
-- **R13-B build (opencode run 744, `in_progress`):** implements CDF 5/3 lifting + fairly re-evaluates R13-A; re-measures REAL Kodak effort-4 toward JXL 8.71. NO second `continue` fired this run to avoid a Builder collision on the same branch. Await run 744's push + measurement. If R13-B + fair R13-A still cannot approach 8.71, escalate to a fresh `research` brief (documented escape hatch).
+- **R13-B build (opencode run 32336195985, `in_progress` ~1h25m):** implements CDF 5/3 lifting + fairly re-evaluates R13-A; re-measures REAL Kodak effort-4 toward JXL 8.71. NO second `continue` fired this run (or by run 32341545978) to avoid a Builder collision on the same branch. Await run 32336195985's push + measurement. If R13-B + fair R13-A still cannot approach 8.71, escalate to a fresh `research` brief (documented escape hatch).
 
 ## PENDING (deferred)
 
-- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5208); current lever = R13-B lifting (in flight, run 744).
+- **Clear JPEG XL 8.71 gate:** ~0.81 above (default 9.5208); current lever = R13-B lifting (in flight, run 32336195985).
 - **Resume deeper predictor/transform:** only if R13-B fails; fresh Researcher brief, not R7-class context tuning.
 - **README / index.html Obsidian promotion** (standing directive, deferred; schedule once JXL nears).
 - **Review staleness on #93:** head `99fdfed` is clean (139 tests pass); fresh Reviewer + Tester gate required before any merge (and still premature until R13-B resolves).
 - **Commit-message hygiene:** never write literal `Closes #68` token in ANY commit message or PR body.
-- **Build collision guard:** do not fire `continue` again while run 744 is `in_progress`.
+- **Build collision guard:** do not fire `continue` (or `research`/`build`/`architect` that pushes the branch) again while run 32336195985 is `in_progress`.
 
 ## Issues
 
@@ -63,22 +63,22 @@
 
 - **Model config:** `opencode.json` model `opencode/hy3-free`, `small_model: opencode/mimo-v2.5-free` (both free). `origin/main` = `d6b2894`. No `CreditsError` in recent runs.
 - **pages.yml:** green (run 573 success).
-- **PR #93 checks:** opencode-pr-trigger SUCCESS on recent pushes; pages deploy SKIPPED (expected for PR preview), GitGuardian SUCCESS. R13-B build run 744 `in_progress`.
+- **PR #93 checks:** opencode-pr-trigger SUCCESS on recent pushes; pages deploy SKIPPED (expected for PR preview), GitGuardian SUCCESS. R13-B build run 32336195985 `in_progress`.
 
 ## Next steps
 
-1. **Await R13-B build (run 744):** when it pushes + measures, re-survey. If R13-B + fairly-evaluated R13-A approach < 8.71, continue refining toward the gate; if it still misses, dispatch `research` for a fresh paradigm (context-tree weighted prediction at transform level, or a learned predictor) - NOT R7-class tuning.
+1. **Await R13-B build (run 32336195985):** when it pushes + measures, re-survey (a maintainer run auto-triggers on the PR push). If R13-B + fairly-evaluated R13-A approach < 8.71, continue refining toward the gate; if it still misses, dispatch `research` for a fresh paradigm (context-tree weighted prediction at transform level, or a learned predictor) - NOT R7-class tuning.
 2. **After gates clear:** fresh Reviewer + Tester gate, then rebase-merge (`--no-delete-branch`) and close #68. NOT before.
 3. **README / index.html promotion:** schedule once JXL nears / PR clears.
 
 ## Open questions
 
-- **Will R13-B (lifting) + fairly-evaluated R13-A clear the JXL 8.71 gap?** Pending run 744 (in progress; no push at survey). Architect estimates ~9.0-9.3 for R13-B alone - likely still short; combined target < 8.71.
+- **Will R13-B (lifting) + fairly-evaluated R13-A clear the JXL 8.71 gap?** Pending run 32336195985 (in progress ~1h25m; no push at survey). Architect estimates ~9.0-9.3 for R13-B alone - likely still short; combined target < 8.71.
 - **If R13-B alone misses, what next paradigm?** Fresh Researcher brief (learned/context-tree predictor), since all single-pixel and context-tuning axes are exhausted.
 - **Merge gate (owner override #2):** NOT met - default 9.5208 beats PNG + WebP but > 8.71 JXL. No merge until all three gates clear bit-exactly and reproducibly by the default codec.
 - **One-PR integrity:** INTACT (PR #93 single canonical, OPEN, shares history with main).
 - **Orphan-main break:** RESOLVED (merge-base `d6b2894` non-empty; PR #93 healthy).
-- **Build collision:** AVOIDED - no second `continue` while run 744 in progress.
+- **Build collision:** AVOIDED - no second `continue`/`research`/`build` while run 32336195985 in progress.
 - **Review/Tester:** neither has run on PR #93 yet; both required pre-merge.
 - **pages.yml:** green.
 - **Billing:** resolved (no `CreditsError`; `small_model` correctly pinned free).
