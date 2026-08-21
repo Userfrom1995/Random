@@ -35,7 +35,7 @@ struct AdaptiveModel {
         int32_t target = bit ? 0 : 65535; // bit=1 means P(0) should decrease
         // Actually bit is the symbol (0/1). prob = P(0)*M. If bit==0, target 65535, else 0.
         int32_t diff = target - (int32_t)prob;
-        prob = (uint16_t)((int32_t)prob + (diff >> 5));
+        prob = (uint16_t)((int32_t)prob + (diff >> 7));
         if (prob == 0) prob = 1;
         if (prob >= 65535) prob = 65534;
     }
