@@ -50,7 +50,7 @@ jobs:
             - Keep candidates ambitious and diverse (§14 of LAB.md): fresh languages welcome, no category/language twice in the last 3 picks.
 
       - name: Notify the Maintainer (candidates posted)
-        if: always()
+        if: success()
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_PAT }}

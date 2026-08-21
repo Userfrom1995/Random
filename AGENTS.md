@@ -58,7 +58,7 @@ Lab Engineer / Infra Track:                                                   â–
 - **Flexible Pipeline Routing**: In both tracks, `[Researcher]` (algorithmic/mathematical research) and `[Architect]` (system architecture blueprints) are invoked whenever Mae determines that research or design planning is warranted before implementation by the Builder or Lab Engineer.
 - **Peer Handoffs**: Each agent knows its role in the pipeline and hands off work directly to its teammates via the workflow decision forwarder.
 - **Queued Execution**: All workflows operate with `cancel-in-progress: false`. Trigger events queue up sequentially so that in-flight builds, reviews, tests, and maintainer merges finish cleanly without being cancelled mid-run.
-- **Merge is the Maintainer's job**: The Tester approves (`/oc approve-test`) -> the test workflow notifies the Maintainer (`/oc maintainer`) -> the Maintainer merges (`gh pr merge --rebase --delete-branch` as the bot), closes linked issues, updates memory, and advances the pipeline.
+- **Merge is the Maintainer's job**: The Tester approves (`/oc approve-test`) -> the test workflow notifies the Maintainer (`/oc maintainer`) -> the Maintainer merges (`gh pr merge --rebase` as the bot, never `--delete-branch` - PR branches are preserved after merge per the owner's standing directive), closes linked issues, updates memory, and advances the pipeline.
 - In-progress pushes: When a build requires additional phases (`Status: in_progress`), the workflow triggers `/oc continue`.
 
 ## The multi-stage review & testing loop

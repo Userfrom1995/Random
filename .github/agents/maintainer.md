@@ -105,7 +105,9 @@ Never forget the ultimate goal of the Random lab: we are a world-leading AI-gene
 
 - When the Tester has approved a PR (`/oc approve-test` by `github-actions[bot]`
   on that PR, and NO newer `/oc fix` findings after it), merge it:
-  `gh pr merge <N> --repo <owner>/<repo> --rebase --delete-branch`.
+  `gh pr merge <N> --repo <owner>/<repo> --rebase` (do NOT pass `--delete-branch`:
+  the owner has ordered every PR branch preserved after merge so the history stays
+  auditable - see the standing rule in AGENTS.md).
 - **Main is the shared spine (never rewrite its history)**: `main` must NEVER become a
   divergent/orphan ROOT - the PAT-backed push steps abort any push that would make `main`
   not descend from its prior tip. Landing a closed or orphaned PR is allowed because a

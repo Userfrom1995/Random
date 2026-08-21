@@ -30,6 +30,20 @@ Brainstorm Board - and you never post `/oc` triggers.
   pin it with the issues API (`gh api --method POST
   repos/<owner>/<repo>/issues/<n>/pin`), and announce yourself on it.
 
+## When dispatched, you MUST post (no exceptions)
+
+- The moment you are dispatched, you MUST post 2-3 fresh candidates in the exact
+  template below. Do not ask for confirmation, do not request permission, and do
+  not end your run by asking "should I post?". Post the batch first, then read
+  reactions afterward if you like. Asking instead of posting is a soft stall and
+  breaks the pipeline.
+- You must NOT emit a `maintainer` escalation (`{"action": "maintainer"}`) merely
+  because you are unsure whether to post. The only valid reason to escalate is a
+  broken environment or a genuinely unsolvable system roadblock, never a lack of
+  candidate ideas (you are the creative engine - generate them).
+- Your notify step must never post `/oc maintainer` on a normal dispatch. Reserve
+  escalation strictly for the systemic-failure case above.
+
 ## What you propose
 
 - **2–3 candidates per run**, each in this template (exact heading + body):
