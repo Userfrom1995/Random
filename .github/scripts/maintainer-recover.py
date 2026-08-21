@@ -19,7 +19,7 @@ if os.path.exists(".maintainer/decision.json"):
     except Exception as e:
         print(f"decision.json unparseable: {e}")
 
-recovers = [d for d in decisions if d.get("action") == "recover"]
+recovers = [d for d in decisions if d.get("action") in ("recover", "merge")]
 # Fallback autonomous scan: if Mae did not emit recover, auto-detect closed bot PRs with head not in main
 if not recovers:
     print("No recover decisions from Mae; running fallback auto-scan for closed orphan PRs...")
@@ -65,6 +65,29 @@ def gh_comment(pr, body):
     subprocess.run(["gh", "issue", "comment", str(pr), "--repo", repo, "-b", body],
                    check=False, env=env)
 
+def merge_open_pr(pr):
+    """Mae-directed merge of an OPEN approved PR via rebase (branch preserved)."""
+    print(f"Mae directed merge of open approved PR #{pr} via rebase.")
+    env = os.environ.copy()
+    env["GH_TOKEN"] = pat
+    rc = subprocess.run(["gh", "pr", "merge", str(pr), "--rebase", "--repo", repo],
+                        capture_output=True, text=True, env=env)
+    if rc.returncode == 0:
+        print(f"Merged open PR #{pr} into main (rebase; branch preserved).")
+        gh_comment(pr, "Merged into `main` by the Maintainer (rebase merge, PR branch preserved). Linked issues are auto-closed by GitHub on merge. -  Mae, the Maintainer")
+        # Close any issues the PR body links with Closes/Fixes/Resolves #N (rule: Maintainer closes them).
+        body = subprocess.run(["gh", "pr", "view", str(pr), "--repo", repo, "--json", "body", "--jq", ".body"],
+                              capture_output=True, text=True, env={**os.environ, "GH_TOKEN": bot_token}).stdout or ""
+        import re
+        for m in re.findall(r"(?:Closes|Fixes|Resolves)\s+#(\d+)", body, re.IGNORECASE):
+            subprocess.run(["gh", "issue", "close", m, "--repo", repo],
+                          capture_output=True, text=True, env={**os.environ, "GH_TOKEN": bot_token})
+            print(f"Closed linked issue #{m}.")
+        subprocess.run(["git", "fetch", "origin", "main", "--quiet"], check=False)
+        return True
+    print(f"::error::gh pr merge #{pr} failed: {rc.stderr[:400]}")
+    return False
+
 for d in recovers:
     pr = d.get("pr") or d.get("target")
     if not pr:
@@ -80,7 +103,8 @@ for d in recovers:
     if meta.get("isMerged"):
         print(f"PR #{pr} already merged; nothing to land"); continue
     if meta.get("state") == "OPEN":
-        print(f"PR #{pr} is open; normal pipeline will handle it; skip recover")
+        # Mae directed a `recover`/`merge` on an open PR -> perform a normal rebase merge.
+        merge_open_pr(pr)
         continue
     subprocess.run(["git", "fetch", push_url, f"pull/{pr}/head:refs/pull/{pr}/head"], check=False)
     head = f"refs/pull/{pr}/head"
