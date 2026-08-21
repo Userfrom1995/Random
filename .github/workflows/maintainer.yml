@@ -306,6 +306,19 @@ jobs:
               action = d.get("action")
               pr = d.get("pr")
               target = d.get("target") or pr or d.get("issue")
+              if action in ("create_issue", "create_pr"):
+                  title = d.get("title", "New Item")
+                  body_text = d.get("body", "")
+                  if action == "create_issue":
+                      subprocess.run(["gh", "issue", "create", "--repo", repo, "--title", title, "--body", body_text], check=False)
+                      print(f"Created new issue: {title}")
+                  else:
+                      head = d.get("head", "")
+                      if head:
+                          subprocess.run(["gh", "pr", "create", "--repo", repo, "--head", head, "--base", "main", "--title", title, "--body", body_text], check=False)
+                          print(f"Created new PR for branch: {head}")
+                  continue
+
               if not target:
                   continue
               target = int(target)
