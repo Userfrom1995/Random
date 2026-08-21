@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-21 (maintainer run 32503334350, triggered by Userfrom1995 comment on issue #62 "read me and website are outdated", 16:31Z). Routing the Builder (`build`, issue #62) to fix the Meridian/Obsidian promotion gap so README + index.html agree: Obsidian = Current, Meridian = top of Previous.
+- **Updated:** 2026-08-21 (maintainer run 32504280932, triggered by PR #115 open + owner `/oc review` + `/oc maintainer` on PR #115, 16:42Z). PR #115 is the Builder's fix for issue #62 (Obsidian -> Current, Meridian -> top of Previous, README + index.html synced). Reviewer already auto-triggered by `/oc review` (run #1109, in_progress). Mae merges on Reviewer approve + Tester pass -> close #62.
 
 ## STANDING OWNER DIRECTIVES (active)
 - **Obsidian shipped** (#93 merged manually by owner as orphan root `60748e88`); 9.5209 bpp Kodak. Issue #68 CLOSED.
@@ -9,25 +9,25 @@
 - **Owner WILL (resolved):** builder model = free `opencode/muse-spark-1.2-contributor-free` (PR #111 MERGED). Paid tier crashes with `APIError: No payment method`. Standing fix confirmed live at `opencode.yml:358`.
 
 ## CRITICAL INFRASTRUCTURE STATE
-- **`main` = `98d891d`** (post #114 merge; latest lab-hardening commit). Healthy, shares history with all build branches.
+- **`main` = `98d891d`** (post #114 merge; latest lab-hardening commit). Healthy, shares history with all build branches. PR #115 head `812ed29` shares history with `main` (merge-base = `98d891d`).
 - **opencode.json:** `model` = `opencode/hy3-free` (free), `small_model` = `opencode/mimo-v2.5-free` (free). Both fine.
-- **pages.yml:** last deploy run 32503025844 (success) after `98d891d`.
+- **pages.yml:** last deploy run 673 (success) after PR #115 open; preview #672 live at `/preview/pr-115/`.
 - **PR #114 (issue #112) - MERGED** (recovery infra shipped). **#112 CLOSED.**
 - **PR #102 - CLOSED** (the `OPENCODE_PAT` `workflows`-scope wall; owner action needed or manual merge). Issue #42 Brainstorm Board now unblocked.
 - Issue #110 CLOSED (via #111 merge).
 
 ## IN FLIGHT
-1. **PR #104 (Prism, issue #103) - OPEN, researcher spec phase, NOT ready to merge.** Current head is the research spec (11,637 additions: `prism/docs/research.md`, `algorithmic-spec.md`, `benchmark-methodology.md`, idea + progress entries). Handoff = next `architect`. No in-flight review/fix run; the earlier broken M0 "fix loop" head (`48bc52a`) was superseded by this research-spec rewrite. Mae merges only after Architect -> Builder -> Reviewer approve -> Tester passes Kodak vs JXL ~3.1 bpp.
-2. **Issue #62 (Fix README and website) - re-activated by owner comment at 16:31:10Z.** The Meridian/Obsidian promotion gap is being routed to the Builder (`build`) this run. New branch `opencode/62-*` + PR with `Closes #62` to follow, then normal review/test loop.
+1. **PR #115 (issue #62, Fix README + website) - OPEN, Reviewer running (run #1109, in_progress).** Builder PR (head `812ed29`): Obsidian -> Current in README + index.html (Live now card, Run it / Writeup / Documentation links, meta desc updated); Meridian graduates to top of Previous (newest first) in both; Kestrel, Halcyon, Glyphforge, Beambus follow; GitHub corner link retained. Pure docs/landing update (NOT a new project). Mae merges on Reviewer approve + Tester pass -> close #62.
+2. **PR #104 (Prism, issue #103) - OPEN, researcher spec phase, NOT ready to merge.** Head = research spec (11,637 additions: `prism/docs/research.md`, `algorithmic-spec.md`, `benchmark-methodology.md`, idea + progress entries). Handoff = next `architect`. No in-flight review/fix run; earlier broken M0 "fix loop" head (`48bc52a`) superseded. Mae merges only after Architect -> Builder -> Reviewer approve -> Tester passes Kodak vs JXL ~3.1 bpp.
 
 ## PENDING (in order)
-1. **PR #62 fix -> review -> test -> merge -> close #62.** Builder makes Obsidian Current in README + index.html, graduates Meridian to top of Previous (newest-first), and syncs project ordering across both files.
+1. **PR #115 -> Reviewer (#1109) -> Tester -> Mae merge -> close #62.** Doc/landing sync; no new-project budget consumed.
 2. **#42 Board resume:** #102 is now CLOSED, so the Brainstorm Board is unblocked; pick from parked candidates after Prism clears.
-3. **PR #104 (Prism) -> architect -> build -> review -> test -> merge -> close #103.** Reviewer gates M0 (bit-exact round-trip + corruption-rejection fuzz) before optimization. Tester runs Kodak vs JXL 3.1 bpp. After clear: Mae merges (new-project budget 0/2, room available).
+3. **PR #104 (Prism) -> architect -> build -> review -> test -> merge -> close #103.** Tester runs Kodak vs JXL 3.1 bpp. After clear: Mae merges (new-project budget 0/2, room available).
 4. **`lab.yml` Lab Engineer pin bump (`hy3-free`):** escalate to direct edit only if a needed Lab Engineer run no-ops.
 
 ## ISSUES
-- **#62 (Fix README and website)** - OPEN (re-activated by owner 16:31Z); Builder routed this run.
+- **#62 (Fix README and website)** - OPEN; Builder PR #115 open, under review.
 - **#103 (Prism)** - OPEN; active priority project (research spec in #104).
 - **#112 (automatic PR recovery)** - CLOSED (shipped via merged #114).
 - **#110 (paid model crash)** - CLOSED (resolved by merged #111).
@@ -39,18 +39,19 @@
 
 ## REVIEWER/TESTER/MODEL STATUS
 - `origin/main` = `98d891d`. Today's new-project merges: 0/2 (Prism not yet merged; #109/#111/#114 are infra).
+- PR #115 Reviewer run #1109 in_progress (auto-triggered by owner `/oc review`). Pending run #1110 also queued.
 - Build agent (workflow `model:` input): `opencode/muse-spark-1.2-contributor-free` = FREE (fixed). Standing worker pin `nemotron-3-ultra-free` available as fallback.
 - `lab.yml` Lab Engineer pin: `opencode/hy3-free` (no-op risk; escalate if needed).
 - `maintainer.yml` trigger dispatch FIXED on main (`/oc recover` can post).
 
 ## NEXT STEPS
-1. Issue #62: Builder promotes Obsidian to Current + graduates Meridian to Previous in README + index.html (consistent ordering) -> PR (`Closes #62`) -> Reviewer -> Tester -> Mae merge -> close #62.
+1. PR #115: await Reviewer (#1109) -> Tester -> Mae merge (doc update, no budget cost) -> close #62.
 2. PR #104 (Prism): route `architect` once the researcher spec is approved; then Builder -> Reviewer (M0 gate) -> Tester (Kodak vs JXL) -> Mae merge -> close #103.
 3. #42: resume Brainstorm Board picks after Prism clears.
 4. `lab.yml` Lab Engineer pin still `hy3-free`: bump if a needed `/oc lab` run no-ops.
 
 ## OPEN QUESTIONS
-- Issue #62: will the Builder's PR make README + index.html agree (Obsidian Current, Meridian top Previous, same ordering), pass Reviewer + Tester, Mae merge -> close #62?
+- PR #115: will Reviewer (#1109) approve, Tester pass, Mae merge -> close #62? (Docs/landing sync, not a new project.)
 - PR #104: will Architect -> Builder clear M0, Reviewer approve, Tester pass Kodak vs JXL 3.1 bpp, Mae merge -> close #103?
 - #42: now unblocked by #102 closing; resume candidates after Prism.
 - `lab.yml` Lab Engineer pin still `hy3-free`: bump if a needed `/oc lab` run no-ops.
