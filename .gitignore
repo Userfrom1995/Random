@@ -33,7 +33,7 @@ kestrel/model.json
 # Specstory
 .specstory/
 
-# Lab / agent runtime scratch (per-run only, never commit)
+# Lab / agent runtime scratch written per-run by the protocol; never commit (breaks clean-tree contract)
 .tmp/
 .agent/decision.json
 # Obsidian: Kodak PPMs are downloaded on demand via obsidian/benchmarks/fetch_kodak.sh
