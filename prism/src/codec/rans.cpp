@@ -141,6 +141,284 @@ std::vector<uint8_t> rans_decode_bits(const std::vector<uint8_t>& bytes, size_t 
     return out;
 }
 
+ModelBank ModelBank::create(size_t nctx, size_t rem_bits) {
+    ModelBank mb;
+    mb.sign.assign(nctx, AdaptiveModel{});
+    mb.zero.assign(nctx, AdaptiveModel{});
+    mb.q.assign(nctx, AdaptiveModel{});
+    mb.rem.assign(nctx, std::vector<AdaptiveModel>(rem_bits));
+    mb.k.assign(nctx, 2);
+    return mb;
+}
+
+std::vector<uint16_t> compute_resdiff_context(const std::vector<int32_t>& residuals, uint32_t w, uint32_t h) {
+    size_t n = residuals.size();
+    std::vector<uint16_t> cx(n, 0);
+    for (uint32_t y = 0; y < h; ++y) {
+        for (uint32_t x = 0; x < w; ++x) {
+            size_t idx = (size_t)y * w + x;
+            int32_t Ra = (x > 0) ? residuals[idx - 1] : 0;
+            int32_t Rb = (y > 0) ? residuals[idx - w] : 0;
+            int32_t dx = Ra - Rb;
+            int32_t mag = dx < 0 ? -dx : dx;
+            int ctx = 0;
+            if (mag <= 2) {
+                if (dx > 0) ctx = (int)mag;
+                else ctx = (int)mag + 3;
+            } else {
+                int q = std::min<int>(mag, 127) / 4;
+                if (dx > 0) ctx = 6 + q;
+                else ctx = 12 + q;
+            }
+            // clamp to expected range
+            if (ctx < 0) ctx = 0;
+            if (ctx > 64) ctx = 64;
+            cx[idx] = (uint16_t)ctx;
+        }
+    }
+    return cx;
+}
+
+void rans_encode_residuals(const std::vector<int32_t>& residuals,
+                           const std::vector<uint16_t>& cx_of,
+                           ModelBank& models,
+                           std::vector<uint8_t>& out) {
+    size_t n = residuals.size();
+    if (cx_of.size() != n) throw std::runtime_error("cx size mismatch");
+    if (n == 0) {
+        // Still need to emit the rANS state flush
+        std::vector<uint8_t> buf(32, 0);
+        uint8_t* ptr = buf.data() + buf.size();
+        RansState st; RansEncInit(&st);
+        RansEncFlush(&st, &ptr);
+        out.assign(ptr, buf.data() + buf.size());
+        return;
+    }
+    // First pass: forward collect bins with probs and update models to capture causal state.
+    struct BinProb { uint8_t bit; uint16_t prob; };
+    // For n up to 768*512=393k, bins up to ~ 64 per residual -> ~25M bins. Use vector.
+    std::vector<BinProb> flat;
+    flat.reserve(n * 8);
+    // We need a copy of models to simulate forward updates while capturing probs.
+    ModelBank cur = models;
+    // Also need to capture k per residual before update
+    std::vector<uint8_t> k_before(n);
+    for (size_t i = 0; i < n; ++i) {
+        uint16_t cx = cx_of[i];
+        if (cx >= cur.nctx()) throw std::runtime_error("cx out of range");
+        k_before[i] = cur.k[cx];
+    }
+    // Now iterate forward to push bins and update models
+    for (size_t i = 0; i < n; ++i) {
+        uint16_t cx = cx_of[i];
+        int32_t e = residuals[i];
+        bool sign = e < 0;
+        uint32_t m = sign ? (uint32_t)(-(int64_t)e) : (uint32_t)e;
+        uint8_t k = cur.k[cx];
+        bool isZero = (m == 0);
+        // zero flag first (saves 1 bit for zeros vs sign-first)
+        flat.push_back({isZero ? (uint8_t)0 : 1, cur.zero[cx].prob});
+        cur.zero[cx].update(isZero ? 0 : 1);
+        if (isZero) {
+            int curk = cur.k[cx];
+            if (curk > 0) cur.k[cx] = (uint8_t)((curk * 7) / 8);
+            continue;
+        }
+        // sign only for nonzero
+        flat.push_back({sign ? (uint8_t)1 : 0, cur.sign[cx].prob});
+        cur.sign[cx].update(sign ? 1 : 0);
+        uint32_t q = (k == 0) ? m : (m >> k);
+        uint32_t r = (k == 0) ? 0 : (m & ((1u << k) - 1u));
+        // quotient unary: q zeros then a one
+        for (uint32_t j = 0; j < q; ++j) {
+            flat.push_back({0, cur.q[cx].prob});
+            cur.q[cx].update(0);
+        }
+        flat.push_back({1, cur.q[cx].prob});
+        cur.q[cx].update(1);
+        // remainder bits MSB-first
+        for (int b = (int)k - 1; b >= 0; --b) {
+            uint8_t bit = (r >> b) & 1u;
+            uint16_t prob = cur.rem[cx][b].prob;
+            flat.push_back({bit, prob});
+            cur.rem[cx][b].update(bit);
+        }
+        // update k via EMA
+        int desired = 31 - __builtin_clz(m);
+        int new_k = desired > 0 ? desired - 1 : 0;
+        if (new_k > 16) new_k = 16;
+        int curk = cur.k[cx];
+        int updated = (curk * 3 + new_k + 2) / 4;
+        if (updated < 0) updated = 0;
+        if (updated > 16) updated = 16;
+        cur.k[cx] = (uint8_t)updated;
+    }
+    // models after forward pass is final
+    models = cur;
+    // Second: encode flat in reverse (LIFO)
+    std::vector<uint8_t> buf(flat.size() * 2 + 32, 0);
+    uint8_t* ptr = buf.data() + buf.size();
+    RansState state; RansEncInit(&state);
+    for (size_t i = flat.size(); i-- > 0; ) {
+        put_bin(&state, &ptr, flat[i].bit, flat[i].prob);
+    }
+    RansEncFlush(&state, &ptr);
+    out.assign(ptr, buf.data() + buf.size());
+}
+
+void rans_decode_residuals(const std::vector<uint8_t>& in, size_t n,
+                           const std::vector<uint16_t>& cx_of,
+                           ModelBank& models,
+                           std::vector<int32_t>& out) {
+    if (n == 0) { out.clear(); return; }
+    if (cx_of.size() != n) throw std::runtime_error("cx size mismatch decode");
+    if (in.size() < 4) throw std::runtime_error("rans_decode_residuals: too short");
+    uint8_t* d = const_cast<uint8_t*>(in.data());
+    RansState state; RansDecInit(&state, &d);
+    out.assign(n, 0);
+    for (size_t i = 0; i < n; ++i) {
+        uint16_t cx = cx_of[i];
+        if (cx >= models.nctx()) throw std::runtime_error("cx out of range decode");
+        uint8_t k = models.k[cx];
+        uint8_t nonzero = get_bin(&state, &d, models.zero[cx].prob);
+        models.zero[cx].update(nonzero ? 1 : 0);
+        if (!nonzero) {
+            out[i] = 0;
+            if (models.k[cx] > 0) models.k[cx] = (uint8_t)((models.k[cx] * 7) / 8);
+            continue;
+        }
+        bool sign = get_bin(&state, &d, models.sign[cx].prob) != 0;
+        models.sign[cx].update(sign ? 1 : 0);
+        uint32_t q = 0;
+        while (get_bin(&state, &d, models.q[cx].prob) == 0) {
+            models.q[cx].update(0);
+            ++q;
+            if (q > 100000) throw std::runtime_error("q overflow");
+        }
+        models.q[cx].update(1);
+        uint32_t r = 0;
+        for (int b = (int)k - 1; b >= 0; --b) {
+            uint8_t bit = get_bin(&state, &d, models.rem[cx][b].prob);
+            models.rem[cx][b].update(bit);
+            r = (r << 1) | bit;
+        }
+        uint32_t m;
+        if (k == 0) m = q;
+        else m = (q << k) | r;
+        int32_t e = sign ? -(int32_t)m : (int32_t)m;
+        out[i] = e;
+        int desired = 31 - __builtin_clz(m);
+        int new_k = desired > 0 ? desired - 1 : 0;
+        if (new_k > 16) new_k = 16;
+        int curk = models.k[cx];
+        int updated = (curk * 3 + new_k + 2) / 4;
+        if (updated < 0) updated = 0;
+        if (updated > 16) updated = 16;
+        models.k[cx] = (uint8_t)updated;
+    }
+}
+
+void rans_encode_residuals_auto(const std::vector<int32_t>& residuals, uint32_t w, uint32_t h, ModelBank& models, std::vector<uint8_t>& out) {
+    auto cx = compute_resdiff_context(residuals, w, h);
+    // Ensure model size
+    size_t maxcx = 0;
+    for (auto v : cx) maxcx = std::max<size_t>(maxcx, v);
+    if (models.nctx() <= maxcx) {
+        // Expand if needed (should not happen if caller sized correctly)
+        size_t new_n = maxcx + 1;
+        ModelBank nb = ModelBank::create(new_n, 16);
+        // copy existing
+        for (size_t i = 0; i < models.nctx() && i < new_n; ++i) {
+            nb.sign[i] = models.sign[i];
+            nb.zero[i] = models.zero[i];
+            nb.q[i] = models.q[i];
+            nb.rem[i] = models.rem[i];
+            nb.k[i] = models.k[i];
+        }
+        models = nb;
+    }
+    rans_encode_residuals(residuals, cx, models, out);
+}
+
+void rans_decode_residuals_auto(const std::vector<uint8_t>& in, size_t n, uint32_t w, uint32_t h, ModelBank& models, std::vector<int32_t>& out) {
+    if (n == 0) { out.clear(); return; }
+    if (in.size() < 4) throw std::runtime_error("rans_decode_residuals_auto: too short");
+    uint8_t* d = const_cast<uint8_t*>(in.data());
+    RansState state; RansDecInit(&state, &d);
+    out.assign(n, 0);
+    // Expand models if needed
+    size_t need = 44; // max ctx from compute is <=43
+    if (models.nctx() < need) {
+        ModelBank nb = ModelBank::create(need, 16);
+        for (size_t i = 0; i < models.nctx() && i < need; ++i) {
+            nb.sign[i] = models.sign[i];
+            nb.zero[i] = models.zero[i];
+            nb.q[i] = models.q[i];
+            nb.rem[i] = models.rem[i];
+            nb.k[i] = models.k[i];
+        }
+        models = nb;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        uint32_t x = (uint32_t)(i % w);
+        uint32_t y = (uint32_t)(i / w);
+        int32_t Ra = (x > 0) ? out[i - 1] : 0;
+        int32_t Rb = (y > 0) ? out[i - w] : 0;
+        int32_t dx = Ra - Rb;
+        int32_t mag = dx < 0 ? -dx : dx;
+        int ctx = 0;
+        if (mag <= 2) {
+            if (dx > 0) ctx = (int)mag;
+            else ctx = (int)mag + 3;
+        } else {
+            int q = std::min<int>(mag, 127) / 4;
+            if (dx > 0) ctx = 6 + q;
+            else ctx = 12 + q;
+        }
+        if (ctx < 0) ctx = 0;
+        if (ctx >= (int)models.nctx()) ctx = (int)models.nctx() - 1;
+        uint16_t cx = (uint16_t)ctx;
+        uint8_t k = models.k[cx];
+        uint8_t nonzero = get_bin(&state, &d, models.zero[cx].prob);
+        models.zero[cx].update(nonzero ? 1 : 0);
+        if (!nonzero) {
+            out[i] = 0;
+            if (models.k[cx] > 0) models.k[cx] = (uint8_t)((models.k[cx] * 7) / 8);
+            continue;
+        }
+        bool sign = get_bin(&state, &d, models.sign[cx].prob) != 0;
+        models.sign[cx].update(sign ? 1 : 0);
+        uint32_t q = 0;
+        while (get_bin(&state, &d, models.q[cx].prob) == 0) {
+            models.q[cx].update(0);
+            ++q;
+            if (q > 100000) throw std::runtime_error("q overflow");
+        }
+        models.q[cx].update(1);
+        uint32_t r = 0;
+        for (int b = (int)k - 1; b >= 0; --b) {
+            uint8_t bit = get_bin(&state, &d, models.rem[cx][b].prob);
+            models.rem[cx][b].update(bit);
+            r = (r << 1) | bit;
+        }
+        uint32_t m;
+        if (k == 0) m = q;
+        else m = (q << k) | r;
+        int32_t e = sign ? -(int32_t)m : (int32_t)m;
+        out[i] = e;
+        {
+            int desired = 31 - __builtin_clz(m);
+            int new_k = desired > 0 ? desired - 1 : 0;
+            if (new_k > 16) new_k = 16;
+            int curk = models.k[cx];
+            int updated = (curk * 3 + new_k + 2) / 4;
+            if (updated < 0) updated = 0;
+            if (updated > 16) updated = 16;
+            models.k[cx] = (uint8_t)updated;
+        }
+    }
+}
+
 std::vector<uint8_t> rans_encode_plane(const std::vector<int32_t>& residuals, int /*num_contexts*/) {
     std::vector<uint8_t> buf(residuals.size() * 64 + 32, 0);
     uint8_t* ptr = buf.data() + buf.size();

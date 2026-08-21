@@ -138,7 +138,13 @@ ColorChoice choose_color_transform(const Raster& r) {
     };
     uint64_t c_none = cost_of(ColorTransform::None);
     uint64_t c_ycocg = cost_of(ColorTransform::YCoCgR);
-    cc.id = (c_ycocg < c_none) ? ColorTransform::YCoCgR : ColorTransform::None;
+    uint64_t c_sg = cost_of(ColorTransform::SubtractGreen);
+    uint64_t c_ycocg_sg = cost_of(ColorTransform::YCoCgR_SubGreen);
+    uint64_t best = c_none;
+    cc.id = ColorTransform::None;
+    if (c_ycocg < best) { best = c_ycocg; cc.id = ColorTransform::YCoCgR; }
+    if (c_sg < best) { best = c_sg; cc.id = ColorTransform::SubtractGreen; }
+    if (c_ycocg_sg < best) { best = c_ycocg_sg; cc.id = ColorTransform::YCoCgR_SubGreen; }
     return cc;
 }
 

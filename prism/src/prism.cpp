@@ -44,16 +44,22 @@ std::vector<uint8_t> encode(const Raster& raster, const EncodeOpts& opts) {
     c.global_pred_id = ar.global_pred_id;
     c.per_leaf_pred = ar.per_leaf_pred;
 
-    // For each plane, compute residuals and encode
+    // For each plane, compute residuals and encode (B5: ResDiff causal context + Rice)
     c.band_payloads.clear();
-    PredId pred = static_cast<PredId>(c.global_pred_id);
-    if ((uint8_t)pred > 8) pred = PredId::MED;
-    uint16_t bd_max = (bd==8)?255:65535;
-    (void)bd_max;
     for (size_t pi=0; pi< transformed.planes.size(); ++pi) {
         const auto& plane = transformed.planes[pi];
+        PredId pred;
+        if (c.predictor_mode == 1 && pi < c.per_leaf_pred.size()) {
+            pred = static_cast<PredId>(c.per_leaf_pred[pi]);
+            if ((uint8_t)pred > 8) pred = PredId::MED;
+        } else {
+            pred = static_cast<PredId>(c.global_pred_id);
+            if ((uint8_t)pred > 8) pred = PredId::MED;
+        }
         auto residuals = compute_residuals(plane, transformed.w, transformed.h, pred);
-        auto bytes = rans_encode_plane(residuals, 1);
+        ModelBank mb = ModelBank::create(44, 16);
+        std::vector<uint8_t> bytes;
+        rans_encode_residuals_auto(residuals, transformed.w, transformed.h, mb, bytes);
         c.band_payloads.push_back(std::move(bytes));
     }
 
@@ -92,21 +98,30 @@ Raster decode(const uint8_t* data, size_t len) {
     // Reconstruct planes
     uint32_t w = c.hdr.width, h = c.hdr.height;
     uint8_t bd = c.hdr.bit_depth;
-    uint16_t bd_max = (bd==8)?255:65535;
     PredId pred = static_cast<PredId>(c.global_pred_id);
     if ((uint8_t)pred > 8) pred = PredId::MED;
     Raster out(w,h, static_cast<Channels>(c.hdr.num_channels), bd==16?BitDepth::BD16:BitDepth::BD8);
     if (payloads.size() != expected) {
-        // Bands must exactly match the count derived from squeeze_levels; a
-        // mismatch means reconstruction would silently drop (or invent) bands.
         throw DecodeError("band count mismatch");
     }
+    // For color-transformed rasters, intermediates may exceed 8-bit range (YCoCg-R bias 512)
+    uint16_t plane_bd_max = (c.hdr.color_transform_id != 0) ? 65535 : (bd==8? (uint16_t)255 : (uint16_t)65535);
     for (size_t pi=0; pi< out.planes.size(); ++pi) {
         const auto& b = payloads[pi];
         size_t n = (size_t)w * h;
-        auto residuals = rans_decode_plane(b, n, 1);
+        ModelBank mb = ModelBank::create(44, 16);
+        std::vector<int32_t> residuals;
+        rans_decode_residuals_auto(b, n, w, h, mb, residuals);
         if (residuals.size() != n) throw DecodeError("residual count mismatch");
-        auto plane = reconstruct_plane(residuals, w, h, pred, bd_max);
+        PredId pred;
+        if (c.predictor_mode == 1 && pi < c.per_leaf_pred.size()) {
+            pred = static_cast<PredId>(c.per_leaf_pred[pi]);
+            if ((uint8_t)pred > 8) pred = PredId::MED;
+        } else {
+            pred = static_cast<PredId>(c.global_pred_id);
+            if ((uint8_t)pred > 8) pred = PredId::MED;
+        }
+        auto plane = reconstruct_plane(residuals, w, h, pred, plane_bd_max);
         out.planes[pi] = std::move(plane);
     }
     // Invert color
