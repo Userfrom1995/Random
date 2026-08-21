@@ -36,4 +36,5 @@ kestrel/model.json
 # Lab / agent runtime scratch (per-run only, never commit)
 .tmp/
 .agent/decision.json
+# Obsidian: Kodak PPMs are downloaded on demand via obsidian/benchmarks/fetch_kodak.sh
 obsidian/benchmarks/data/kodak/
