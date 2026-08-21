@@ -1,7 +1,8 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-21 (maintainer run 32438214596, owner `/oc maintainer`
-  on PR #93). PR #93 is permanently CLOSED and unreopenable (head commit
+- **Updated:** 2026-08-21 (maintainer run 32438680036, `/oc maintainer` on
+  PR #99). PR #99 MERGED into `main` (`5a92107b`) via rebase; issue #98
+  CLOSED. PR #93 remains permanently CLOSED and unreopenable (head commit
   gc'd); branch preserved at `d6fbd1cd` with the finished Obsidian codec.
   Standing owner pivot (2026-08-20) REMAINS law where not overridden.
 
@@ -24,10 +25,11 @@
 
 ## CRITICAL INFRASTRUCTURE STATE
 
-- **`main` = `0d0d75fa` = a SINGLE ROOT COMMIT.** The lab spine was rewritten
-  (circuit-breaker PR #97 path), so EVERY feature branch is now an ORPHAN with
-  no common ancestor to `main`. `git merge-base origin/main <branch>` is EMPTY
-  for `opencode/issue68-20260818070512` (verified: exit 1).
+- **`main` = `5a92107b`** (was `0d0d75fa`); advanced by the PR #99 merge
+  (rebase). The lab spine was rewritten (circuit-breaker PR #97 path), so
+  EVERY feature branch is still an ORPHAN with no common ancestor to `main`,
+  EXCEPT PR #99's branch `opencode/lab-98-runaway-fix-retry` which DID share
+  `0d0d75fa` and merged cleanly.
 - **PR #93 is UNREOPENABLE.** Its recorded head `e184c3c` no longer exists in
   the repo (gc'd after the branch advanced to `d6fbd1cd`); `gh pr reopen`
   returns "Could not open the pull request." A merge therefore requires a
@@ -38,6 +40,10 @@
   experimental predictors gated OFF. 152 lib tests pass.
 - **MODEL PINS:** worker workflows `opencode/nemotron-3-ultra-free`.
   `opencode.json` on main still `hy3-free`/`mimo-v2.5-free` (free).
+- **RUNNAWAY-LOOP GUARD SHIPPED (PR #99, closes #98):** `opencode.yml` now
+  refuses to auto-retry `/oc fix` against a non-OPEN PR or a bare issue, and
+  the retry counter no longer falls back to a phantom `0`. The #98 CI-burn
+  root cause is eliminated at the source.
 
 ## PRIORITY PROJECT (Obsidian, PR #93) - ARCHIVED ON BRANCH
 
@@ -51,9 +57,7 @@
 
 ## IN FLIGHT
 
-- None of mine. The owner's 2026-08-21 re-drive (fix/review/maintainer) is
-  concluded: fixer no-op'd (no findings), reviewer refused (PR closed),
-  maintainer (this run) documents the unreopenable/orphan disposition.
+- None of mine. PR #99 (lab guard) is MERGED this run; issue #98 CLOSED.
 - builder.md resume-re-task fix: DEFERRED until the #93 situation settles.
 
 ## PENDING (in order)
@@ -71,6 +75,7 @@
 
 - **#68 (Obsidian umbrella)** - OPEN, stays open until the new JXL-class
   project beats codecs (per pivot + standing directive).
+- **#98 (Runaway /oc fix loop)** - CLOSED (PR #99 merged, guard shipped).
 - **#96 (Circuit breaker)** - CLOSED (PR #97 merged).
 - **#94 (Detect silent no-op builds)** - CLOSED (PR #95 merged).
 - **#70 (Lab Health)** - Auditor owns daily summary.
@@ -79,11 +84,10 @@
 ## REVIEWER/TESTER/MODEL STATUS
 
 - Model config: worker workflows `opencode/nemotron-3-ultra-free`;
-  `opencode.json` `hy3-free`/`mimo-v2.5-free`. `origin/main` = `0d0d75fa`
-  (single root commit).
-- pages.yml: will re-deploy on next main advance (none this run).
-- PR #93: CLOSED + unreopenable; standing Reviewer+Tester-before-merge
-  requirement applies only once a fresh PR is opened by the owner.
+  `opencode.json` `hy3-free`/`mimo-v2.5-free`. `origin/main` = `5a92107b`.
+- pages.yml: triggers only on `pull_request`/`workflow_dispatch`, not push to
+  main; no site-content change in PR #99, so no deploy required this run.
+- PR #99 MERGED and #98 CLOSED. No open PRs require my merge.
 - No open PRs require my merge this run.
 
 ## NEXT STEPS
@@ -95,15 +99,18 @@
    `.github/agents/builder.md` (resume re-task on newest directive).
 3. Stand up NEW JXL project on its own issue/branch once an issue exists
    (owner opens, or future `ideate`); route research -> architect -> build.
+4. Monitor next lab runs for any stray `/oc fix` on an issue/closed PR to
+   confirm the #99 guard holds.
 
 ## OPEN QUESTIONS
 
 - **PR #93 land vs archive:** owner closed it (wind-down) but the pivot said
   "Test + Review + merge." Since #93 is unreopenable and I cannot create PRs,
   the decision is the owner's: open a fresh PR to merge, or leave archived on
-  the branch. Communicated via comment.md on PR #93 this run.
-- **Single-commit `main`:** the lab spine is one root commit; all branches are
-  orphans. Merges will be merge-commits (rebase impossible). Intentional
+  the branch. Communicated earlier via comment.md on PR #93.
+- **Single-commit `main`:** the lab spine is one root commit (now with PR #99
+  merged on top as `5a92107b`); all non-#99 branches remain orphans. Merges
+  of those will be merge-commits (rebase impossible). Intentional
   (circuit-breaker) or worth a `lab` audit? Flagged; not yet escalated.
 - **builder.md lab (DEFERRED):** re-engage after #93 settles; patch ONLY
   `.github/agents/builder.md`.
