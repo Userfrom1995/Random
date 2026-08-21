@@ -6,6 +6,7 @@
 #include "prism/codec/container.h"
 #include "prism/codec/analyze.h"
 #include "prism/codec/matree.h"
+#include "prism/codec/squeeze.h"
 #include <fstream>
 #include <stdexcept>
 
@@ -44,10 +45,12 @@ std::vector<uint8_t> encode(const Raster& raster, const EncodeOpts& opts) {
     c.global_pred_id = ar.global_pred_id;
     c.per_leaf_pred = ar.per_leaf_pred;
 
-    // For each plane, compute residuals and encode (B5: ResDiff causal context + Rice)
+    // For each plane, apply Squeeze then encode each band (B7)
     c.band_payloads.clear();
     for (size_t pi=0; pi< transformed.planes.size(); ++pi) {
-        const auto& plane = transformed.planes[pi];
+        uint8_t levels = (pi < ar.squeeze_levels.size()) ? ar.squeeze_levels[pi] : 0;
+        SqueezeResult sr = squeeze_encode_plane(transformed.planes[pi], transformed.w, transformed.h, levels, bd);
+        // choose predictor per plane (for all bands of that plane)
         PredId pred;
         if (c.predictor_mode == 1 && pi < c.per_leaf_pred.size()) {
             pred = static_cast<PredId>(c.per_leaf_pred[pi]);
@@ -56,11 +59,16 @@ std::vector<uint8_t> encode(const Raster& raster, const EncodeOpts& opts) {
             pred = static_cast<PredId>(c.global_pred_id);
             if ((uint8_t)pred > 8) pred = PredId::MED;
         }
-        auto residuals = compute_residuals(plane, transformed.w, transformed.h, pred);
-        ModelBank mb = ModelBank::create(44, 16);
-        std::vector<uint8_t> bytes;
-        rans_encode_residuals_auto(residuals, transformed.w, transformed.h, mb, bytes);
-        c.band_payloads.push_back(std::move(bytes));
+        for (auto &band : sr.bands) {
+            // For HF bands, the band data contains signed wraps; but predictor expects uint16_t plane.
+            // Compute residuals on the band's raw uint16 data (which for HF is wrapped signed).
+            // For LL, this is normal.
+            auto residuals = compute_residuals(band.data, band.w, band.h, pred);
+            ModelBank mb = ModelBank::create(44, 16);
+            std::vector<uint8_t> bytes;
+            rans_encode_residuals_auto(residuals, band.w, band.h, mb, bytes);
+            c.band_payloads.push_back(std::move(bytes));
+        }
     }
 
     return container_encode(transformed, c);
@@ -95,33 +103,75 @@ Raster decode(const uint8_t* data, size_t len) {
         pos+=blen;
     }
     if (pos != len - 4) throw DecodeError("extra bytes after payload");
-    // Reconstruct planes
+    // Reconstruct planes (with Squeeze)
     uint32_t w = c.hdr.width, h = c.hdr.height;
     uint8_t bd = c.hdr.bit_depth;
-    PredId pred = static_cast<PredId>(c.global_pred_id);
-    if ((uint8_t)pred > 8) pred = PredId::MED;
     Raster out(w,h, static_cast<Channels>(c.hdr.num_channels), bd==16?BitDepth::BD16:BitDepth::BD8);
     if (payloads.size() != expected) {
         throw DecodeError("band count mismatch");
     }
-    // For color-transformed rasters, intermediates may exceed 8-bit range (YCoCg-R bias 512)
     uint16_t plane_bd_max = (c.hdr.color_transform_id != 0) ? 65535 : (bd==8? (uint16_t)255 : (uint16_t)65535);
+    size_t payload_idx = 0;
     for (size_t pi=0; pi< out.planes.size(); ++pi) {
-        const auto& b = payloads[pi];
-        size_t n = (size_t)w * h;
-        ModelBank mb = ModelBank::create(44, 16);
-        std::vector<int32_t> residuals;
-        rans_decode_residuals_auto(b, n, w, h, mb, residuals);
-        if (residuals.size() != n) throw DecodeError("residual count mismatch");
-        PredId pred;
-        if (c.predictor_mode == 1 && pi < c.per_leaf_pred.size()) {
-            pred = static_cast<PredId>(c.per_leaf_pred[pi]);
-            if ((uint8_t)pred > 8) pred = PredId::MED;
-        } else {
-            pred = static_cast<PredId>(c.global_pred_id);
-            if ((uint8_t)pred > 8) pred = PredId::MED;
+        uint8_t levels = (pi < c.hdr.squeeze_levels.size()) ? c.hdr.squeeze_levels[pi] : 0;
+        size_t band_count = 1 + 3u * levels;
+        // compute band dimensions in post-order
+        std::vector<std::pair<uint32_t,uint32_t>> band_dims;
+        band_dims.reserve(band_count);
+        // Reproduce same as squeeze_encode: w2 chain
+        uint32_t cur_w=w, cur_h=h;
+        std::vector<std::pair<uint32_t,uint32_t>> lvl_dims;
+        for(uint8_t l=0;l<levels;++l){
+            if(cur_w%2!=0||cur_h%2!=0) break;
+            cur_w/=2; cur_h/=2;
+            lvl_dims.emplace_back(cur_w,cur_h);
         }
-        auto plane = reconstruct_plane(residuals, w, h, pred, plane_bd_max);
+        // actual levels after odd check
+        uint8_t actual_levels = (uint8_t)lvl_dims.size();
+        if(actual_levels!=levels){
+            // fallback: levels mismatch due to odd, adjust band_count
+            band_count = 1 + 3u*actual_levels;
+            levels = actual_levels;
+        }
+        // band_dims post-order: first LL deepest
+        if(!lvl_dims.empty()){
+            band_dims.push_back(lvl_dims.back());
+            for(int i=(int)lvl_dims.size()-1;i>=0;--i){
+                band_dims.push_back(lvl_dims[i]);
+                band_dims.push_back(lvl_dims[i]);
+                band_dims.push_back(lvl_dims[i]);
+            }
+        } else {
+            band_dims.emplace_back(w,h);
+        }
+        if(band_dims.size()!=band_count) throw DecodeError("band dims mismatch");
+        // decode each band's residuals
+        SqueezeResult sr; sr.levels = levels;
+        sr.bands.reserve(band_count);
+        for(size_t bi=0; bi<band_count; ++bi){
+            if(payload_idx >= payloads.size()) throw DecodeError("payload underflow");
+            auto &pb = payloads[payload_idx++];
+            uint32_t bw = band_dims[bi].first;
+            uint32_t bh = band_dims[bi].second;
+            size_t n = (size_t)bw * bh;
+            ModelBank mb = ModelBank::create(44, 16);
+            std::vector<int32_t> residuals;
+            rans_decode_residuals_auto(pb, n, bw, bh, mb, residuals);
+            if(residuals.size()!=n) throw DecodeError("residual count mismatch band");
+            PredId pred;
+            if (c.predictor_mode == 1 && pi < c.per_leaf_pred.size()) {
+                pred = static_cast<PredId>(c.per_leaf_pred[pi]);
+                if ((uint8_t)pred > 8) pred = PredId::MED;
+            } else {
+                pred = static_cast<PredId>(c.global_pred_id);
+                if ((uint8_t)pred > 8) pred = PredId::MED;
+            }
+            auto band_plane = reconstruct_plane(residuals, bw, bh, pred, plane_bd_max);
+            SqueezeResult::Band b; b.w=bw; b.h=bh; b.data=std::move(band_plane);
+            b.band_class = (bi==0?0: (uint8_t)(1 + (bi-1)%3));
+            sr.bands.push_back(std::move(b));
+        }
+        auto plane = squeeze_decode_plane(sr, w, h);
         out.planes[pi] = std::move(plane);
     }
     // Invert color

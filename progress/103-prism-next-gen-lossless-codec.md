@@ -74,7 +74,8 @@ merge until M0+M1+M2+M3 are met bit-exactly on real Kodak.
 **B5-B10 progress (Builder, 2026-08-21, on branch opencode/issue103-20260821075928):**
 - B5: Implemented `AdaptiveModel` + `ModelBank` (per-leaf sign/zero/q/rem + k EMA, 44 ResDiff contexts) and `rans_encode/decode_residuals_auto` (LIFO-safe via forward flat collection, Rice q/r with k adaptation, zero-first saves 1 bit per zero). Integrated into `prism.cpp` (encode/decode use `ModelBank::create(44,16)` + `compute_resdiff_context`). Fixed `plane_bd_max` clamp bug for YCoCg-R bias 512 (use 65535). Enabled color selection among 4 transforms (None/YCoCgR/SubtractGreen/YCoCgR_SubGreen) and per-plane predictor selection (P0..P8, global or per-leaf mode 1). Verified 23/23 gtest PASS, `prism fuzz --iters 1000` PASS, exhaustive small roundtrip PASS.
 - B10: Provisioned real Kodak dataset to `prism/benchmarks/data/kodak/` (24 PPM, 768x512 or 512x768, canonical via `frontend::decode_to_raster` + `write_ppm`), pinned SHA256 in `kodak.sha256`, and generated `prism/benchmarks/results/2026-08-21-prism-e0.csv` via `prism enc/dec` + `cmp` byte-exact check. Mean bpp on real Kodak (effort 0): **11.523 summed (3.841 per sample)** over 24 images (old M0 was 17.06 summed, prior B5 intermediate was 15.04 summed). This beats **PNG 13.05** (M1 first gate MET) but not yet **WebP 9.61** (need <9.61 to fully meet M1). Full WebP/JPEG-XL targets require M3 Squeeze+MA-tree coupling (the inertness guard) and further tuning.
-- Next: Tune Rice/adaptive initialization and weighted predictor to close the remaining 17% to WebP, then land B7 Squeeze+MA-tree for M3 <8.71.
+- B5.5 (Builder, 2026-08-21, this run): Fixed `run_kodak.sh` bpp calculation (was `255**3` exponent bug via empty `$h`, now python header parsing, correct summed=`8*bytes/(w*h)`), added fidelity `cmp` via python pixel-byte strip, fixed `w/h` for 512x768 rotations, added `bench_gate.sh` for milestone gates. Improved `PredId::WEIGHTED` to gradient-tilted 75/25 blend (still MED wins on Kodak per sum-abs sweep). Implemented `squeeze.cpp` reversible Haar CDC with bias-32768 HF storage, integrated into `prism.cpp` with post-order band handling and Squeeze-aware `prism.cpp` decode (payload grouping, band-dims reconstruction), but `analyze.cpp` keeps `squeeze_levels=0` until MA-tree `llc_class`/`sibling_class` coupling lands (prototype showed +11% size when enabled alone, confirming the R11-A inertness guard). Verified 23/23 gtest PASS, `prism fuzz --iters 500` PASS, Kodak mean still 11.523 summed (PNG PASS, WebP FAIL). Scaffold ready for B7.
+- Next: B6 (CFL + 5/3 + int32 widening) then B7 Squeeze+MA-tree with mandatory `llc_class`/`sibling_class` (Section 4) to close 17% to WebP and push to <8.71 JXL.
 
 ## Architectural build checklist
 
@@ -83,12 +84,12 @@ merge until M0+M1+M2+M3 are met bit-exactly on real Kodak.
 - [x] B2 Color + MED predict (Stage C/P): YCoCg-R now reversible + MED + single global context. YCoCg-R is gated to None at M0 (analyze.cpp) and full-range 16-bit needs widened storage (M2); the transform itself is verified lossless on a dense 8-bit lattice and the BD16 test range.
 - [x] B3 Container (Stage H): exact header/model/payload/footer + CRC32 gates.
 - [x] B4 Fuzz gate (M0 BLOCKER): fuzz_gate round-trip + corruption rejection - PASS (23 tests, 1000 iters fuzz).
-- [~] B5 Predictor bank + residual-DIFF context (M1: < PNG 13.05, < WebP 9.61) - see `architecture-m1-m4.md` Section 2. **IN PROGRESS: 11.523 summed beats PNG but not WebP; Rice+ResDiff+color+per-plane pred landed, further tuning + weighted LS needed for <9.61.**
+- [~] B5 Predictor bank + residual-DIFF context (M1: < PNG 13.05, < WebP 9.61) - see `architecture-m1-m4.md` Section 2. **IN PROGRESS: 11.523 summed beats PNG but not WebP; Rice+ResDiff+color+per-plane pred landed, further tuning + weighted LS needed for <9.61. This run added weighted 75/25 blend and verified MED still wins (sum-abs sweep).**
 - [ ] B6 CFL + 5/3 lifting + 16-bit widening (M2: < JPEG-LS 9.71) - Section 3.
-- [ ] B7 Squeeze + MA-tree coupled (M3: < JPEG XL 8.71; llc_class + sibling_class mandatory) - Section 4.
+- [~] B7 Squeeze + MA-tree coupled (M3: < JPEG XL 8.71; llc_class + sibling_class mandatory) - Section 4. **SCAFFOLD: reversible Haar Squeeze + post-order + container integration landed; kept disabled (levels=0) until MA-tree coupling arrives (standalone +11% size, R11-A verified).**
 - [ ] B8 CM + LZP high-effort (M4 stretch: < 8.0, never-expand net) - Section 5.
 - [ ] B9 Front-end completeness: WebP/TIFF decoders + ICC linearization.
-- [x] B10 Real Kodak harness: provision + pin dataset, wire `cmp` + real CSV + `bench_gate.sh` (M3 merge precondition) - Section 6. **DONE: 24 PPM provisioned, SHA256 pinned, 2026-08-21-prism-e0.csv byte-exact.**
+- [x] B10 Real Kodak harness: provision + pin dataset, wire `cmp` + real CSV + `bench_gate.sh` (M3 merge precondition) - Section 6. **DONE: 24 PPM provisioned, SHA256 pinned, 2026-08-21-prism-e0.csv byte-exact; this run fixed bpp calc (255**3 bug), added pixel-byte fidelity cmp, and added bench_gate.sh.**
 
 ## Build log (Builder, 2026-08-21)
 

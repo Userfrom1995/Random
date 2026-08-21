@@ -189,3 +189,15 @@ Owner override preserved: no merge of M1-M4 until M0+M1+M2+M3 are met
 bit-exactly on real Kodak.
 
 - the Architect
+
+---
+
+# M1 iteration (Builder, 2026-08-21) - B5 + B10 + B7 scaffold
+
+B5 delivered the ResDiff causal ModelBank (44 contexts, per-leaf sign/zero/q/rem + k EMA, LIFO-safe via forward flat collection, zero-first coding). Along with 4-way color selection and per-plane predictor selection, it moves Kodak from 17.06 summed (M0) to **11.523 summed (3.841 per sample)** - PNG gate (13.05) met, WebP gate (9.61) still needs 17% more. The remaining gap is the expected Squeeze+MA-tree coupling (R11-A).
+
+This run fixed the `run_kodak.sh` bpp bug (`w=255 h=` left `255**3` exponent via empty var), corrected the script to parse PPM headers via python, fixed w/h for 512x768 rotations, added byte-exact pixel cmp fidelity gate, and added `bench_gate.sh`. The weighted predictor was improved to a 75/25 gradient-tilted blend, but a sum-abs sweep on kodim01 shows MED (3.39M) still beats GAP (3.51M) and weighted (4.15M), so MED remains the per-plane winner - weighted LS needs a quantized global weight search to beat MED, not just a tilt.
+
+A reversible Haar Squeeze was implemented (`squeeze.cpp`: separable Haar with bias-32768 HF storage, post-order emit, bottom-up decode) and wired through `prism.cpp` with Squeeze-aware payload grouping and band-dims reconstruction. A prototype with `levels=1` on Kodak showed **+11% size (12.84 summed vs 11.52)**, directly confirming the architecture's R11-A inertness guard: Squeeze without the MA-tree `llc_class`/`sibling_class` context is not just inert but actively harmful. The codec therefore keeps `squeeze_levels=0` until B7 lands the coupled MA-tree. The scaffold is ready; B6 (CFL+5/3+int32 widening) and B7 (Squeeze+MA-tree with mandatory llc/sibling) are next.
+
+- the Builder

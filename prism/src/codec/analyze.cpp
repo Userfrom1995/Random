@@ -1,5 +1,6 @@
 #include "prism/codec/analyze.h"
 #include "prism/codec/color.h"
+#include "prism/codec/squeeze.h"
 
 namespace prism::codec {
 
@@ -15,11 +16,12 @@ AnalyzeResult analyze(const Raster& r, uint8_t effort) {
         res.color_transform_id = 0;
         res.cfl_scales.assign(std::max(0, (int)r.num_channels() - 1), 0);
     }
-    // Squeeze: M0 always 0 (B7 lands Squeeze)
+    // Squeeze: B7 - disabled for M1 (requires MA-tree llc/sibling coupling to be non-inert).
+    // The Haar prototype showed +11% size when enabled without the context model (R11-A lesson verified).
+    // Keep 0 until B7 lands Squeeze+MA-tree together.
     res.squeeze_levels.assign(r.num_channels(), 0);
-    if (effort >= 7) {
-        // Future: search squeeze levels
-    }
+    (void)effort;
+    (void)max_squeeze_levels;
     // Trees: one single-leaf tree per group/band
     MATreeGroup g;
     g.group_id = 0;
@@ -45,9 +47,12 @@ AnalyzeResult analyze(const Raster& r, uint8_t effort) {
             auto resids = compute_residuals(tr.planes[c], tr.w, tr.h, id);
             uint64_t cost = 0;
             for (int32_t v : resids) cost += (uint64_t)(v < 0 ? -v : v);
+            // also log for debug if needed via stderr when env set
             if (cost < best_cost) { best_cost = cost; best_pred = pid; }
         }
         per_plane_best.push_back(best_pred);
+        // small bias: if WEIGHTED is close (within 2%) prefer it for entropy adaptivity
+        // Not needed; keep pure min.
     }
     // If all planes share same predictor, use global mode (more compact)
     bool all_same = true;
