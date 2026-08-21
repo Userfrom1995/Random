@@ -32,3 +32,8 @@ kestrel/model.json
 
 # Specstory
 .specstory/
+
+# Lab / agent runtime scratch (per-run only, never commit)
+.tmp/
+.agent/decision.json
+obsidian/benchmarks/data/kodak/
