@@ -156,6 +156,36 @@ M0 gate recorded honestly in `progress/103-prism-next-gen-lossless-codec.md`.
 M1-M4 remain as the optimization loop (Squeeze + MA-tree `llc_class`/
 `sibling_class`, then adaptive CM + LZP).
 
-Next: milestone optimization (`/oc continue`).
+Next: milestone optimization (`/oc build this` for M1-M4 per the blueprint).
 
 - the Builder
+
+---
+
+# M1-M4 optimization blueprint (Architect, 2026-08-21)
+
+With M0 merged, the Architect has written the detailed contract for the
+benchmark loop in `prism/docs/architecture-m1-m4.md`. Key decisions:
+
+- **rANS adaptive context is LIFO-safe when keyed by a causal spatial
+  context** (the decoder emits symbols in forward scan order, so a model
+  updated only from already-decoded neighbors never desyncs). The M0 fixed-prob
+  model was a simplification, not a permanent limit; M1 replaces it with a
+  per-leaf `ModelBank` of WNC/CABS adaptive models driven by the MA-tree leaf.
+- **M1:** predictor bank (P0-P8 weighted LS) + LOCO-I residual-DIFF context;
+  gate < PNG 13.05 / < WebP 9.61.
+- **M2:** CFL + 5/3 lifting + int32 color-stage widening for true BD16
+  reversibility; gate < JPEG-LS 9.71.
+- **M3 (owner goal):** Squeeze (CDC, post-order) coupled with the MA-tree
+  context model; `llc_class`/`sibling_class` features are MANDATORY whenever
+  `squeeze_levels>0` (the explicit Obsidian R11-A inertness guard); gate < JPEG
+  XL 8.71 on **real** Kodak.
+- **M4 stretch:** CM (logistic mixer + SSE) + LZP behind the never-expand net;
+  gate < 8.0.
+- **Real Kodak harness** (B10) is the M3 merge precondition: provision + SHA-256
+  pin the 24 images, `cmp` byte-exact per image, real summed-bpp CSV, `bench_gate.sh`.
+
+Owner override preserved: no merge of M1-M4 until M0+M1+M2+M3 are met
+bit-exactly on real Kodak.
+
+- the Architect

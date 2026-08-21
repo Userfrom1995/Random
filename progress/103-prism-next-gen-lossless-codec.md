@@ -54,15 +54,22 @@ made gates unmeasurable for many iterations).
 
 ## Current step
 
-M0 COMPLETE and verified 2026-08-21: 23/23 gtest PASS, `prism fuzz --iters 1000` PASS,
-corruption-rejection PASS, PPM end-to-end byte-exact, frontend PNG/JPEG/BMP/PPM/raw
-via `decode_to_raster`. Container is exactly `PRSM` LE header + bit-packed model
-blob (`crc32_model`) + post-order payload + `crc32_all` footer per
-`prism/docs/architecture.md` Section 3. Handing to Reviewer (`/oc review`).
-M1-M4 (B5-B9) are the benchmark-driven optimization loop - Squeeze + MA-tree
-coupling with `llc_class`/`sibling_class` to beat JXL 8.71 - tracked as follow-up
-iterations after this M0 gate (Owner override: no final merge until M3 is met on
-real Kodak; this PR proves the invariant and the harness).
+M0 COMPLETE and merged (PR #104, 2026-08-21): 23/23 gtest PASS, `prism fuzz`
+PASS, corruption-rejection PASS, PPM end-to-end byte-exact. Container is exactly
+`PRSM` LE header + bit-packed model blob (`crc32_model`) + post-order payload +
+`crc32_all` footer. The entropy coder is a true 32-bit rANS with a FIXED per-bin
+model (LIFO-safe); adaptive causal context modeling is the M1 deliverable.
+
+The detailed M1-M4 optimization contract is now written to
+`prism/docs/architecture-m1-m4.md` (Architect, 2026-08-21): it resolves the
+rANS/adaptive-context LIFO question (causal spatial contexts are LIFO-safe),
+specifies the predictor bank + residual-DIFF (M1), CFL + 5/3 + 16-bit widening
+(M2), Squeeze + MA-tree coupling with mandatory `llc_class`/`sibling_class`
+(M3), CM + LZP (M4), and the real-Kodak harness wiring. M1-M4 are the
+benchmark-driven optimization loop tracked as follow-up iterations. Next step:
+Builder implements B5-B10 per `architecture-m1-m4.md`, gated on M1 (< PNG/WebP)
+then M2 (< JPEG-LS) then M3 (< JPEG XL 8.71 on real Kodak). Owner override: no
+merge until M0+M1+M2+M3 are met bit-exactly on real Kodak.
 
 ## Architectural build checklist
 
@@ -71,11 +78,12 @@ real Kodak; this PR proves the invariant and the harness).
 - [x] B2 Color + MED predict (Stage C/P): YCoCg-R now reversible + MED + single global context. YCoCg-R is gated to None at M0 (analyze.cpp) and full-range 16-bit needs widened storage (M2); the transform itself is verified lossless on a dense 8-bit lattice and the BD16 test range.
 - [x] B3 Container (Stage H): exact header/model/payload/footer + CRC32 gates.
 - [x] B4 Fuzz gate (M0 BLOCKER): fuzz_gate round-trip + corruption rejection - PASS (23 tests, 1000 iters fuzz).
-- [ ] B5 Predictor bank + residual-DIFF context (M1: < PNG 13.05, < WebP 9.61).
-- [ ] B6 CFL + 5/3 lifting (M2: < JPEG-LS 9.71).
-- [ ] B7 Squeeze + MA-tree coupled (M3: < JPEG XL 8.71; llc_class + sibling_class).
-- [ ] B8 CM + LZP high-effort (M4 stretch: < 8.0, never-expand net).
+- [ ] B5 Predictor bank + residual-DIFF context (M1: < PNG 13.05, < WebP 9.61) - see `architecture-m1-m4.md` Section 2.
+- [ ] B6 CFL + 5/3 lifting + 16-bit widening (M2: < JPEG-LS 9.71) - Section 3.
+- [ ] B7 Squeeze + MA-tree coupled (M3: < JPEG XL 8.71; llc_class + sibling_class mandatory) - Section 4.
+- [ ] B8 CM + LZP high-effort (M4 stretch: < 8.0, never-expand net) - Section 5.
 - [ ] B9 Front-end completeness: WebP/TIFF decoders + ICC linearization.
+- [ ] B10 Real Kodak harness: provision + pin dataset, wire `cmp` + real CSV + `bench_gate.sh` (M3 merge precondition) - Section 6.
 
 ## Build log (Builder, 2026-08-21)
 
