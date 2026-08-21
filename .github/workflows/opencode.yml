@@ -722,6 +722,64 @@ jobs:
           if [ -n "$dirty" ]; then echo "dirty after clean:"; echo "$dirty"; fi
           exit 0
 
+      - name: Route lab decision (machine handoff)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          issue="${{ github.event.issue.number }}"
+          # Locate the lab PR this run created (branch starts with opencode/lab-)
+          pr=$(gh pr list --repo "${{ github.repository }}" --state open \
+            --json number,headRefName,createdAt \
+            --jq '[.[] | select(.headRefName | startswith("opencode/lab-"))] | sort_by(.createdAt) | last | .number' 2>/dev/null)
+          if [ -z "$pr" ]; then
+            echo "No lab PR found to route; escalating to Maintainer"
+            gh issue comment "$issue" --repo "${{ github.repository }}" --body "/oc maintainer" || true
+            exit 0
+          fi
+          if [ ! -f /tmp/random-lab-decision.json ]; then
+            echo "No decision file found. Handing over to Reviewer (/oc review)"
+            gh issue comment "$pr" --repo "${{ github.repository }}" --body "/oc review" || true
+            exit 0
+          fi
+          action=$(jq -r '.action' /tmp/random-lab-decision.json 2>/dev/null || echo "")
+          if [ "$action" = "review" ]; then
+            echo "Lab PR ready! Handing over to Reviewer (/oc review)"
+            gh issue comment "$pr" --repo "${{ github.repository }}" --body "/oc review" || true
+          elif [ "$action" = "maintainer" ]; then
+            echo "Lab Engineer escalated to Maintainer (/oc maintainer)"
+            gh issue comment "$pr" --repo "${{ github.repository }}" --body "/oc maintainer" || true
+          else
+            echo "Unknown action: $action. Handing over to Reviewer (/oc review)"
+            gh issue comment "$pr" --repo "${{ github.repository }}" --body "/oc review" || true
+          fi
+
+      - name: Strip owner Co-authored-by trailers from the PR branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          issue="${{ github.event.issue.number }}"
+          pr=$(gh pr list --repo "${{ github.repository }}" --state open \
+            --json number,headRefName,createdAt \
+            --jq '[.[] | select(.headRefName | startswith("opencode/lab-"))] | sort_by(.createdAt) | last | .number' 2>/dev/null)
+          [ -z "$pr" ] && exit 0
+          branch=$(gh pr view "$pr" --repo "${{ github.repository }}" --json headRefName --jq '.headRefName' 2>/dev/null || echo "")
+          [ -z "$branch" ] && exit 0
+          git fetch origin "refs/heads/$branch:refs/remotes/origin/prbranch" --quiet 2>/dev/null || exit 0
+          bad=$(git log --format=%B refs/remotes/origin/main..refs/remotes/origin/prbranch 2>/dev/null | grep -c 'Co-authored-by: Userfrom1995' || true)
+          if [ "$bad" -eq 0 ]; then
+            echo "No leaked owner trailers on $branch"
+            exit 0
+          fi
+          echo "Stripping $bad leaked Co-authored-by trailer(s) from $branch"
+          git checkout --detach refs/remotes/origin/prbranch --quiet
+          git filter-branch -f --msg-filter 'sed "/^Co-authored-by: Userfrom1995.*/d"' refs/remotes/origin/main..HEAD >/dev/null 2>&1
+          git push --force origin "HEAD:refs/heads/$branch" --quiet
+          echo "Trailers stripped and force-pushed to $branch"
+
       - name: Approve held CI runs on the PR
         continue-on-error: true
         if: always()
@@ -730,6 +788,13 @@ jobs:
         run: |
           set +e
           pr="${{ github.event.issue.number }}"
+          # If no PR exists on the triggering issue, look for the lab PR this run created.
+          if [ -z "$(gh pr view "$pr" --repo "${{ github.repository }}" --json number 2>/dev/null || echo "")" ]; then
+            pr=$(gh pr list --repo "${{ github.repository }}" --state open \
+              --json number,headRefName,createdAt \
+              --jq '[.[] | select(.headRefName | startswith("opencode/lab-"))] | sort_by(.createdAt) | last | .number' 2>/dev/null || echo "")
+          fi
+          [ -z "$pr" ] && exit 0
           for i in $(seq 1 30); do
             head_sha=$(gh pr view "$pr" --repo "${{ github.repository }}" --json headRefOid --jq '.headRefOid' 2>/dev/null)
             if [ -z "$head_sha" ]; then
