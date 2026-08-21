@@ -1,63 +1,58 @@
 # STATE - Random factory checkpoint
 
-- **Updated:** 2026-08-21 (maintainer run 32456311942, EVENT issue_comment on PR #93). The Obsidian priority project is fully shipped (owner manually merged PR #93 into `main` as orphan root `60748e88`, 9.5209 bpp; PNG 13.05 + WebP 9.61 MET; JPEG XL 8.71 gate LIFTED by owner). Issue #68 CLOSED. Priority lock LIFTED. The next-project pipeline is BLOCKED by a 3rd consecutive Ideator stall; this run escalates to `lab` (issue #42) to fix the Ideator prompt + the self-pinging notify step.
+- **Updated:** 2026-08-21 (maintainer run 32457255483, EVENT `created` on PR #101, owner `/oc maintainer` at 07:07:22Z). Resonata (issue #100) is now a live build: research spec + architect blueprint committed on PR #101, Builder running. The Ideator-stall escalation (issue #42) is also in flight as PR #102 (Lab Engineer).
 
 ## STANDING OWNER DIRECTIVES (active)
 
-- **Obsidian shipped.** Owner manually merged PR #93's branch `opencode/issue68-20260818070512` (`d6fbd1cd`) into `main`; `main` is now the orphan root `60748e88` ("lab: empower Maintainer as sovereign to recover closed/orphaned PRs and resolve conflicts"), containing obsidian (128 files) + all prior projects. Default codec = 9.5209 bpp; R11-R15 experimental predictors gated OFF; 152 lib tests pass.
+- **Obsidian shipped.** Owner manually merged PR #93 into `main` as orphan root `60748e88` ("lab: empower Maintainer as sovereign to recover closed/orphaned PRs and resolve conflicts"), containing obsidian (128 files) + all prior projects. Default codec = 9.5209 bpp; R11-R15 experimental predictors gated OFF; 152 lib tests pass.
 - **Issue #68 CLOSED** by owner. Priority-project freeze LIFTED; new projects allowed again.
-- **One-PR rule + NEVER delete PR branches:** satisfied; PR #93 CLOSED, branch preserved (no `-d`).
-- **Runaway-loop guard shipped** (PRs #95/#97/#99): `/oc fix` refused against a closed PR / bare issue; retry counter no longer falls back to phantom `0`. Monitor for recurrence.
+- **One-PR rule + NEVER delete PR branches:** satisfied; PR #93 CLOSED, branch preserved (no `-d`). Runaway-loop guard shipped (PRs #95/#97/#99) holds.
+- **Maintainer sovereign-recovery directive:** `60748e88` explicitly empowers the Maintainer to recover orphaned/closed PRs via `recover` and resolve conflicts. main must never become a divergent/orphan ROOT; all advances stay descendants of the prior tip.
 
 ## CRITICAL INFRASTRUCTURE STATE
 
-- **`main` = `60748e88`** - an intentional single-root (orphan) commit by the owner's recovery. Contains obsidian + glyphforge/halcyon/kestrel/meridian/etc.
-- **PR #93 permanently CLOSED + unreopenable** (head `e184c3c` gc'd); its code is in `main`. Branch `opencode/issue68-20260818070512` intact at `d6fbd1cd` (25 commits).
+- **`main` = `60748e88`** - intentional single-root (orphan) commit by the owner's recovery. Contains obsidian + glyphforge/halcyon/kestrel/meridian/etc.
 - **MODEL PINS:** worker workflows `opencode/nemotron-3-ultra-free`; `opencode.json` `hy3-free`/`mimo-v2.5-free` (free).
-- **Ideator soft-stall defect OPEN:** 3 consecutive ideate runs (32452471052 held, 32452715519 asked, 32453237328 no-post) failed to post candidates to #42; notify step self-pings `/oc maintainer`. Fix dispatched this run (`lab` on #42).
-
-## NEXT-PROJECT DECISION (active)
-
-- **Decision:** resume normal project flow via the Ideator + Brainstorm Board (#42). BUT the Ideator is currently broken (3rd stall). This run escalates `lab` on #42 to harden `.github/agents/ideator.md` (unconditional post rule) and gate `ideate.yml`'s notify step. Once fixed, the Ideator posts fresh candidates -> Mae picks the next build and routes research -> architect -> build.
-- Parked eligible candidates on #42: Corundum (C crypto), Tundra (Go VCS), Ravel (Elixir/Phoenix) - remain eligible if the new batch does not displace them.
+- **Runaway-loop guard (PR #99):** holds - no stray `/oc fix` on closed PRs/issues observed this run.
 
 ## IN FLIGHT
 
-- None (no open PRs). Pending: the `lab` fix to the Ideator (issue #42); then fresh candidates on #42; then next build.
+1. **PR #101 - Resonata build (issue #100).** OPEN, head `4150c1157d424d1b8e6a1c260d3086aeafc3dc47`, base `main`. Shares history with `main` (merge-base = `60748e88`) -> clean rebase-merge available. Research spec + architect blueprint committed. Builder triggered by owner `/oc build this`, run `32457255591` PENDING/in-progress. No review/test approval yet. Pages preview staging at `/preview/pr-101/`.
+2. **PR #102 - `[Infra] Lab update for #42` (Ideator-stall escalation from run 32456311942).** OPEN, head `f0b4cbfbc97d0e9c17c773148942b1c4245b253f`, base `main`. Lab Engineer running (opencode run `32457295801` in_progress) to harden `ideator.md` (always post 2-3 candidates) + gate `ideate.yml` notify step. No review/test approval yet.
 
 ## PENDING (in order)
 
-1. **Get the Ideator fixed + posting** - `lab` dispatched this run on #42: harden ideator.md + gate the notify step. Await the fix, then re-dispatch `ideate` and pick the next build.
-2. **builder.md hollow-docs fix** - optional `lab` pass to patch ONLY `.github/agents/builder.md` (resume re-task on newest directive). Low priority; queue when convenient.
-3. **NEW JXL-beating project (optional):** a separate codebase/new name on its own issue/branch (research -> architect -> build). Issue #68 closed, so a new issue would be needed (owner opens, or future ideate). Not urgent; owner lifted the JXL gate for the shipped Obsidian codec.
+1. **Resonata build (PR #101):** await Builder push -> Reviewer auto-engages -> on `/oc approve`, Tester auto-engages -> on `/oc approve-test`, Maintainer merges (`--rebase`, branch kept), closes #100.
+2. **Ideator fix (PR #102):** await Lab Engineer -> Reviewer -> Tester -> merge; then re-dispatch `ideate` so the Brainstorm board (issue #42) resumes feeding candidates (parked Corundum/Tundra/Ravel remain eligible).
+3. **builder.md hollow-docs fix** - optional `lab` pass (fix ONLY `.github/agents/builder.md`). Low priority; queue when convenient.
+4. **Next new-project build:** after Ideator fixed, pick from #42 and route research -> architect -> build.
 
 ## ISSUES
 
-- **#68 (Obsidian umbrella)** - CLOSED by owner.
-- **#98 (Runaway /oc fix loop)** - CLOSED (PR #99 merged, guard shipped).
-- **#96 (Circuit breaker)** - CLOSED (PR #97 merged).
-- **#94 (Detect silent no-op builds)** - CLOSED (PR #95 merged).
+- **#100 (Resonata project)** - OPEN; built via PR #101.
+- **#42 (Brainstorm Board)** - OPEN; Ideator fix in flight via PR #102.
 - **#70 (Lab Health)** - Auditor owns daily summary.
-- **#42 (Brainstorm Board)** - freeze lifted; Ideator stalled 3x -> `lab` fix dispatched this run.
+- **#68 (Obsidian umbrella)** - CLOSED by owner.
+- **#98/#96/#94 (runaway/circuit-breaker/no-op)** - CLOSED (guards shipped, PRs #99/#97/#95 merged).
 
 ## REVIEWER/TESTER/MODEL STATUS
 
 - Model config: worker workflows `opencode/nemotron-3-ultra-free`; `opencode.json` `hy3-free`/`mimo-v2.5-free`. `origin/main` = `60748e88`.
-- pages.yml: last deployed at 05:34:07Z for the merged Obsidian site; triggers only on `pull_request`/`workflow_dispatch`, so the owner's `60748e88` site-content push (if any) would redeploy; no action needed from me.
-- No open PRs require merge/review/test this run.
+- No PR requires merge/review/test from me this run (both in-flight builds are pre-approval).
+- pages.yml: PR #101 changed doc/idea/progress files + will add build output; preview staged at `/preview/pr-101/`. Production deploy only on merge to `main`.
 
 ## NEXT STEPS
 
-1. Await the `lab` fix to the Ideator (issue #42), then re-dispatch `ideate`; once candidates land, pick the next build and route research -> architect -> build.
-2. (Optional) Queue a `lab` pass to fix `.github/agents/builder.md` hollow-docs root cause.
-3. Monitor next lab runs for any stray `/oc fix` on a closed PR/issue to confirm the #99 guard holds.
+1. Monitor PR #101: on Builder completion, confirm Reviewer + Tester auto-trigger; merge when both green; close #100.
+2. Monitor PR #102: merge the Ideator fix when approved; then re-dispatch `ideate` to resume the Brainstorm board.
+3. (Optional) Queue `lab` pass to fix `.github/agents/builder.md` hollow-docs root cause.
 
 ## OPEN QUESTIONS
 
-- **Ideator fix efficacy:** will the Lab Engineer's hardening make the Ideator reliably post 2-3 candidates? If it stalls again after the fix, escalate further (rewrite the ideate workflow or add a deterministic candidate generator).
-- **Recovery root cause (answered):** PR #93 unrecoverable by the factory because its head was gc'd -> unreopenable, and the Maintainer is forbidden from creating PRs/pushing branches. Owner's manual merge + `60748e88` recovery landed it; nothing stranded. The new `60748e88` commit explicitly empowers the Maintainer to recover orphaned PRs in future.
-- **Single-root `main`:** intentional owner recovery (`60748e88`); per the owner's directive, no action from me. Worth a `lab` audit note for future merges (ensure new PRs share history with `60748e88` to avoid re-orphaning).
+- **Resonata build scope:** the Builder is compiling the native-testable `core/` + WASM export first (per blueprint); will the full `ui/` AudioWorklet instrument ship in this PR or a follow-up? The blueprint lists it; verify the Builder delivers a coherent, testable core before any UI bloat.
+- **Ideator fix efficacy:** will PR #102 make the Ideator reliably post 2-3 candidates? If it stalls again post-fix, escalate further (deterministic candidate generator or ideate-workflow rewrite).
 - **builder.md lab (optional):** re-engage a targeted `lab` when convenient.
-- **New-project issue:** now allowed (issue #68 closed); a fresh JXL-class project would need its own issue/branch, owner-opened or via ideate.
+- **Runaway-loop recurrence:** none observed; #99 guard holding.
+- **Single-root `main`:** intentional owner recovery (`60748e88`); per directive, no action needed.
 
 - Mae, the Maintainer
