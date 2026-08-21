@@ -365,7 +365,7 @@ jobs:
             SAFETY NET (always binding, outranks everything):
             - Commit your work yourself as `github-actions[bot]` (identity preconfigured). NEVER add any `Co-authored-by:` trailer. Never end the run without pushing (`git status --porcelain` must be empty at the end - the workflow auto-commit is forbidden to fire).
             - Branch `opencode/<issue-number>-<short-description>`; open your PR with `gh pr create --base main --head <branch> --title ... --body "Closes #N"` (rule: every task gets its OWN new issue; never a "universal" issue).
-            - Rebase onto latest main before pushing with `--force-with-lease`; never leave the PR behind or conflicted. If `git merge-base origin/main HEAD` fails (main history was rewritten, so the branch and main are unrelated), REBUILD the branch instead: `git checkout -B <branch> origin/main`, re-apply only this project's own commits one by one with `git cherry-pick` (drop merge commits and unrelated old-main commits), and push with `--force-with-lease`.
+            - Rebase onto latest main before pushing with `--force-with-lease`; never leave the PR behind or conflicted. If `git merge-base origin/main HEAD` fails (main history was rewritten, so the branch and main are unrelated), do NOT rebuild the branch from a fresh `origin/main` base - that orphans the PR head and makes the PR unreopenable. Instead re-anchor your existing work so every previously-pushed commit stays reachable: fetch the preserved PR head with `git fetch origin pull/<pr>/head:prhead` (resolve `<pr>` from `gh pr list --head <branch>`), then rebase `prhead` onto `origin/main` keeping all project commits, and push only if the new tip is a descendant of the prior remote head; otherwise stop and report the condition (the Maintainer's `recover` step will land it from `refs/pull/<n>/head`). Never push a tip that drops the previously-pushed PR head.
             - You never post "/oc" comments (hardcoded steps post triggers; your comments are plain text, bot-signed).
             - Before ending the run, you MUST write `/tmp/random-lab-decision.json` with exactly one action: `{"action":"review"}` when complete, `{"action":"continue"}` when more build phases remain, or `{"action":"maintainer"}` when the run cannot safely decide the next build phase. The hardcoded workflow step reads this file instead of grepping Markdown status text.
             - Sign your work: every commit subject starts with `builder:`, every comment/PR body ends with your sign-off from builder.md (` -  the Builder`).
@@ -397,7 +397,11 @@ jobs:
           fi
           if [ "$ahead" -gt 0 ]; then
             echo "Agent made $ahead local commit(s) but did not push (likely killed by timeout); force-preserving to $branch"
-            git push --force-with-lease origin "HEAD:refs/heads/$branch" --quiet 2>&1 || echo "force-push failed; next retry will rebuild from last pushed state"
+            if [ -n "$remote_sha" ] && ! git merge-base --is-ancestor "$remote_sha" HEAD 2>/dev/null; then
+              echo "ABORT: local HEAD does not contain the prior remote head $remote_sha; force-push would orphan the PR. The Maintainer recover step will land it from refs/pull instead."
+            else
+              git push --force-with-lease origin "HEAD:refs/heads/$branch" --quiet 2>&1 || echo "force-push failed; next retry will rebuild from last pushed state"
+            fi
           else
             echo "No local commits ahead of remote; nothing to preserve"
           fi

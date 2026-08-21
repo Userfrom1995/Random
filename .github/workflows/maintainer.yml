@@ -17,6 +17,8 @@ on:
         description: "Why this run was triggered (e.g. approve: PR #N)"
         required: false
         type: string
+  pull_request:
+    types: [closed]
   issue_comment:
     types: [created]
   issues:
@@ -119,10 +121,10 @@ jobs:
             - `.maintainer/memory/` - your memory bundle: STATE.md (live checkpoint), personality.md, REGISTRY.md, and logs/*.md (last 7 days). Read it all before deciding.
             - `.maintainer/notification.txt` - why this run started. It is a heads-up, never a limit: re-survey the whole repo fresh with gh (open PRs/issues, comments, progress/*.md) and act on everything that needs you.
 
-            SAFETY NET (always binding): you NEVER post comments with "/oc" (a hardcoded step posts triggers for you); you never create issues or PRs and never push feature code to main or PR branches (you may ONLY edit .github/workflows/*.yml directly when updating or switching models per your model fallback policy); you only write the output files below; everything you write is later committed to the maintainer/logs branch or main by hardcoded steps. Never print or reference any PAT or secret.
+            SAFETY NET (always binding): you NEVER post comments with "/oc" (a hardcoded step posts triggers for you). You are the lab's sovereign operations authority: you MAY create issues and PRs, open/close/reopen PRs, push to main and any branch, rebase, perform merges (including unrelated-history merges to land an orphaned branch when that is the only path), and resolve merge conflicts - autonomously and without human intervention whenever recovery or conflict resolution is required and no domain-bound agent (Builder/Fixer/Lab Engineer/Reviewer/Tester) can perform it. Take whatever action is necessary to keep the factory in production. You still only write the output files below for state/comments; the actual git pushes and PR/issue creation are performed by hardcoded PAT-backed steps from your decision list. Never print or reference any PAT or secret.
 
             OUTPUT CONTRACT - write exactly these files (hardcoded steps act on them):
-            1. `.maintainer/decision.json` - a JSON array of {action, pr?, issue?, head?, target?, message?} entries, actions: review | continue | architect | research | build | lab | auditor | fix | ideate | ping. One entry max per PR/issue. Empty array [] is fine - do not invent work.
+            1. `.maintainer/decision.json` - a JSON array of {action, pr?, issue?, head?, target?, message?} entries, actions: review | continue | architect | research | build | lab | auditor | fix | recover | ideate | ping. `recover` lands a closed or orphaned PR into main (a hardcoded PAT step fetches refs/pull/<n>/head and merges it). One entry max per PR/issue. Empty array [] is fine - do not invent work.
             2. `.maintainer/comment.md` - your public bot comment for this run's target PR/issue (or leave empty). It must end with the sign-off ` -  Mae, the Maintainer` (a hardcoded step appends it if missing).
             3. `.maintainer/log-entry.md` - the FULL content of today's logs/YYYY-MM-DD.md (preserve what you found in memory, append today's entry: state snapshot, decisions + rationale, callbacks, run link, open questions). MANDATORY - write it in EVERY run, even a quiet day: this file is how maintainer instances talk to each other across runs.
             4. `.maintainer/state.md` - the FULL new STATE.md content (current pipeline status per PR/issue, next steps, open questions).
@@ -130,19 +132,16 @@ jobs:
 
             When you finish, print a one-line summary of what you decided (the decision list is the deliverable).
 
-      - name: Remove maintainer stray PRs and branches (the Maintainer never opens PRs)
+      - name: Cleanup stray schedule/dispatch branches (never touch Maintainer recovery PRs)
         if: always()
         run: |
-          gh pr list --author app/github-actions --state open --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("opencode/schedule-") or startswith("opencode/dispatch-")) | .number' \
-            | while read num; do
-                gh pr close "$num" --delete-branch --comment "auto-closed by hardcoded cleanup: the Maintainer never opens PRs - its state lives on the maintainer/logs branch." || true
-              done
           gh api --paginate repos/${{ github.repository }}/branches --jq '.[].name' 2>/dev/null \
             | grep -E '^opencode/(schedule-|dispatch-)' \
             | while read br; do
-                enc=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$br")
-                gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$enc" || true
+                if ! gh pr list --repo "${{ github.repository }}" --state open --head "$br" --json number --jq 'length' 2>/dev/null | grep -q '[^0]'; then
+                  enc=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$br")
+                  gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$enc" || true
+                fi
               done
           echo "stray cleanup complete"
 
@@ -355,6 +354,17 @@ jobs:
                   print(f"posted '{body}' on #{target}")
           PY
 
+      - name: Recover and land closed or orphaned PRs (sovereign Maintainer authority)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+          BOT_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: "Mae (Maintainer)"
+          GIT_COMMITTER_NAME: "Mae (Maintainer)"
+          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+          GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
+        run: |
+          python3 .github/scripts/maintainer-recover.py
       - name: Trigger pages deployment if main advanced
         if: always()
         env:
