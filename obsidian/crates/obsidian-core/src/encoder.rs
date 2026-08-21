@@ -1330,11 +1330,10 @@ fn code_planes(
 ) -> Result<CodedPlanes, CodecError> {
     // R14: per-plane decode-available base residual `r0 = v - pred`, backing the
     // residual-conditioned context tree overlay applied at every residual site.
-    let mut e0buf: Vec<Vec<i32>> = coding_planes.iter().map(|p| vec![0i32; p.len()]).collect();
     let cm = ContextModel::new(model.context);
-    let mut chosen_counts = [0usize; PREDICTOR_COUNT];
-    let mut streams: Vec<Vec<u8>> = Vec::with_capacity(coding_planes.len());
-    for pi in 0..coding_planes.len() {
+    let results: Vec<Result<(Vec<u8>, [usize; PREDICTOR_COUNT]), CodecError>> = (0..coding_planes.len()).into_par_iter().map(|pi| {
+        let mut e0 = vec![0i32; coding_planes[pi].len()];
+        let mut local_counts = [0usize; PREDICTOR_COUNT];
         // R10: each coding "plane" may actually be a Squeeze sub-band with its
         // own `(w, h)`. The band's own geometry drives the raster scan and
         // neighbor lookups; everything that indexes the model/range (predictor,
@@ -1477,11 +1476,11 @@ fn code_planes(
                                     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
                                 };
                                 let r0 = buf[i] as i32 - pred;
-                                let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], i, x, y, width, height, ranges[pi]);
+                                let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, i, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                                e0buf[pi][i] = r0;
+                                e0[i] = r0;
                                 cmarc_lz_write_literal(
                                     &mut enc,
                                     &mut models,
@@ -1491,7 +1490,7 @@ if p == PredictorId::AdaptiveRecursive {
                                 );
                                 ctxs[cid].adapt(r.unsigned_abs());
                                 lz_insert(&mut head, &mut prev, buf, i, hash_mask);
-                                chosen_counts[p.to_u8() as usize] += 1;
+                                local_counts[p.to_u8() as usize] += 1;
                                 i += 1;
                             }
                         }
@@ -1517,11 +1516,11 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                             let r0 = coding_planes[pi][idx] as i32 - pred;
-                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                            e0buf[pi][idx] = r0;
+                            e0[idx] = r0;
                             cmarc_mix_write_residual(
                                 &mut enc,
                                 &mut models,
@@ -1532,7 +1531,7 @@ if p == PredictorId::AdaptiveRecursive {
                                 bins_per_ctx,
                                 r,
                             );
-                            chosen_counts[p.to_u8() as usize] += 1;
+                            local_counts[p.to_u8() as usize] += 1;
                         }
                     }
                 } else if model.cmarc_run {
@@ -1596,16 +1595,16 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
                         enc.put(&mut models[slot + CMARC_RUN_FLAG], use_run);
                         if use_run {
                             cmarc_run_write_gamma(&mut enc, &mut models, slot, run_len as u32);
-                            chosen_counts[p.to_u8() as usize] += run_len;
+                            local_counts[p.to_u8() as usize] += run_len;
                             i += run_len;
                             continue;
                         }
                         let r0 = plane[i] as i32 - pred;
-                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], i, x, y, width, height, ranges[pi]);
+                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, i, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                        e0buf[pi][i] = r0;
+                        e0[i] = r0;
                         cmarc_write_residual(
                             &mut enc,
                             &mut models,
@@ -1614,7 +1613,7 @@ if p == PredictorId::AdaptiveRecursive {
                             rcid,
                             r,
                         );
-                        chosen_counts[p.to_u8() as usize] += 1;
+                        local_counts[p.to_u8() as usize] += 1;
                         i += 1;
                     }
                 } else {
@@ -1644,11 +1643,11 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
 };
                             let v = coding_planes[pi][idx] as i32;
                             let r0 = v - pred;
-                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                            e0buf[pi][idx] = r0;
+                            e0[idx] = r0;
                             // R3-A coding-context selection (unchanged by cache mode).
                             // Predictor selection stays on the gradient context; only the
                             // CMARC coding context switches to the residual DIFF context
@@ -1690,7 +1689,7 @@ if p == PredictorId::AdaptiveRecursive {
                                     r,
                                 ),
                             }
-                            chosen_counts[p.to_u8() as usize] += 1;
+                            local_counts[p.to_u8() as usize] += 1;
                         }
                     }
                 }
@@ -1698,7 +1697,7 @@ if p == PredictorId::AdaptiveRecursive {
                 let mut stream = Vec::with_capacity(4 + bytes.len());
                 stream.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
                 stream.extend_from_slice(&bytes);
-                streams.push(stream);
+                Ok((stream, local_counts))
             } else if gr_cm {
                 // M2.5: per-context mixture of Rice experts (Hedge/PMAC model
                 // selection). Each context carries three Rice sub-estimators
@@ -1722,18 +1721,18 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                         let r0 = coding_planes[pi][idx] as i32 - pred;
-                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                        e0buf[pi][idx] = r0;
+                        e0[idx] = r0;
                         let k = cms[cid].k_current();
                         gr_write_symbol_k(&mut bw, r, k);
                         cms[cid].adapt(r.unsigned_abs());
-                        chosen_counts[p.to_u8() as usize] += 1;
+                        local_counts[p.to_u8() as usize] += 1;
                     }
                 }
-                streams.push(bw.finish());
+                Ok((bw.finish(), local_counts))
             } else if gr_lz {
                 // M3-A: LZ77 match layer over the decoded plane. Each position is
                 // either a literal (GR-coded residual, reusing the v1 path) or a
@@ -1806,17 +1805,17 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, w, wtree, ranges[pi]),
 };
                             let r0 = coding_planes[pi][i] as i32 - pred;
-                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], i, x, y, width, height, ranges[pi]);
+                            let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, i, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                            e0buf[pi][i] = r0;
+                            e0[i] = r0;
                             gr_write_symbol(&mut data_bw, &mut gr[cid], r);
                             if m3_wp && matches!(p, PredictorId::Weighted) {
                                 wp[cid].adapt_online(r, nb.l, nb.t, nb.tl, nb.tr, M3_WP_GAIN);
                             }
                             lz_insert(&mut head, &mut prev, buf, i, hash_mask);
-                            chosen_counts[p.to_u8() as usize] += 1;
+                            local_counts[p.to_u8() as usize] += 1;
                             i += 1;
                         }
                     }
@@ -1827,7 +1826,7 @@ if p == PredictorId::AdaptiveRecursive {
                 stream.extend_from_slice(&(flag_bytes.len() as u32).to_le_bytes());
                 stream.extend_from_slice(&flag_bytes);
                 stream.extend_from_slice(&data_bytes);
-                streams.push(stream);
+                Ok((stream, local_counts))
             } else if gr_m2 {
                 // M2: per-context bias cancellation (M2-A) + run mode (M2-B).
                 // `prev_val` is the previous reconstructed value; when a pixel
@@ -1879,7 +1878,7 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
                     if use_bias {
                         gr_adapt_bias(&mut gr[cid], val - pred);
                     }
-                    chosen_counts[p.to_u8() as usize] += 1;
+                    local_counts[p.to_u8() as usize] += 1;
                     prev_val = Some(val);
                     if is_run {
                         // Count the full run (including this pixel) and emit one
@@ -1899,7 +1898,7 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
                     }
                     i += 1;
                 }
-                streams.push(bw.finish());
+                Ok((bw.finish(), local_counts))
             } else if capped {
                 // M3.5 Design B: per-context adaptive rANS over a capped residual
                 // alphabet with an escape-to-Golomb-Rice fallback. Each residual is
@@ -1960,18 +1959,18 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                         let r0 = coding_planes[pi][idx] as i32 - pred;
-                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                        e0buf[pi][idx] = r0;
+                        e0[idx] = r0;
                         let z = zigzag(r) as usize;
                         let sym = z.min(CAPPED_ALPHABET);
                         syms.push((cid, sym));
                         if z >= CAPPED_ALPHABET {
                             escapes.push((cid, r));
                         }
-                        chosen_counts[p.to_u8() as usize] += 1;
+                        local_counts[p.to_u8() as usize] += 1;
                     }
                 }
                 // Emit escaped residuals in raster order so the decoder (which
@@ -1992,7 +1991,7 @@ if p == PredictorId::AdaptiveRecursive {
                 stream.extend_from_slice(&rans_bytes);
                 stream.extend_from_slice(&(esc_bytes.len() as u32).to_le_bytes());
                 stream.extend_from_slice(&esc_bytes);
-                streams.push(stream);
+                Ok((stream, local_counts))
             } else {
                 for y in 0..height {
                     for x in 0..width {
@@ -2006,16 +2005,16 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                         let r0 = coding_planes[pi][idx] as i32 - pred;
-                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                        let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                        e0buf[pi][idx] = r0;
+                        e0[idx] = r0;
                         gr_write_symbol(&mut bw, &mut gr[cid], r);
-                        chosen_counts[p.to_u8() as usize] += 1;
+                        local_counts[p.to_u8() as usize] += 1;
                     }
                 }
-                streams.push(bw.finish());
+                Ok((bw.finish(), local_counts))
             }
         } else {
             let mut enc = RansEncoder::new();
@@ -2040,13 +2039,13 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                     let r0 = coding_planes[pi][idx] as i32 - pred;
-                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                    e0buf[pi][idx] = r0;
+                    e0[idx] = r0;
                     enc.put(zigzag(r) as usize, table);
-                    chosen_counts[p.to_u8() as usize] += 1;
+                    local_counts[p.to_u8() as usize] += 1;
                 }
             }
         } else {
@@ -2072,16 +2071,16 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                     let r0 = coding_planes[pi][idx] as i32 - pred;
-                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                    e0buf[pi][idx] = r0;
+                    e0[idx] = r0;
                     let sym = zigzag(r) as usize;
                     let (f, c) = tables[cid].lookup(sym);
                     plan.push(((c as u64) << (2 * FREQ_BITS)) | ((f as u64) << FREQ_BITS) | tables[cid].total() as u64);
                     tables[cid].adapt(sym);
-                    chosen_counts[p.to_u8() as usize] += 1;
+                    local_counts[p.to_u8() as usize] += 1;
                 }
             }
             for y in (0..height).rev() {
@@ -2096,11 +2095,11 @@ let pred = match r13_predict(p, &nb, &coding_planes[pi], x, y, width, height, ra
     None => predict_clamped(p, &nb, wv.as_ref(), wtree, ranges[pi]),
 };
                     let r0 = coding_planes[pi][idx] as i32 - pred;
-                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0buf[pi], idx, x, y, width, height, ranges[pi]);
+                    let r = rcct_overlay(model, pi, parent[pi], r0, &nb, &e0, idx, x, y, width, height, ranges[pi]);
 if p == PredictorId::AdaptiveRecursive {
     r13_adapt(p, &nb, &coding_planes[pi], x, y, width, height, &mut wrstate[wc], r0);
 }
-                    e0buf[pi][idx] = r0;
+                    e0[idx] = r0;
                     let packed = plan[idx];
                     let total = (packed & FREQ_MASK) as u32;
                     let f = ((packed >> FREQ_BITS) & FREQ_MASK) as u32;
@@ -2109,13 +2108,13 @@ if p == PredictorId::AdaptiveRecursive {
                 }
             }
         }
-        streams.push(enc.finish());
+        Ok((enc.finish(), local_counts))
         }
-    }
-    Ok(CodedPlanes {
-        streams,
-        chosen_counts,
-    })
+    }).collect();
+    let mut streams = Vec::with_capacity(coding_planes.len());
+    let mut chosen_counts = [0usize; PREDICTOR_COUNT];
+    for res in results { let (stream, counts) = res?; streams.push(stream); for i in 0..PREDICTOR_COUNT { chosen_counts[i] += counts[i]; } }
+    Ok(CodedPlanes { streams, chosen_counts })
 }
 
 /// Encode then decode, returning the reconstructed image for the fidelity gate.

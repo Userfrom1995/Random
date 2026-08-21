@@ -1,0 +1,17 @@
+[package]
+name = "obsidian_gpu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GPU acceleration for Obsidian (wgpu tiled, CPU fallback, zero heavy deps)"
+
+[dependencies]
+obsidian_core = { path = "../obsidian-core" }
+rayon = "1.10"
+wgpu = { version = "22", optional = true }
+bytemuck = { version = "1.14", optional = true }
+pollster = { version = "0.3", optional = true }
+
+[features]
+gpu = ["wgpu", "bytemuck", "pollster"]
+default = []

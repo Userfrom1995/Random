@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/obsidian-core", "crates/obsidian-cli"]
+members = ["crates/obsidian-core", "crates/obsidian-cli", "crates/obsidian-gpu"]
 
 [workspace.package]
 version = "0.1.0"

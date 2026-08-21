@@ -7,4 +7,9 @@ description = "Obsidian lossless image codec command-line tool"
 
 [dependencies]
 obsidian_core = { path = "../obsidian-core" }
+obsidian_gpu = { path = "../obsidian-gpu" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "bmp", "tiff", "webp", "pnm"] }
+
+[features]
+gpu = ["obsidian_gpu/gpu"]
+default = []

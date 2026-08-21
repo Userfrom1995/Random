@@ -25,6 +25,7 @@ pub fn run(args: Vec<String>) -> i32 {
         "check" => cmd_check(rest),
         "bench" => crate::bench::cmd_bench(rest),
         "bench-synth" => crate::bench::cmd_bench_synth(rest),
+        "gpu-list" => cmd_gpu_list(rest),
         "help" | "-h" | "--help" => {
             usage();
             0
@@ -39,9 +40,22 @@ pub fn run(args: Vec<String>) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage:\n  obsidian encode <in-image> <out.obsd> [--effort N] [--json]\n  obsidian decode <in.obsd> <out-image>\n  obsidian roundtrip <in-image> [--effort N] [--json]\n  obsidian selftest [--fuzz N]\n  obsidian check <in.obsd>\n  obsidian bench <image-dir> [--effort N] [--json]\n  obsidian bench-synth [--effort N] [--count N] [--size N] [--seed N]\n\n  <in-image>/<out-image> may be any of: {} (extension selects format); .obsd is the codec container.",
+        "usage:\n  obsidian encode <in-image> <out.obsd> [--effort N] [--tile N] [--gpu [NAME]] [--json]\n  obsidian decode <in.obsd> <out-image>\n  obsidian roundtrip <in-image> [--effort N] [--json]\n  obsidian selftest [--fuzz N]\n  obsidian check <in.obsd>\n  obsidian bench <image-dir> [--effort N] [--json]\n  obsidian bench-synth [--effort N] [--count N] [--size N] [--seed N]\n  obsidian gpu-list\n\n  --tile 256 splits into 256x256 tiled OBST for parallel encode (rayon, <0.1 bpp loss at 256)\n  --gpu without value uses HighPerformance (RTX 4050); with NAME picks that adapter (see gpu-list)\n  <in-image>/<out-image> may be any of: {} (extension selects format); .obsd/.obst is the codec container.",
         crate::image_io::supported_formats_hint()
     );
+}
+
+fn cmd_gpu_list(_args: &[String]) -> i32 {
+    let gpus = obsidian_gpu::list_gpus();
+    if gpus.is_empty() {
+        println!("no GPU adapters found (wgpu returned 0, or built without --features gpu)");
+        println!("cpu fallback will be used; for GPU build: cargo build -p obsidian_cli --features gpu or use obsidian_gpu crate");
+        return 0;
+    }
+    for g in &gpus {
+        println!("{} [{} {}]", g.name, g.backend, g.device_type);
+    }
+    0
 }
 
 fn parse_effort(rest: &[String]) -> Result<(u8, bool, Vec<String>), i32> {
@@ -71,6 +85,44 @@ fn parse_effort(rest: &[String]) -> Result<(u8, bool, Vec<String>), i32> {
     Ok((effort, json, positional))
 }
 
+fn parse_encode_args(rest: &[String]) -> Result<(u8, usize, Option<Option<String>>, bool, Vec<String>), i32> {
+    let mut effort = 4u8;
+    let mut tile: usize = 0;
+    let mut gpu: Option<Option<String>> = None; // None = no --gpu, Some(None)= --gpu without name, Some(Some(name))= --gpu <name>
+    let mut json = false;
+    let mut positional: Vec<String> = Vec::new();
+    let mut it = rest.iter().peekable();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--effort" | "-e" => match it.next() {
+                Some(v) => match v.parse::<u8>() {
+                    Ok(e) if e <= 7 => effort = e,
+                    _ => { eprintln!("obsidian: --effort must be an integer in 0..=7"); return Err(1); }
+                },
+                None => { eprintln!("obsidian: --effort requires a value"); return Err(1); }
+            },
+            "--tile" => match it.next() {
+                Some(v) => match v.parse::<usize>() {
+                    Ok(n) => tile = n,
+                    _ => { eprintln!("obsidian: --tile must be an integer (e.g. 256)"); return Err(1); }
+                },
+                None => { eprintln!("obsidian: --tile requires a value"); return Err(1); }
+            },
+            "--gpu" => {
+                // --gpu may be followed by a name that does not start with -
+                let name = match it.peek() {
+                    Some(n) if !n.starts_with('-') => Some(it.next().unwrap().clone()),
+                    _ => None,
+                };
+                gpu = Some(name);
+            },
+            "--json" => json = true,
+            _ => positional.push(a.clone()),
+        }
+    }
+    Ok((effort, tile, gpu, json, positional))
+}
+
 fn read_image_file(path: &PathBuf) -> Result<obsidian_core::image::Image, i32> {
     crate::image_io::read_image(path)
 }
@@ -80,7 +132,7 @@ fn write_image_file(path: &PathBuf, img: &obsidian_core::image::Image) -> Result
 }
 
 fn cmd_encode(args: &[String]) -> i32 {
-    let (effort, json, positional) = match parse_effort(args) {
+    let (effort, mut tile, gpu, json, positional) = match parse_encode_args(args) {
         Ok(v) => v,
         Err(c) => return c,
     };
@@ -95,12 +147,69 @@ fn cmd_encode(args: &[String]) -> i32 {
         Ok(i) => i,
         Err(c) => return c,
     };
-    let start = Instant::now();
-    let (bytes, stats) = match encode(&image, effort) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("obsidian: encode failed: {e}");
+    // If --gpu is requested without --tile, default to 256 tiled for parallel GPU dispatch
+    if gpu.is_some() && tile == 0 {
+        tile = 256;
+    }
+    // Validate --gpu name if given
+    if let Some(Some(ref name)) = gpu {
+        let gpus = obsidian_gpu::list_gpus();
+        if !gpus.is_empty() && !gpus.iter().any(|g| &g.name == name) {
+            eprintln!("obsidian: --gpu adapter '{}' not found. available:", name);
+            for g in &gpus { eprintln!("  {} [{} {}]", g.name, g.backend, g.device_type); }
             return 1;
+        }
+        // Warm up the selected adapter so the tiled path is hot
+        let mut dummy = vec![vec![0i16; 1], vec![0i16; 1], vec![0i16; 1]];
+        let _ = obsidian_gpu::ycocg_forward_gpu_with_name(&mut dummy, Some(name.as_str()));
+    } else if let Some(None) = gpu {
+        // --gpu without name: just probe HighPerformance
+        let _ = obsidian_gpu::is_gpu_available();
+    }
+    let start = Instant::now();
+    let gpu_name_opt: Option<&str> = match &gpu {
+        Some(Some(name)) => Some(name.as_str()),
+        Some(None) => None,
+        None => None,
+    };
+    let use_gpu = gpu.is_some();
+    if use_gpu && std::env::var("OBSIDIAN_GPU_DEBUG").ok().as_deref() != Some("1") {
+        // Always log which GPU will be used when --gpu is explicitly requested, even without DEBUG
+        let gpus = obsidian_gpu::list_gpus();
+        if let Some(Some(name)) = &gpu {
+            eprintln!("[GPU] encode using explicit adapter '{}'", name);
+        } else if !gpus.is_empty() {
+            let hp = gpus.iter().find(|g| g.device_type.contains("DiscreteGpu")).or_else(|| gpus.first()).unwrap();
+            eprintln!("[GPU] encode using HighPerformance: {} [{} {}]", hp.name, hp.backend, hp.device_type);
+        } else {
+            eprintln!("[GPU] encode: --gpu requested but no adapter found, CPU fallback");
+        }
+    }
+    let (bytes, stats) = if tile != 0 {
+        if use_gpu {
+            match obsidian_gpu::encode_tiled_with_gpu(&image, effort, tile, gpu_name_opt) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("obsidian: encode_tiled failed: {e}");
+                    return 1;
+                }
+            }
+        } else {
+            match obsidian_gpu::encode_tiled(&image, effort, tile) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("obsidian: encode_tiled failed: {e}");
+                    return 1;
+                }
+            }
+        }
+    } else {
+        match encode(&image, effort) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("obsidian: encode failed: {e}");
+                return 1;
+            }
         }
     };
     let encode_ms = start.elapsed().as_secs_f64() * 1000.0;
@@ -147,7 +256,7 @@ fn cmd_decode(args: &[String]) -> i32 {
         }
     };
     let start = Instant::now();
-    let image = match decode(&data) {
+    let image = match obsidian_gpu::decode_tiled(&data) {
         Ok(i) => i,
         Err(e) => {
             eprintln!("obsidian: decode failed: {e}");
@@ -331,7 +440,7 @@ fn cmd_check(args: &[String]) -> i32 {
         }
     };
     let start = Instant::now();
-    let image = match decode(&data) {
+    let image = match obsidian_gpu::decode_tiled(&data) {
         Ok(i) => i,
         Err(e) => {
             eprintln!("obsidian: check failed: {e}");
