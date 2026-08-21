@@ -305,6 +305,7 @@ jobs:
       !startsWith(github.event.comment.body, '/opencode review') &&
       (contains(github.event.comment.body, ' /oc build') ||
        startsWith(github.event.comment.body, '/oc build') ||
+       startsWith(github.event.comment.body, '/oc build this (auto-retry') ||
        contains(github.event.comment.body, ' /oc continue') ||
        startsWith(github.event.comment.body, '/oc continue') ||
        contains(github.event.comment.body, ' /opencode build') ||
@@ -355,7 +356,7 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          model: opencode/hy3-free
+          model: opencode/nemotron-3-ultra-free
           use_github_token: true
           prompt: |
             You are the Builder of the Random lab, triggered by "/oc build" or "/oc continue" on this issue/PR.
@@ -645,6 +646,114 @@ jobs:
             -f body="Workflow runs on this PR are awaiting approval and could not be auto-approved. Please approve them in the Actions tab so the review loop can continue: ${{ github.server_url }}/${{ github.repository }}/actions" >/dev/null 2>&1 || true
           exit 0
 
+  lab:
+    if: |
+      startsWith(github.event.comment.body, '/oc lab') ||
+      startsWith(github.event.comment.body, '/opencode lab')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          token: ${{ github.token }}
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "The Lab Engineer (CTO)"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clear runtime decision
+        run: rm -f /tmp/random-lab-decision.json
+
+      - name: Run opencode lab engineer agent
+        id: opencode
+        continue-on-error: true
+        timeout-minutes: 75
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          model: opencode/nemotron-3-ultra-free
+          use_github_token: true
+          prompt: |
+            You are the Lab Engineer (CTO) of the Random lab, triggered by "/oc lab".
+
+            READ FIRST: `.github/agents/labengineer.md` - that file IS your complete system prompt; every rule there is binding (infrastructure PRs, workflow repairs, agent creation, fast-track model management).
+
+            SAFETY NET (always binding):
+            - Commit your work yourself as `github-actions[bot]` (identity preconfigured). NEVER add any `Co-authored-by:` trailer. Every commit subject starts with `lab:`.
+            - You never post "/oc" comments; write your decision to `/tmp/random-lab-decision.json` (`{"action":"review"}` when the PR is ready, `{"action":"maintainer"}` when Mae should retry/triage).
+            - Do NOT run `git push` yourself - the PAT-backed runner step pushes your branch.
+            - Sign your work: every PR description ends with ` - the Lab Engineer`.
+
+      - name: PAT-backed push of lab branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          set +e
+          branch=$(git branch --show-current 2>/dev/null || echo "")
+          if [ -z "$branch" ] || [ "$branch" = "main" ]; then
+            echo "Lab agent did not create a feature branch; nothing to push"
+            exit 0
+          fi
+          # Remove checkout-injected App-token credential traps so the PAT is
+          # used for the workflow-file push (otherwise GitHub rejects with the
+          # "without workflows permission" error).
+          git config --local --unset-all 'http.https://github.com/.extraheader' 2>/dev/null || true
+          git config --local --remove-section 'includeIf.gitdir:*.path' 2>/dev/null || true
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "lab: apply infrastructure changes from /oc lab run ${{ github.run_id }}" --no-verify 2>/dev/null || true
+          fi
+          git push --force-with-lease "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "HEAD:refs/heads/$branch" --quiet 2>&1 \
+            && echo "Pushed $branch" \
+            || echo "PAT push failed (owner may need to approve or grant workflows scope)"
+
+      - name: Clean working tree (prevent auto-commit leaks)
+        if: always()
+        run: |
+          git checkout -- . >/dev/null 2>&1 || true
+          git clean -fd >/dev/null 2>&1 || true
+          dirty=$(git status --porcelain)
+          if [ -n "$dirty" ]; then echo "dirty after clean:"; echo "$dirty"; fi
+          exit 0
+
+      - name: Approve held CI runs on the PR
+        continue-on-error: true
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          set +e
+          pr="${{ github.event.issue.number }}"
+          for i in $(seq 1 30); do
+            head_sha=$(gh pr view "$pr" --repo "${{ github.repository }}" --json headRefOid --jq '.headRefOid' 2>/dev/null)
+            if [ -z "$head_sha" ]; then
+              echo "No PR for #$pr yet (poll $i); exiting"
+              exit 0
+            fi
+            echo "Looking for held runs on PR #$pr (head $head_sha)"
+            held=$(gh run list --repo "${{ github.repository }}" --commit "$head_sha" --status action_required --json databaseId --jq '.[].databaseId' 2>/dev/null)
+            if [ -z "$held" ]; then
+              echo "No held runs remain (poll $i)"
+              exit 0
+            fi
+            for run in $held; do
+              if gh api --method POST "repos/${{ github.repository }}/actions/runs/$run/approve" -H "Accept: application/vnd.github+json" >/dev/null 2>&1; then
+                echo "Approved run $run"
+              else
+                echo "APPROVE FAILED for run $run"
+              fi
+            done
+            sleep 5
+          done
+          echo "Held runs could not be auto-approved after polling"
+          exit 0
+
   fix:
     if: |
       startsWith(github.event.comment.body, '/oc fix') &&
@@ -697,7 +806,7 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          model: opencode/hy3-free
+          model: opencode/nemotron-3-ultra-free
           use_github_token: true
           prompt: |
             You are the Fixer of the Random lab, responding to the reviewer's findings on the open PR this comment was posted on.
