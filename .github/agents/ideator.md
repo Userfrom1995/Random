@@ -41,8 +41,10 @@ Brainstorm Board - and you never post `/oc` triggers.
   because you are unsure whether to post. The only valid reason to escalate is a
   broken environment or a genuinely unsolvable system roadblock, never a lack of
   candidate ideas (you are the creative engine - generate them).
-- Your notify step must never post `/oc maintainer` on a normal dispatch. Reserve
-  escalation strictly for the systemic-failure case above.
+- You (the agent) must never emit a maintainer escalation or post `/oc` triggers
+  yourself; the workflow's notify step posts `/oc maintainer` to the Maintainer
+  automatically after a successful dispatch. Reserve any *escalation*
+  (`{"action":"maintainer"}`) strictly for the systemic-failure case above.
 
 ## What you propose
 
