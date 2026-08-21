@@ -1,7 +1,7 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-21 (maintainer run 32534619904, EVENT `created` on PR #118, owner `/oc maintainer` + `/oc continue` ~22:50Z).
-- **Obsidian docs cleanup PR #116 MERGED:** merged into `main` via rebase at `02c0fb556d50be4ea056a734da7957420e9357b5`. Issue **#68 stays OPEN**. Production `pages.yml` deploy succeeded (`32532705840`).
-- **PR #118 (Prism M1-M4) is the active priority and is IN FLIGHT.** Branch `opencode/117-prism-m1-m4-optimization` = `08814101863fae30ab991e3676bbc6c7d6f293f4` (B5.13, 11.211 bpp, byte-exact, 1 commit ahead of `main`, MERGEABLE, shares `main` ancestry NOT orphan). An owner-triggered `/oc continue` build is currently running (run `32534609300`) driving B6-B8; the prior `continue` (32532692230) completed and force-pushed B5.12 + B5.13.
+- **Updated:** 2026-08-21 (maintainer run 32536270493, EVENT `created` on PR #118, owner `/oc continue` + `/oc maintainer` ~23:16Z).
+- **Obsidian docs cleanup PR #116 MERGED:** merged into `main` via rebase at `02c0fb556d50be4ea056a734da7957420e9357b5`. Issue **#68 stays OPEN**. Production `pages.yml` deploy succeeded (`32532705840` and latest `32536272428`).
+- **PR #118 (Prism M1-M4) is the active priority and is IN FLIGHT.** Branch `opencode/117-prism-m1-m4-optimization` = `273bfd10675a847d376fb56a41356d3ea65ea95f` (B5.14, 11.159 bpp, byte-exact, 1 commit ahead of `main`, MERGEABLE, shares `main` ancestry NOT orphan). A `continue` was just dispatched THIS run (after catching a silent stall) to resume B6-B8.
 
 ## STANDING OWNER DIRECTIVES (active)
 - **Obsidian shipped** (#93 manually merged by owner as orphan root `60748e88`; promoted to Current via merged PR #115; docs cleaned by merged PR #116). Obsidian is the current codec in `main`; last confirmed REAL-Kodak baseline **9.5209 bpp**.
@@ -11,20 +11,24 @@
 - **Quality-gate directive:** quality gates are the ONLY merge criteria.
 
 ## CRITICAL INFRASTRUCTURE STATE
-- **`main` = `02c0fb556d50be4ea056a734da7957420e9357b5`** (post PR #116 merge). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `0881410` shares M0 ancestry (NOT orphan).
+- **`main` = `02c0fb556d50be4ea056a734da7957420e9357b5`** (post PR #116 merge). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `273bfd1` shares M0 ancestry (NOT orphan).
 - **opencode.json:** `model` = `opencode/hy3-free` (free), `small_model` = `opencode/mimo-v2.5-free` (free).
-- **pages.yml:** production deploy `32532705840` succeeded (main, prior run). PR #118 preview deploy is `action_required` (env approval, not the production path).
+- **pages.yml:** production deploy `32536272428` succeeded (main, this run). PR #118 preview deploy is `action_required` (env approval, not the production path).
 
 ## IN FLIGHT
-- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** optimization loop. Current branch head `0881410` (B5.13, 11.211 bpp, byte-exact, harness 114s). An owner-triggered `/oc continue` build (run `32534609300`, started 22:50:31Z) is IN FLIGHT driving B6 (5/3 lifting + int32 widening for M2 < 9.71), B7 (Squeeze + MA-tree with mandatory `llc_class`/`sibling_class` for M3 < 8.71), B8 (CM + LZP never-expand net for M4 < 8.0). Prior `continue` `32532692230` completed (B5.12 + B5.13). The benign agent-side `git push` upstream-mismatch fatal is harness-handled (explicit-refspec push + verify/auto-retry). Owner override: NO merge until M3 (<8.71 bpp) met bit-exactly on REAL Kodak.
+- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** optimization loop. Current branch head `273bfd1` (B5.14, 11.159 bpp, byte-exact, harness 119s). **Silent stall caught THIS run:** owner's `/oc continue` at 23:16:28Z produced a SKIPPED opencode run `32536270442` (no build launched); `gh run list --workflow opencode.yml --status in_progress` was empty. The Maintainer dispatched a fresh `continue` (decision list this run) to resume B6-B8 from B5.14. Prior real build `32534609300` completed (B5.14). Benign agent-side `git push` upstream-mismatch fatal is harness-handled (explicit-refspec push + verify/auto-retry). Owner override: NO merge until M3 (<8.71 bpp) met bit-exactly on REAL Kodak.
+  - B6: 5/3 lifting + int32 color widening for BD16 (M2 < 9.71).
+  - B7: Squeeze + MA-tree greedy split with mandatory llc_class/sibling_class (M3 < 8.71 - the crux, 14% gap).
+  - B8: CM + LZP never-expand net (M4 < 8.0).
 
 ## PENDING (in order)
-1. **Prism M1-M4 (PR #118):** let the in-flight `continue` (32534609300) run; it iterates B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly. Do NOT dispatch a second `continue` while one is active (would queue/race on the same branch). When stable + green on real Kodak bit-exactly at/under the gate, fire Reviewer -> Tester (real Kodak, bit-exact, bpp gates M1<13.05 & <9.61, M2<9.71, M3<8.71). HOLD merge until M3 met bit-exactly per owner override.
+1. **Prism M1-M4 (PR #118):** the `continue` dispatched THIS run resumes B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly. Do NOT dispatch a second `continue` while one is active (would queue/race on the same branch). When stable + green on real Kodak bit-exactly at/under the gate, fire Reviewer -> Tester (real Kodak, bit-exact, bpp gates M1<13.05 & <9.61, M2<9.71, M3<8.71). HOLD merge until M3 met bit-exactly per owner override.
 2. **#42 Board resume (parked):** Ideator batch posted; PARKED behind Prism per owner directive.
 3. **entropy-architecture.md archive follow-up (non-blocking, Reviewer design note):** authoritative doc for the shipped rANS backend, still cited by live code; consider un-archiving or a clearer label.
-4. **Circuit-breaker false-trip fix (root cause):** breaker counts Maintainer's own status comments (embedding dispatch keywords). Harden `loop-budget.sh` to exclude Maintainer status comments (a `lab` change, blocked by workflows-scope PAT wall until owner regenerates `OPENCODE_PAT`). Short-term: keep bot comments free of literal dispatch-keyword phrases.
-5. **Benign agent `git push` fatal-error noise (non-blocking):** the opencode agent sometimes runs a bare `git push` (upstream mismatch) inside the session; the harness push (explicit refspec + verify/auto-retry) still delivers, as proven by the branch advancing. Optional `lab` follow-up to steer the agent away from bare `git push`. Deferred until the build loop is not mid-flight.
-6. **Verify PR #118 pages preview:** currently `action_required` (env approval) - owner-side, not a production blocker.
+4. **Silent-stall diagnostic (NEW, non-blocking):** owner `/oc continue` at 23:16:28Z yielded a skipped opencode run (`32536270442`) instead of launching a build. A `lab` diagnostic of opencode.yml's continue/B5 dispatch logic is warranted once the loop is idle, so the loop never silently pauses again.
+5. **Circuit-breaker false-trip fix (root cause):** breaker counts Maintainer's own status comments (embedding dispatch keywords). Harden `loop-budget.sh` to exclude Maintainer status comments (a `lab` change, blocked by workflows-scope PAT wall until owner regenerates `OPENCODE_PAT`). Short-term: keep bot comments free of literal dispatch-keyword phrases.
+6. **Benign agent `git push` fatal-error noise (non-blocking):** the opencode agent sometimes runs a bare `git push` (upstream mismatch) inside the session; the harness push (explicit refspec + verify/auto-retry) still delivers, as proven by the branch advancing. Optional `lab` follow-up to steer the agent away from bare `git push`. Deferred until the build loop is not mid-flight.
+7. **Verify PR #118 pages preview:** currently `action_required` (env approval) - owner-side, not a production blocker.
 
 ## ISSUES
 - **#68 (Obsidian umbrella)** - OPEN (owner wants docs cleaned; codec shipped). Not closed by PR #116 (only Refs #68).
@@ -41,12 +45,13 @@
 - **Circuit breaker:** RESET (counter 0). Owner re-issued directive (quality gate, not the breaker, governs merges).
 
 ## NEXT STEPS
-1. Prism M1-M4 (PR #118): allow in-flight `continue` (32534609300) to iterate B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly; then Reviewer -> Tester (real Kodak, bit-exact, bpp gates); HOLD merge until M3 met bit-exactly per owner override.
+1. Prism M1-M4 (PR #118): the `continue` dispatched THIS run resumes B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly; then Reviewer -> Tester (real Kodak, bit-exact, bpp gates); HOLD merge until M3 met bit-exactly per owner override.
 2. After the gate is cleared and PR #118 is reviewed + Tester-approved, merge via rebase (branch retained) and close #117.
 
 ## OPEN QUESTIONS
-- Prism #118: does the in-flight `continue` build (32534609300) iterate past 11.211 bpp (B5.13) toward M3 < 8.71 on REAL Kodak bit-exactly? Owner override: no merge until M0+M1+M2+M3 met bit-exactly.
+- Prism #118: will the resumed `continue` build (dispatched THIS run) iterate past 11.159 bpp (B5.14) toward M3 < 8.71 on REAL Kodak bit-exactly? Owner override: no merge until M0+M1+M2+M3 met bit-exactly.
 - Prism #118: when stable at/under the gate, fire Reviewer -> Tester before any merge.
+- Silent-stall: why did owner `/oc continue` at 23:16:28Z produce a skipped opencode run (`32536270442`) instead of a build? `lab` diagnostic once idle.
 - entropy-architecture.md: should the authoritative rANS design doc be un-archived (Reviewer design note, non-blocking)?
 - Circuit-breaker false-trip: will the `OPENCODE_PAT` workflows-scope wall ever be lifted so the `lab` fix can land? Short-term mitigation in force.
 - Agent bare `git push` fatal-error noise: optional `lab` cleanup after the build loop is not mid-flight.
