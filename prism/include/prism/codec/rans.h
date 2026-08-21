@@ -82,6 +82,19 @@ void rans_decode_residuals_auto(const std::vector<uint8_t>& in, size_t n,
 
 // Helper: compute ResDiff context id per sample (LOCO-I style) from causal residuals.
 std::vector<uint16_t> compute_resdiff_context(const std::vector<int32_t>& residuals, uint32_t w, uint32_t h);
+std::vector<uint16_t> compute_resdiff_context_with_llc(const std::vector<int32_t>& residuals, uint32_t w, uint32_t h, const std::vector<uint16_t>& ll_plane);
+
+// Squeeze-aware: encode/decode with llc_class (HF bands)
+void rans_encode_residuals_with_llc(const std::vector<int32_t>& residuals,
+                                    uint32_t w, uint32_t h,
+                                    const std::vector<uint16_t>& ll_plane,
+                                    ModelBank& models,
+                                    std::vector<uint8_t>& out);
+void rans_decode_residuals_with_llc(const std::vector<uint8_t>& in, size_t n,
+                                    uint32_t w, uint32_t h,
+                                    const std::vector<uint16_t>& ll_plane,
+                                    ModelBank& models,
+                                    std::vector<int32_t>& out);
 
 // Raw binary rANS: encode/decode a bit vector with one fixed probability
 // `prob` (default 0.5). Used by the H(p)+epsilon efficiency gate test and

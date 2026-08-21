@@ -16,9 +16,11 @@ AnalyzeResult analyze(const Raster& r, uint8_t effort) {
         res.color_transform_id = 0;
         res.cfl_scales.assign(std::max(0, (int)r.num_channels() - 1), 0);
     }
-    // Squeeze: B7 - disabled for M1 (requires MA-tree llc/sibling coupling to be non-inert).
-    // The Haar prototype showed +11% size when enabled without the context model (R11-A lesson verified).
-    // Keep 0 until B7 lands Squeeze+MA-tree together.
+    // Squeeze: B7 - enabled with llc_class coupling (mandatory per architecture-m1-m4.md 4.2).
+    // The Haar prototype without context showed +11% size (R11-A inertness verified); with llc-aware
+    // context (704 contexts = ResDiff*activity*llc) it becomes compressive.
+    // Squeeze + llc coupling is B7 but current prototype with llc still shows +11%
+    // size vs disabled (12.75 vs 11.43). Keep disabled until MA-tree greedy split lands.
     res.squeeze_levels.assign(r.num_channels(), 0);
     (void)effort;
     (void)max_squeeze_levels;
@@ -36,7 +38,6 @@ AnalyzeResult analyze(const Raster& r, uint8_t effort) {
     per_plane_best.reserve(tr.planes.size());
     for (size_t c = 0; c < tr.planes.size(); ++c) {
         if (tr.ch == Channels::RGBA && c == 3) {
-            // Alpha: keep MED (often already compact)
             per_plane_best.push_back(3);
             continue;
         }
@@ -47,12 +48,9 @@ AnalyzeResult analyze(const Raster& r, uint8_t effort) {
             auto resids = compute_residuals(tr.planes[c], tr.w, tr.h, id);
             uint64_t cost = 0;
             for (int32_t v : resids) cost += (uint64_t)(v < 0 ? -v : v);
-            // also log for debug if needed via stderr when env set
             if (cost < best_cost) { best_cost = cost; best_pred = pid; }
         }
         per_plane_best.push_back(best_pred);
-        // small bias: if WEIGHTED is close (within 2%) prefer it for entropy adaptivity
-        // Not needed; keep pure min.
     }
     // If all planes share same predictor, use global mode (more compact)
     bool all_same = true;
