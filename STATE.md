@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-22 (maintainer run 32566341968, owner `/oc maintainer` re-ping on PR #118, 09:57Z). Fresh survey confirms: PR #118 head `8e5a5659fa5c5e3cb4356f01a42b15452e929b04` (B5.36, 11.059 bpp, byte-exact, harness ~365s), **no `continue` build in flight** (last real build `32564122603` COMPLETED landing B5.36 at 09:57:52Z). This run **escalated instead of looping**: it did NOT dispatch another `continue`. Per the standing escalate-if-deferred rule, because B5.36 (launched by the prior run's B7-redirect) is yet another 0% scaffold that explicitly did NOT build the real B7 MA-tree greedy split, the loop is halted pending an owner decision.
+- **Updated:** 2026-08-22 (maintainer run 32566346378, re-triggered on PR #118, ~10:0xZ). Fresh survey confirms: PR #118 head `8e5a5659fa5c5e3cb4356f01a42b15452e929b04` (B5.36, 11.059 bpp, byte-exact, harness ~365s), **no `continue` build in flight** (last real build `32564122603` COMPLETED landing B5.36 at 09:57Z). This run **reaffirmed the escalation** from the prior pass (32566341968, 10:00Z): it did NOT dispatch another `continue`. The loop is converged at a hard local optimum and awaits the owner's explicit strategic choice (a/b/c).
 
 ## STANDING OWNER DIRECTIVES (active)
 - **Obsidian shipped** (#93 manually merged by owner as orphan root `60748e88`; promoted to Current via merged PR #115; docs cleaned by merged PR #116). Obsidian is the current codec in `main`; last confirmed REAL-Kodak baseline **9.5209 bpp**. #68 (Obsidian umbrella) is now CLOSED.
@@ -18,19 +18,18 @@
 
 ## IN FLIGHT
 - **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** head `8e5a565` (B5.36, 11.059 bpp, byte-exact, harness ~365s). **No build in flight.** The B5.x trajectory is CONVERGED: B5.28-B5.36 = 9 consecutive ~0% builds.
-  - **Predictor bank FULLY SATURATED** (16/16 nibble 0..15, per-plane top10, block top12, selective-16 thr55 top13, color top8 - all neutral). B6 5/3 lifting done and **inert** (+0.8% never-expand, kept disabled). B7 Squeeze + MA-tree greedy split has been SCAFFOLDED three times (B5.33 per-band, B5.35 mode5, B5.36 leaf-activity MA-tree LITE) but the real greedy split with mandatory `llc_class`/`sibling_class` has NEVER been built. Each scaffold ends "infrastructure ready for B7" (net 0%).
-  - **The prior run's explicit B7-redirect (09:08Z) was DEFIED** - B5.36 shipped instead of B7. Per rule, this run escalated (no `continue`).
+  - **Predictor bank FULLY SATURATED** (16/16 nibble 0..15, per-plane top10, block top12, selective-16 thr55 top13, color top8 - all neutral). B6 5/3 lifting done and **inert** (+0.8% never-expand, kept disabled). B7 Squeeze + MA-tree greedy split has been SCAFFOLDED three times (B5.33 per-band, B5.35 mode5, B5.36 leaf-activity MA-tree LITE) but the real greedy split with mandatory `llc_class`/`sibling_class` has NEVER been built. B5.36 defied the prior run's explicit B7 redirect.
   - **Merge gate NOT met** (11.059 vs 8.71 JXL, gap 2.35 / ~21%). Held until M3<8.71 bit-exact + Tester approval.
 
 ## PENDING (in order)
-1. **OWNER DECISION (this run's escalation):** choose (a) bounded Architect+Builder on the REAL B7 MA-tree greedy split, (b) repivot/close #117 publishing partial baseline, or (c) raise the circuit-breaker budget. The loop is paused until then.
+1. **OWNER DECISION (escalation reaffirmed this run):** choose (a) bounded Architect+Builder on the REAL B7 MA-tree greedy split, (b) repivot/close #117 publishing partial baseline, or (c) raise the circuit-breaker budget. The loop is paused until then.
 2. **If (a):** route `research`->`architect`->`build` with a hard "no B5.x widening" constraint; one bounded attempt, not the open loop.
 3. **If (b):** publish Prism 11.059 bpp baseline (M0 bit-exact, PNG PASS, reproducible Kodak CSVs + architecture-m1-m4.md) and close #117 with explanation.
 4. **CIRCUIT-BREAKER BUDGET:** raise only if owner chooses (c).
 5. **Prism M1-M4 (PR #118):** once B7 is genuinely attempted, HOLD merge until M3 < 8.71 bit-exactly (and Reviewer -> Tester fired).
 6. **ORCHESTRATION RULE FIX:** effectively landed (reviewer.md auto-guard). Optional fixer.md hardening parked.
 7. **PR #119:** CLOSED by owner (redundant; target #98 CLOSED). Resolved.
-8. **Silent-stall mitigation:** suspended this run in favor of escalation.
+8. **Silent-stall mitigation:** suspended in favor of escalation.
 
 ## ISSUES
 - **#68 (Obsidian umbrella)** - CLOSED.
@@ -50,7 +49,7 @@
 - **Circuit breaker:** 36/20, HARD-halted. This run did not add to it.
 
 ## NEXT STEPS
-1. **AWAIT OWNER DECISION on PR #118 escalation:** (a) bounded B7, (b) repivot/close #117, (c) raise breaker. No `continue` issued this run.
+1. **AWAIT OWNER DECISION on PR #118 escalation (reaffirmed this run):** (a) bounded B7, (b) repivot/close #117, (c) raise breaker. No `continue` issued.
 2. If (a): dispatch `research`/`architect`/`build` chain scoped to real B7 greedy split, no B5.x widening.
 3. If (b): document and close #117.
 4. ORCHESTRATION FIX: considered landed (reviewer.md auto-guard). Optional fixer.md hardening parked.
