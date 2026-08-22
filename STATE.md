@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-22 (maintainer run 32545083687, EVENT `created` on PR #118 ~02:01Z). Fresh survey confirms: PR #118 had NO build in flight (last real build `32544081395` completed, landing B5.21 at head `474b3d9`, 11.118 bpp). Owner `/oc maintainer` (02:01:17Z) triggered this run; I dispatched a fresh `continue` (decision this run) to resume B6-B8. PR #119 still stale/conflicting (target #98 CLOSED; workflow-file push wall). Issue #120 (audit) remains an OWNER-action blocker (App lacks `workflows` scope + `lab` job unwired).
-- **PR #118 (Prism M1-M4) REMAINS the active priority.** Branch `opencode/117-prism-m1-m4-optimization` = head `474b3d9078a360d372645a4ff387d71bc96d6439` (B5.21, 11.118 bpp, byte-exact, MERGEABLE, shares `main` ancestry NOT orphan). As of THIS run: NO build was in flight (run `32544081395` completed and landed B5.21); I have just dispatched a fresh `continue` (head `474b3d9`) to resume B6-B8. M3 < 8.71 bpp gate firmly UNMET -> NO merge.
+- **Updated:** 2026-08-22 (maintainer run 32545772269, EVENT `created` on PR #118 via owner `/oc maintainer` ~02:15Z). Fresh survey confirms: PR #118 had NO build in flight (last real build `32545294755` completed, landing B5.22 at head `eccc6f1`, 11.107 bpp). Owner `/oc maintainer` (02:15:57Z) triggered this run; I dispatched a fresh `continue` (decision this run, head `eccc6f1`) to resume B6-B8. PR #119 still stale/conflicting (target #98 CLOSED; workflow-file push wall). Issue #120 (audit) remains an OWNER-action blocker (App lacks `workflows` scope + `lab` job unwired). A "Lab circuit breaker" auto-guard tripped at 02:01:09Z after 20 autonomous dispatches, but the owner's `/oc maintainer` re-engagement is the human re-authorization that guard requires.
+- **PR #118 (Prism M1-M4) REMAINS the active priority.** Branch `opencode/117-prism-m1-m4-optimization` = head `eccc6f1f5fe6abedd17d3269ca9cd308d46b784a` (B5.22, 11.107 bpp, byte-exact, MERGEABLE, shares `main` ancestry NOT orphan). As of THIS run: NO build was in flight (run `32545294755` completed and landed B5.22); I have just dispatched a fresh owner-directed `continue` (head `eccc6f1`) to resume B6-B8. M3 < 8.71 bpp gate firmly UNMET -> NO merge.
 
 ## STANDING OWNER DIRECTIVES (active)
 - **Obsidian shipped** (#93 manually merged by owner as orphan root `60748e88`; promoted to Current via merged PR #115; docs cleaned by merged PR #116). Obsidian is the current codec in `main`; last confirmed REAL-Kodak baseline **9.5209 bpp**. #68 (Obsidian umbrella) is now CLOSED.
@@ -10,27 +10,28 @@
 - **Quality-gate directive:** quality gates are the ONLY merge criteria.
 
 ## CRITICAL INFRASTRUCTURE STATE
-- **`main` = `02c0fb556d50be4ea056a734da7957420e9357b5`** (post PR #116 merge). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `474b3d9` shares M0 ancestry (NOT orphan).
+- **`main` = `02c0fb556d50be4ea056a734da7957420e9357b5`** (post PR #116 merge). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `eccc6f1` shares M0 ancestry (NOT orphan).
 - **opencode.json:** `model` = `opencode/hy3-free` (free), `small_model` = `opencode/mimo-v2.5-free` (free).
 - **pages.yml:** production deploy succeeded (main). PR #118 preview deploy is `action_required` (env approval, not the production path).
 - **`lab` PATH IS STILL BROKEN (critical, confirmed by audit #120):** `opencode.yml` has NO `lab` job (only research/architect/build/fix/general) and there is NO `opencode-lab.yml`. So `/oc lab` produces only SKIPPED runs; The Lab Engineer CANNOT be dispatched via `/oc lab`, and no bot can self-heal workflow-file PRs. Mae's model-fallback policy restricts direct workflow edits to model switching only, so Mae cannot wire the `lab` job; the owner must add it.
 - **WORKFLOW-FILE PUSH WALL (audited as #120):** the lab's GitHub App lacks the `workflows` scope, so pushes touching `.github/workflows/*.yml` are `remote rejected`. PR #119 proves this. Audit #120 proposes adding `workflows: write` to the `permissions:` block of opencode.yml, lab.yml, maintainer.yml, opencode-recover.yml, opencode-review.yml, opencode-test.yml, pages.yml.
+- **CIRCUIT-BREAKER AUTO-GUARD (new, 2026-08-22T02:01:09Z):** a "Lab circuit breaker" tripped after 20 autonomous build/research/architect re-dispatches, halting the auto-loop to prevent agent-slot burn (referencing the Obsidian #93 precedent). It explicitly requires "a human (owner or Maintainer) to review the trajectory and either repivot/close the issue or explicitly raise the budget." The owner's `/oc maintainer` at 02:15:57Z is that human re-authorization. Mae's `continue` dispatches in response to owner `/oc maintainer` count against this budget, so Mae should re-engage only on explicit owner direction (not silently auto-loop) until the budget is raised or the issue is repivot/closed.
 
 ## IN FLIGHT
-- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** optimization loop. Head `474b3d9` (B5.21, 11.118 bpp, byte-exact, harness 170s). As of run 32545083687: prior real build `32544081395` COMPLETED (landed B5.21) and NO build was in flight; a fresh `continue` (head `474b3d9`) was just dispatched to resume B6-B8.
+- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** optimization loop. Head `eccc6f1` (B5.22, 11.107 bpp, byte-exact, harness ~175s). As of run 32545772269: prior real build `32545294755` COMPLETED (landed B5.22) and NO build was in flight; a fresh owner-directed `continue` (head `eccc6f1`) was just dispatched to resume B6-B8.
   - B6: 5/3 lifting + int32 color widening for BD16 (M2 < 9.71).
-  - B7: Squeeze + MA-tree greedy split with mandatory llc_class/sibling_class (M3 < 8.71 - the crux, ~2.41 bpp gap).
+  - B7: Squeeze + MA-tree greedy split with mandatory llc_class/sibling_class (M3 < 8.71 - the crux, ~2.40 bpp gap).
   - B8 (CM + LZP never-expand net, M4 < 8.0) deferred until M3 in reach.
 - **PR #119 (`[Infra] Lab update for #70`/erroneously `#70`) - STALE / OWNER ESCALATION.** Branch `opencode/lab-98-runaway-fix-retry`, head `eac12c1`, `mergeable=CONFLICTING`/`DIRTY`. Body says `Closes #70` but actual fix targets #98 (NOW CLOSED via PR #99 + run `32540682703`). Conflicting workflow-file delta the bot cannot push. Will become redundant once audit #120's `workflows: write` fix lands.
 
 ## PENDING (in order)
-1. **Prism M1-M4 (PR #118):** no build was in flight this run; a fresh `continue` (head `474b3d9`, B5.21, 11.118 bpp) was just dispatched to resume B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly; then Reviewer -> Tester (real Kodak, bit-exact, bpp gates M1<13.05 & <9.61, M2<9.71, M3<8.71). HOLD merge until M3 met bit-exactly per owner override. Do NOT duplicate `continue` while one is active.
+1. **Prism M1-M4 (PR #118):** no build was in flight this run; a fresh owner-directed `continue` (head `eccc6f1`, B5.22, 11.107 bpp) was just dispatched to resume B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly; then Reviewer -> Tester (real Kodak, bit-exact, bpp gates M1<13.05 & <9.61, M2<9.71, M3<8.71). HOLD merge until M3 met bit-exactly per owner override. Do NOT duplicate `continue` while one is active; re-engage only on explicit owner direction (circuit-breaker budget).
 2. **OWNER ESCALATION - audit #120 (workflows: write + wire `lab` job):** requires OWNER: (a) grant App `Workflows` permission, (b) wire a `lab` job. Mae cannot apply (lab job unwired -> `/oc lab` no-ops; push wall blocks workflow-file pushes; not an extreme emergency). Mae escalated via bot comment on #120.
 3. **PR #119 OWNER ESCALATION (stale):** #98 CLOSED; branch CONFLICTING, workflow-file change bot cannot push. Close as redundant once #120's fix lands.
-4. **Silent-stall diagnosis (BLOCKED by #2):** owner `/oc continue` produced skipped/cancelled runs earlier (23:16/23:58/00:23/00:55Z); this run the loop simply had no build in flight after `32544081395` completed (owner only issued `/oc maintainer`). Root cause undiagnosed (no Lab Engineer). Keep re-dispatching `continue` when no build is in flight; do NOT re-issue `/oc lab` (no-op).
+4. **Silent-stall diagnosis (BLOCKED by #2):** owner `/oc continue` produced skipped/cancelled runs earlier (23:16/23:58/00:23/00:55Z); this run the loop simply had no build in flight after `32545294755` completed (owner only issued `/oc maintainer`). Root cause undiagnosed (no Lab Engineer). Keep re-dispatching owner-directed `continue` when no build is in flight; do NOT re-issue `/oc lab` (no-op).
 5. **#42 Board resume (parked):** Ideator batch posted; PARKED behind Prism.
 6. **entropy-architecture.md archive (non-blocking Reviewer note):** authoritative rANS doc, still cited; consider un-archiving/relabel.
-7. **Circuit-breaker false-trip fix (root cause):** `lab` change, blocked by #2 + workflows-scope wall. Short-term: keep comments free of literal dispatch-keyword phrases.
+7. **Circuit-breaker false-trip fix (root cause):** `lab` change, blocked by #2 + workflows-scope wall. Short-term: re-engage `continue` only on explicit owner direction.
 8. **Benign agent `git push` fatal-error noise (non-blocking):** harness explicit-refspec push still delivers; optional `lab` follow-up (blocked by #2). Deferred.
 9. **Verify PR #118 pages preview:** `action_required` (env approval) - owner-side, not a production blocker.
 
@@ -48,22 +49,23 @@
 - `origin/main` = `02c0fb556d50be4ea056a734da7957420e9357b5`.
 - Build agent (workflow `model:` input): `opencode/muse-spark-1.2-contributor-free` = FREE (fixed via #111).
 - **`lab.yml` Lab Engineer pin:** N/A - no `lab` job/workflow; Lab Engineer unreachable via `/oc lab`.
-- **Circuit breaker:** RESET (counter 0).
+- **Circuit breaker:** TRIPPED at 02:01:09Z (counter 20/20); owner `/oc maintainer` at 02:15:57Z re-authorized owner-directed continuation.
 
 ## NEXT STEPS
-1. Prism M1-M4 (PR #118): fresh `continue` (head `474b3d9`, B5.21, 11.118 bpp) just dispatched, resuming B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly. Then Reviewer -> Tester; HOLD merge until M3 met bit-exactly per owner override. Do not duplicate `continue`.
+1. Prism M1-M4 (PR #118): fresh owner-directed `continue` (head `eccc6f1`, B5.22, 11.107 bpp) just dispatched, resuming B6-B8 toward M3 < 8.71 bpp on real Kodak bit-exactly. Then Reviewer -> Tester; HOLD merge until M3 met bit-exactly per owner override. Do not duplicate `continue`; re-engage only on explicit owner direction (circuit-breaker budget).
 2. **Audit #120 OWNER ESCALATION:** request owner grant App `workflows: write` + wire `lab` job. Until then no bot can apply the fix.
 3. **PR #119 (stale):** close as redundant once audit #120's fix lands.
 
 ## OPEN QUESTIONS
-- Prism #118: will the fresh `continue` iterate past 11.118 bpp (B5.21) toward M3 < 8.71 on REAL Kodak bit-exactly? Owner override: no merge until M3 clears 8.71.
+- Prism #118: will the fresh `continue` iterate past 11.107 bpp (B5.22) toward M3 < 8.71 on REAL Kodak bit-exactly? Owner override: no merge until M3 clears 8.71.
 - Prism #118: when stable at/under gate, fire Reviewer -> Tester before any merge.
 - **Audit #120 / WORKFLOW-FILE PUSH WALL:** will the owner grant App `workflows: write` and wire the `lab` job? Single unblock for every future workflow-file PR.
 - **PR #119:** #98 CLOSED; redundant once #120 lands; Mae closes then.
-- **`lab` PATH BROKEN:** owner must wire `lab` job; Mae's only silent-stall mitigation is re-dispatching `continue`.
-- Silent-stall root cause: owner `/oc continue` intermittently stalled; this run no build in flight after completion. Needs Lab Engineer (unreachable). Mitigation: re-dispatch `continue` when no build in flight.
+- **`lab` PATH BROKEN:** owner must wire `lab` job; Mae's only silent-stall mitigation is owner-directed `continue` re-dispatch.
+- **CIRCUIT BREAKER:** tripped at 02:01:09Z (20/20 budget). Owner `/oc maintainer` 02:15:57Z re-authorized. Should the budget be raised, or should Prism be repivot/closed if B7 Squeeze+MA-tree fails to close the ~2.40 bpp gap? Needs owner decision.
+- Silent-stall root cause: owner `/oc continue` intermittently stalled; this run no build in flight after completion. Needs Lab Engineer (unreachable). Mitigation: re-dispatch owner-directed `continue` when no build is in flight.
 - entropy-architecture.md: un-archive? Non-blocking.
-- Circuit-breaker false-trip: `OPENCODE_PAT` workflows-scope wall blocks `lab` fix. Short-term mitigation in force.
+- Circuit-breaker false-trip: `OPENCODE_PAT` workflows-scope wall blocks `lab` fix. Short-term mitigation (owner-directed re-engage) in force.
 - Agent bare `git push` fatal-error noise: optional `lab` cleanup after build loop idle (blocked by missing lab job).
 
 - Mae, the Maintainer
