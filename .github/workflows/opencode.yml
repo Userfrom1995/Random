@@ -420,16 +420,23 @@ jobs:
             fi
           fi
           
-          echo "No push detected on current branch ($branch)"
-          # Robust retry counter: never fall back to 0 on an API/rate-limit
-          # failure, which would make the cap never trip and loop forever. Only
-          # count retries the API actually returned; on failure, stop retrying.
-          retries=$(gh api "repos/${{ github.repository }}/issues/$issue/comments" \
-            --jq '[.[] | select(.user.login == "${{ github.repository_owner }}" and (.body | startswith("/oc build this (auto-retry")))] | length' 2>/dev/null || true)
-          if [ -z "$retries" ] || ! [ "$retries" -eq "$retries" ] 2>/dev/null; then
-            echo "::error::Could not enumerate prior auto-retries on #$issue (API/rate-limit failure). Refusing to auto-retry to avoid a runaway loop."
-            exit 1
-          fi
+           echo "No push detected on current branch ($branch)"
+           # Robust retry counter: walk EVERY comment page (gh api returns only
+           # the first 30 without --paginate). On a long issue with hundreds of
+           # comments the non-paginated count never sees its own later
+           # "(auto-retry N)" comments, stays pinned at 0, and reposts
+           # "(auto-retry 1)" forever - the exact runaway loop reported in #98.
+           # --paginate walks all pages; we emit one id per match and count lines.
+           # On a hard API/rate-limit failure we refuse to retry rather than loop.
+           set +e
+           raw=$(gh api --paginate "repos/${{ github.repository }}/issues/$issue/comments" \
+             --jq '.[] | select(.user.login == "${{ github.repository_owner }}" and (.body | startswith("/oc build this (auto-retry"))) | .id' 2>/dev/null)
+           api_rc=$?
+           retries=$(printf '%s\n' "$raw" | grep -c . || true)
+           if [ "$api_rc" -ne 0 ]; then
+             echo "::error::Could not enumerate prior auto-retries on #$issue (API/rate-limit failure). Refusing to auto-retry to avoid a runaway loop."
+             exit 1
+           fi
           if [ "$retries" -lt 3 ]; then
             n=$((retries + 1))
             echo "Posting auto-retry $n"
@@ -720,17 +727,23 @@ jobs:
             exit 0
           fi
 
-          echo "No push detected"
-          # Robust retry counter: never fall back to 0 on an API/rate-limit
-          # failure, because a phantom 0 would cap never trip and the loop would
-          # run forever. Only count retries the API actually returned; if the
-          # query itself failed, treat it as "at budget" and stop retrying.
-          retries=$(gh api "repos/${{ github.repository }}/issues/$pr/comments" \
-            --jq '[.[] | select(.user.login == "${{ github.repository_owner }}" and (.body | startswith("/oc fix (auto-retry")))] | length' 2>/dev/null || true)
-          if [ -z "$retries" ] || ! [ "$retries" -eq "$retries" ] 2>/dev/null; then
-            echo "::error::Could not enumerate prior auto-retries on #$pr (API/rate-limit failure). Refusing to auto-retry to avoid a runaway loop."
-            exit 1
-          fi
+           echo "No push detected"
+           # Robust retry counter: walk EVERY comment page (gh api returns only
+           # the first 30 without --paginate). On a long PR thread with hundreds
+           # of comments the non-paginated count never sees its own later
+           # "(auto-retry N)" comments, stays pinned at 0, and reposts
+           # "(auto-retry 1)" forever - the exact runaway loop reported in #98.
+           # --paginate walks all pages; we emit one id per match and count lines.
+           # On a hard API/rate-limit failure we refuse to retry rather than loop.
+           set +e
+           raw=$(gh api --paginate "repos/${{ github.repository }}/issues/$pr/comments" \
+             --jq '.[] | select(.user.login == "${{ github.repository_owner }}" and (.body | startswith("/oc fix (auto-retry"))) | .id' 2>/dev/null)
+           api_rc=$?
+           retries=$(printf '%s\n' "$raw" | grep -c . || true)
+           if [ "$api_rc" -ne 0 ]; then
+             echo "::error::Could not enumerate prior auto-retries on #$pr (API/rate-limit failure). Refusing to auto-retry to avoid a runaway loop."
+             exit 1
+           fi
           if [ "$retries" -lt 3 ]; then
             n=$((retries + 1))
             echo "Posting auto-retry $n"
