@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-22 (maintainer run 32553692409, EVENT `issue_comment` on PR #118 - re-survey; no build in flight, resumed loop via owner-directed `continue`). Fresh survey confirms: PR #118 head `0dd21e4` (B5.27, 11.060 bpp, byte-exact, harness ~245s), NO build currently in flight; #120 audit still an OWNER-action blocker (App lacks `workflows` scope); opencode.yml has NO `lab` job (so `action: lab` only produces skipped runs on the build workflow; the separate `lab.yml` routes `/oc lab` to the Lab Engineer for prompt edits only).
+- **Updated:** 2026-08-22 (maintainer run 32554896970, EVENT `issue_comment` on PR #118 - owner `/oc continue` ~05:39Z; no build in flight, resumed loop via owner-directed `continue`). Fresh survey confirms: PR #118 head `b571d1b` (B5.28, 11.059 bpp, byte-exact, harness ~310s), NO build currently in flight (last real build `32553898957` success at 05:16Z landed B5.28); circuit breaker tripped at 27/20 (FALSE trip - steady real gains, not Obsidian #93 net-negative case); #120 audit still an OWNER-action blocker (App lacks `workflows` scope); opencode.yml has NO `lab` job (so `action: lab` only yields skipped runs on the build workflow; the separate `lab.yml` routes `/oc lab` to the Lab Engineer for prompt edits only).
 - **Maintainer run 32552686431 (04:48Z, PR #119 owner directive)** dispatched `lab` on #120 to make infra/workflow delegation explicit + enforceable in reviewer.md + fixer.md. That Lab Engineer dispatch FAILED (run 32552800127, 0s, push to `main` rejected - the `workflows: write` wall). So the orchestration-rule fix is still not landed.
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -11,15 +11,15 @@
 - **(2026-08-22T04:48Z):** infra/workflow changes MUST be delegated to the Lab Engineer, never the Fixer. Make it explicit + enforceable in agent prompts.
 
 ## CRITICAL INFRASTRUCTURE STATE
-- **`main` = `02c0fb556d50be4ea056a734da7957420e9357b5`** (post PR #116 merge). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `0dd21e4` shares M0 ancestry (NOT orphan).
+- **`main` = `770a7567c147fbd00373691c7a59d8000f992b87`** (advanced past `02c0fb55`). Obsidian lives in `obsidian/` on `main`. Prism branch `opencode/117-prism-m1-m4-optimization` = `b571d1b` shares M0 ancestry (NOT orphan).
 - **opencode.json:** `model` = `opencode/hy3-free` (free), `small_model` = `opencode/mimo-v2.5-free` (free).
 - **pages.yml:** production deploy succeeded (main). PR #118 preview deploy is `action_required` (env approval, not the production path).
-- **LAB ENGINEER REACHABLE for PROMPT edits only:** `lab.yml` triggers on `startsWith(comment, '/oc lab')` → Lab Engineer CAN push `.github/agents/*.md` (contents: write) but CANNOT push `.github/workflows/*.yml` (no `workflows: write`). The build workflow `opencode.yml` has NO `lab` job, so a Maintainer `{"action":"lab"}` decision posts `/oc lab` that only yields skipped runs there. Workflow-file edits (the `action: lab` routing case, circuit-breaker fix) need owner `workflows: write`.
+- **LAB ENGINEER REACHABLE for PROMPT edits only:** `lab.yml` triggers on `startsWith(comment, '/oc lab')` - Lab Engineer CAN push `.github/agents/*.md` (contents: write) but CANNOT push `.github/workflows/*.yml` (no `workflows: write`). The build workflow `opencode.yml` has NO `lab` job, so a Maintainer `{"action":"lab"}` decision posts `/oc lab` that only yields skipped runs there. Workflow-file edits (the `action: lab` routing case, circuit-breaker fix) need owner `workflows: write`.
 - **WORKFLOW-FILE PUSH WALL (audited as #120):** the lab's GitHub App lacks the `workflows` scope, so pushes touching `.github/workflows/*.yml` are `remote rejected`. Audit #120 proposes adding `workflows: write` to the `permissions:` blocks. Owner action still pending. The owner-directed Lab Engineer dispatch on #120 (run 32552800127) FAILED in 0s, confirming the wall.
-- **CIRCUIT-BREAKER FALSE-TRIP (owner action needed):** mis-fires on Prism (steady real byte reductions, 11.29 → 11.06, ~2% total). Owner `/oc maintainer` has re-authorized each occurrence, but the budget is exhausted (tripped at 20/20..25/25). The "no converging / net-negative" premise (Obsidian #93) is FALSE for Prism. Please raise the breaker budget or repivot/close #117.
+- **CIRCUIT-BREAKER FALSE-TRIP (owner action needed):** mis-fires on Prism (steady real byte reductions, 11.29 -> 11.059, ~2% total). Owner `/oc continue` re-authorizes each occurrence, but the budget is exhausted (tripped at 20/20..27/27). The "no converging / net-negative" premise (Obsidian #93) is FALSE for Prism. Please raise the breaker budget or repivot/close #117.
 
 ## IN FLIGHT
-- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** head `0dd21e4` (B5.27, 11.060 bpp, byte-exact, harness ~245s). As of this run: NO build in flight (last run `32552517065` success at 05:11Z). Predictor bank EXHAUSTED (16/16 nibble, top7, selective-16 threshold saturation). **B7 Squeeze+MA-tree greedy split depth 6 with mandatory `llc_class`/`sibling_class` is the ONLY proven >10% closure to M3 < 8.71 and MUST be attempted next** - no more B5.x headroom. This run dispatches owner-directed `continue` to resume B6-B8.
+- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** head `b571d1b` (B5.28, 11.059 bpp, byte-exact, harness ~310s). As of this run: NO build in flight (last run `32553898957` success at 05:16Z landed B5.28). **Predictor bank is now FULLY EXHAUSTED (16/16 nibble 0..15, per-plane top6 + block top7/8, selective-16 threshold saturation). B7 (Squeeze+MA-tree greedy split depth 6 with mandatory `llc_class`/`sibling_class`) is the ONLY proven >10% closure to M3 < 8.71 and MUST be attempted next - no more B5.x headroom.** This run dispatches owner-directed `continue` to resume B6-B8 with an explicit directive that the Builder MUST build B7, not another B5.x tweak.
 - **ORCHESTRATION RULE FIX (owner directive on PR #119, 04:48Z):** dispatched Lab Engineer via `/oc lab` on #120 to edit reviewer.md + fixer.md (pushable prompt edits). The dispatch FAILED (run 32552800127, `workflows: write` wall). NOT landed. Fixer refusal guard + reviewer routing rule still absent.
 
 ## PENDING (in order)
@@ -41,13 +41,13 @@
 - **#120 (Audit: workflows: write missing)** - OPEN; owner escalation (cannot self-heal workflow edits). Home of the orchestration-rule fix (prompt edits, still blocked by the wall).
 
 ## REVIEWER/TESTER/MODEL STATUS
-- `origin/main` = `02c0fb556d50be4ea056a734da7957420e9357b5`.
+- `origin/main` = `770a7567c147fbd00373691c7a59d8000f992b87`.
 - Build agent (workflow `model:` input): `opencode/muse-spark-1.2-contributor-free` = FREE.
 - **Lab Engineer:** reachable via `lab.yml` (`/oc lab`) for PROMPT edits only; CANNOT push workflow `.yml` (no workflows: write).
-- **Circuit breaker:** false-trip; owner must raise budget.
+- **Circuit breaker:** false-trip at 27/20; owner must raise budget.
 
 ## NEXT STEPS
-1. **Prism #118:** owner-directed `continue` dispatched this run (head `0dd21e4`); Builder must attempt B7 Squeeze+MA-tree (predictor bank exhausted).
+1. **Prism #118:** owner-directed `continue` dispatched this run (head `b571d1b`); Builder MUST attempt B7 Squeeze+MA-tree (predictor bank exhausted - no more B5.x headroom).
 2. **Audit #120 OWNER ESCALATION:** owner must grant App `workflows: write` (unblocks `action: lab` routing + circuit-breaker fix + orchestration-rule prompt PR self-heal).
 3. **ORCHESTRATION FIX:** re-dispatch Lab Engineer on #120 once #120 lands.
 4. **PR #119:** close as redundant once orchestration fix merges.
@@ -55,7 +55,7 @@
 
 ## OPEN QUESTIONS
 - Will the owner grant `workflows: write` so workflow-file edits self-heal and the circuit-breaker false-trip can be fixed at the source?
-- Will the Builder actually attempt B7 (Squeeze+MA-tree) now that the predictor bank is fully exhausted, instead of another B5.x tweak with no headroom?
+- Will the Builder actually attempt B7 (Squeeze+MA-tree) on the next `continue`, instead of yet another exhausted-bank B5.x tweak? This is the only path to M3 < 8.71.
 - Prism #118: when stable at/under gate, fire Reviewer -> Tester before any merge.
 - PR #119: redundant (target #98 CLOSED); close once orchestration fix merges.
 - Circuit breaker: false-positive; owner should raise budget or repivot #117 if B7 Squeeze+MA-tree fails to close the ~2.35 bpp gap.
