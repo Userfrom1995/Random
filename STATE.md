@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
-- **Updated:** 2026-08-22 (maintainer run 32591595158, ~18:43Z, owner `/oc maintainer` on PR #118). Re-survey confirms: PR #118 head `300ffa7cbc6c45b580fd3558d336443b81cf6919` (B5.39, 11.029 bpp, byte-exact), **a `continue` build IS still in flight** (opencode run `32587774459`, `in_progress` since 17:27:16Z from owner's `/oc continue`). This run wrote an EMPTY decision list (no duplicate while a build drives the branch; owner `/oc maintainer` is a status request, not a build trigger).
+- **Updated:** 2026-08-22 (maintainer run 32591843944, ~18:48Z, owner `/oc maintainer` on PR #118). Re-survey confirms: PR #118 head `300ffa7cbc6c45b580fd3558d336443b81cf6919` (B5.39, 11.029 bpp, byte-exact), **NO build in flight** -- the prior tracked build `32587774459` ended cancelled (never delivered past B5.39). This run dispatched a fresh `continue` (head `300ffa7`); no build active until that lands.
 
 ## STANDING OWNER DIRECTIVES (active)
 - **Obsidian shipped** (#93 manually merged by owner as orphan root `60748e88`; promoted to Current via merged PR #115; docs cleaned by merged PR #116). Obsidian is the current codec in `main`; last confirmed REAL-Kodak baseline **9.5209 bpp**. #68 (Obsidian umbrella) is now CLOSED.
@@ -18,17 +18,17 @@
 - **WORKFLOW-FILE PUSH WALL (unchanged, now non-blocking):** #120 CLOSED by owner. `opencode.yml` still lacks `workflows: write` and a `lab` job, but the reviewer.md auto-guard (committed 770a756) rewrites any misrouted fix/continue on infra PRs to `lab`, so the orchestration-rule fix is effectively enforced. Future workflow-file edits remain an OWNER-action path.
 
 ## IN FLIGHT
-- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** head `300ffa7` (B5.39, **11.029 bpp**, byte-exact). **A `continue` build is in flight (opencode run `32587774459`, `in_progress` since 17:27:16Z from owner's `/oc continue` 17:27:13Z).** As of this 18:43Z run it has been ~1h15m in progress - longer than the usual ~30-50 min for a B5.x step; flagged for stall-watch but still genuinely active, so no re-dispatch yet. The owner's `/oc maintainer` at 18:43:43Z spawned only this maintainer pass (32591595158) plus a harmless skip-bound opencode run `32591595141` (general job excludes `/oc maintainer`).
-  - **Trajectory correction:** earlier snapshots claimed the bank was "mathematically saturated at 11.059". That was premature. The PREDICTOR bank is saturated (16/16 nibble 0..15, per-plane top10-11, block top12-13, selective-16 thr55-60 top13-14, color top8 - all neutral), BUT the RESIDUAL ENTROPY MODEL (ResDiff context count) was only at 352-704 and is now proven EXPANDABLE with real gains: B5.38 (704-context orientation split, -0.16%, -20944 bytes) and B5.39 (2816-context flatness split, -0.11%, -14449 bytes). Total progress from 11.29 baseline is ~2.3%. The loop is productive, NOT converged.
-  - **B7 Squeeze + MA-tree greedy split (depth 6, leaves 16-32, mandatory `llc_class`/`sibling_class`) STILL NOT genuinely built** - B5.38/B5.39 are entropy-model context expansions, distinct from the structural Squeeze+MA-tree closure. B6 5/3 lifting is done and **inert** (+0.8% never-expand, kept disabled). B7 remains the ONLY proven >10% closure path to JXL 8.71; context-splitting alone is unlikely to close the remaining ~21% gap. B7 has been SCAFFOLDED (B5.33) but the real greedy split was never built.
+- **Prism M1-M4 (issue #117, PR #118, branch `opencode/117-prism-m1-m4-optimization`):** head `300ffa7` (B5.39, **11.029 bpp**, byte-exact). **NO build currently in flight** -- prior tracked run `32587774459` was cancelled. A fresh `continue` was dispatched by this run (32591843944) to resume B6-B8 from B5.39; it will appear as a new opencode run shortly.
+  - **Trajectory:** The PREDICTOR bank is saturated (16/16 nibble 0..15, per-plane top10-11, block top12-13, selective-16 thr55-60 top13-14, color top8 - all exhaustively neutral). The RESIDUAL ENTROPY MODEL is still EXPANDABLE with real gains: B5.38 (704-context orientation split, -0.16%, -20944 bytes) and B5.39 (2816-context flatness split, -0.11%, -14449 bytes). Total progress from 11.29 baseline is ~2.3%. The loop is productive, NOT converged.
+  - **B7 Squeeze + MA-tree greedy split (depth 6, leaves 16-32, mandatory `llc_class`/`sibling_class`) STILL NOT genuinely built** - B5.33/B5.36 scaffolded the per-band squeeze / leaf-activity infrastructure, but the real greedy MA-tree split was never implemented. B6 5/3 lifting is done and **inert** (+0.8% never-expand, kept disabled). B7 remains the ONLY proven >10% closure path to JXL 8.71; context-splitting alone is unlikely to close the remaining ~21% gap. The Builder keeps deferring B7 behind B5.x entropy tweaks.
   - **Merge gate NOT met** (11.029 vs 8.71 JXL, gap 2.32 / ~21%). Held until M3<8.71 bit-exact + Tester approval.
 
 ## PENDING (in order)
-    1. **Reach the JXL gate (M3 < 8.71).** Entropy context-splitting is still yielding ~0.1% gains (now at 2816 contexts); keep grinding it, but the ~21% gap needs the real B7 Squeeze+MA-tree greedy split (mandatory `llc_class`/`sibling_class`). Since plain `continue` follows the progress file's next B5.x step, a DIRECT narrow B7 instruction on PR #118 from the owner is the reliable trigger for B7. The Builder should be told: skip further B5.x widening, build the MA-tree greedy split now.
+    1. **Reach the JXL gate (M3 < 8.71).** Entropy context-splitting still yields ~0.1% gains (now at 2816 contexts); keep grinding it, but the ~21% gap needs the real B7 Squeeze+MA-tree greedy split (mandatory `llc_class`/`sibling_class`). Since plain `continue` follows the progress file's next B5.x step, a DIRECT narrow B7 instruction on PR #118 from the owner is the reliable trigger for B7. The Builder should be told: skip further B5.x widening, build the MA-tree greedy split now.
     2. **Once M3 < 8.71 bit-exactly:** fire Reviewer -> Tester before ANY merge.
     3. **ORCHESTRATION RULE FIX:** effectively landed (reviewer.md auto-guard). Optional fixer.md hardening parked.
     4. **PR #119:** CLOSED by owner (redundant; target #98 CLOSED). Resolved.
-    5. **Silent-stall mitigation:** now moot - owner removed the iteration cap and the breaker; loop resumes normally.
+    5. **Silent-stall mitigation:** now moot - owner removed the iteration cap and the breaker; loop resumes normally (this run re-dispatched `continue` because the prior tracked build was cancelled).
 
 ## ISSUES
 - **#68 (Obsidian umbrella)** - CLOSED.
@@ -48,15 +48,15 @@
 - **Circuit breaker:** REMOVED (owner commit `91c8707`).
 
 ## NEXT STEPS
-    1. **Build in flight (`32587774459`)** resumes the loop; if it lands another entropy context-split, the trajectory continues productively. If the owner wants B7 specifically, they should post a direct narrow B7 instruction on PR #118. The builder's own `continue` decision sustains the loop now that the breaker is removed.
-    2. Watch the in-flight build's duration - at ~1h15m it is longer than typical; if it times out/states without a decision, the workflow's no-decision handler will re-notify the maintainer.
+    1. **Build dispatched by this run (`continue`, head `300ffa7`)** resumes the loop from B5.39. If it lands another entropy context-split (B5.40), the trajectory continues productively. If the owner wants B7 specifically, they should post a direct narrow B7 instruction on PR #118.
+    2. Watch the new build's duration - if it times out/cancels without delivering (like `32587774459`), the workflow's no-decision handler re-notifies the maintainer for re-dispatch.
     3. If a build clears the gate (M3 < 8.71 bit-exactly), fire Reviewer -> Tester before any merge.
     4. ORCHESTRATION FIX: considered landed (reviewer.md auto-guard). Optional fixer.md hardening parked.
     5. PR #119: resolved (CLOSED).
 
 ## OPEN QUESTIONS
-- Will the in-flight `continue` (32587774459) land as another entropy context-split (B5.x) or finally attempt the real B7 MA-tree greedy split (mandatory `llc_class`/`sibling_class`)? Context-splitting is still productive but the ~21% JXL gap needs B7.
-- Is the ~1h15m in_progress duration of 32587774459 a genuine large B7 attempt or a silent stall? Job status is active (not completed), so no re-dispatch; watch for timeout/no-decision.
+- Will the freshly-dispatched `continue` land as another entropy context-split (B5.40) or finally attempt the real B7 MA-tree greedy split (mandatory `llc_class`/`sibling_class`)? Context-splitting is still productive but the ~21% JXL gap needs B7.
+- Is the cancelled `32587774459` a silent-stall artifact (build started but never posted a decision) or an owner/manual cancel? No competing build was in flight this run, so re-dispatch was safe and required.
 - When/if a build clears the gate (M3 < 8.71 bit-exactly), fire Reviewer -> Tester before ANY merge.
 - PR #119: resolved (CLOSED).
 
