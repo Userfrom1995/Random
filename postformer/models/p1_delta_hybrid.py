@@ -106,6 +106,10 @@ class SlidingWindowAttn(nn.Module):
         # (..., H, L, hd)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.window <= 0:
+            # A2 control: window disabled, branch contributes zeros; fusion
+            # learns to rely on the recurrent memory alone.
+            return torch.zeros_like(x)
         b, t, _ = x.shape
         q, k, v = self.qkv(x).chunk(3, dim=-1)
         q, k, v = self._split(q), self._split(k), self._split(v)
@@ -121,10 +125,15 @@ class SlidingWindowAttn(nn.Module):
         return self.proj(y)
 
     def init_state(self, batch: int, device, dtype):
+        if self.window <= 0:
+            return {"k": None, "pos": 0}
         return {"k": KVWindowBuffer(batch, self.window, self.wd, device, dtype),
                 "pos": 0}
 
     def step(self, x_t: torch.Tensor, state: dict):
+        if self.window <= 0:
+            state["pos"] = state["pos"] + 1
+            return torch.zeros_like(x_t), state
         b = x_t.shape[0]
         q, k, v = self.qkv(x_t).chunk(3, dim=-1)
         pos = state["pos"]
@@ -194,7 +203,8 @@ class P1Block(nn.Module):
     def state_size(self, bpe: int = 4) -> int:
         H, dk, dv = self.delta.heads, self.delta.d_k, self.delta.d_v
         W, wd = self.window.window, self.window.wd
-        return H * dk * dv * bpe + 2 * W * wd * bpe + H * bpe
+        win = 2 * W * wd * bpe if W > 0 else 0
+        return H * dk * dv * bpe + win + H * bpe
 
 
 class P1LM(nn.Module):

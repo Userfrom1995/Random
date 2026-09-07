@@ -19,7 +19,12 @@ TINY = {"layers": 6, "d_model": 512, "heads": 8, "mlp_hid": 2048,
 SMALL = {"layers": 12, "d_model": 768, "heads": 12, "mlp_hid": 3072,
          "rope_base": 10000.0, "vocab_size": 256, "tie_embeddings": False}
 
-SCALES = {"tiny": TINY, "small": SMALL}
+SCALES = {"tiny": TINY, "small": SMALL,
+          # TOY: CPU-trainable proxy for M2 falsification (matched-budget MQAR
+          # training on the runner; NOT a gate scale - S-tiny/S-small gates
+          # remain binding). Pinned: 2L d128 4h mlp256.
+          "toy": {"layers": 2, "d_model": 128, "heads": 4, "mlp_hid": 256,
+                  "rope_base": 10000.0, "vocab_size": 66, "tie_embeddings": False}}
 
 
 class TransformerBlock(nn.Module):

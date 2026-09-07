@@ -87,7 +87,8 @@ class P5Block(P1Block):
     def state_size(self, bpe: int = 4) -> int:
         H, dp, dv = self.delta.heads, self.delta.d_phi, self.delta.d_v
         W, wd = self.window.window, self.window.wd
-        return H * dp * dv * bpe + 2 * W * wd * bpe + H * bpe
+        win = 2 * W * wd * bpe if W > 0 else 0
+        return H * dp * dv * bpe + win + H * bpe
 
 
 class P5LM(nn.Module):
