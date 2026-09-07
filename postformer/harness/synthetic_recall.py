@@ -139,14 +139,46 @@ def main(argv=None):
     p.add_argument("--batch", type=int, default=1,
                    help="episodes per progress flush; decode is greedy batch-1 "
                         "(batched greedy decode is M2 work)")
+    p.add_argument("--window", type=int, default=None,
+                   help="eval sliding-window W for p1/p5 arms; default inherits "
+                        "the checkpoint's train window (fails if --config "
+                        "disagrees with the checkpoint and no override is given)")
     a = p.parse_args(argv)
     if a.batch < 1:
         raise SystemExit("--batch must be >= 1")
     if a.vocab < 16:
         raise SystemExit("--vocab must be >= 16")
+    if a.window is not None and a.window < 0:
+        raise SystemExit("--window must be >= 0")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
+    overrides = {"vocab_size": a.vocab + 2}
+    family = a.model.split("-", 1)[0]
+    if family in ("p1", "p5"):
+        # A2 guard: the eval window must match the checkpoint's train window
+        # unless explicitly overridden; silently evaluating a W0/W32
+        # checkpoint as W16 invalidates the ablation (M2 review finding).
+        ckpt_window, cfg_window = None, None
+        if a.checkpoint:
+            blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
+            if isinstance(blob, dict):
+                ckpt_window = (blob.get("config") or {}).get("window")
+        if a.config:
+            import yaml
+            with open(a.config) as f:
+                cfg_window = (yaml.safe_load(f) or {}).get("window")
+        if a.window is not None:
+            overrides["window"] = a.window
+        else:
+            if ckpt_window is not None:
+                if cfg_window is not None and cfg_window != ckpt_window:
+                    raise SystemExit(
+                        f"--config window {cfg_window} != checkpoint train window "
+                        f"{ckpt_window}; pass --window explicitly to override")
+                overrides["window"] = ckpt_window
+            elif cfg_window is not None:
+                overrides["window"] = cfg_window
     model, cfg, random_init = load_model(a.model, a.checkpoint, a.config,
-                                         {"vocab_size": a.vocab + 2}, a.device, a.dtype)
+                                         overrides, a.device, a.dtype)
     info = env_info()
     info["dtype"] = a.dtype
     summary = {"model": a.model, "config": cfg, "seed": a.seed,
