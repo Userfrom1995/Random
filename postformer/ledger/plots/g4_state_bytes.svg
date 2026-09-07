@@ -2,19 +2,75 @@
 <text x='320' y='20' text-anchor='middle' font-size='14'>G4 state bytes vs T (flat = O(1))</text>
 <text x='320' y='354' text-anchor='middle' font-size='11'>T</text>
 <text x='12' y='180' text-anchor='middle' font-size='11' transform='rotate(-90 12 180)'>state bytes</text>
-<path d='M48.0,224.0 L229.3,224.0 L592.0,224.0' fill='none' stroke='#1f77b4' stroke-width='2'/>
-<circle cx='48.0' cy='224.0' r='3' fill='#1f77b4'/>
-<circle cx='229.3' cy='224.0' r='3' fill='#1f77b4'/>
-<circle cx='592.0' cy='224.0' r='3' fill='#1f77b4'/>
+<path d='M48.0,311.0 L49.1,311.0 L51.2,311.0' fill='none' stroke='#1f77b4' stroke-width='2'/>
+<circle cx='48.0' cy='311.0' r='3' fill='#1f77b4'/>
+<circle cx='49.1' cy='311.0' r='3' fill='#1f77b4'/>
+<circle cx='51.2' cy='311.0' r='3' fill='#1f77b4'/>
 <text x='596' y='48' font-size='11' fill='#1f77b4'>p1-tiny</text>
-<path d='M48.0,136.0 L229.3,136.0 L592.0,136.0' fill='none' stroke='#d62728' stroke-width='2'/>
-<circle cx='48.0' cy='136.0' r='3' fill='#d62728'/>
-<circle cx='229.3' cy='136.0' r='3' fill='#d62728'/>
-<circle cx='592.0' cy='136.0' r='3' fill='#d62728'/>
+<path d='M48.0,310.5 L49.1,310.5 L51.2,310.5' fill='none' stroke='#d62728' stroke-width='2'/>
+<circle cx='48.0' cy='310.5' r='3' fill='#d62728'/>
+<circle cx='49.1' cy='310.5' r='3' fill='#d62728'/>
+<circle cx='51.2' cy='310.5' r='3' fill='#d62728'/>
 <text x='596' y='64' font-size='11' fill='#d62728'>p5-tiny</text>
-<path d='M48.0,312.0 L229.3,224.0 L592.0,48.0' fill='none' stroke='#2ca02c' stroke-width='2'/>
-<circle cx='48.0' cy='312.0' r='3' fill='#2ca02c'/>
-<circle cx='229.3' cy='224.0' r='3' fill='#2ca02c'/>
-<circle cx='592.0' cy='48.0' r='3' fill='#2ca02c'/>
+<path d='M48.0,311.5 L49.1,311.0 L51.2,309.9' fill='none' stroke='#2ca02c' stroke-width='2'/>
+<circle cx='48.0' cy='311.5' r='3' fill='#2ca02c'/>
+<circle cx='49.1' cy='311.0' r='3' fill='#2ca02c'/>
+<circle cx='51.2' cy='309.9' r='3' fill='#2ca02c'/>
 <text x='596' y='80' font-size='11' fill='#2ca02c'>transformer-tiny</text>
+<path d='M64.0,311.0 L81.0,311.0 L115.1,311.0 L183.2,311.0 L319.5,311.0 L592.0,311.0' fill='none' stroke='#9467bd' stroke-width='2'/>
+<circle cx='64.0' cy='311.0' r='3' fill='#9467bd'/>
+<circle cx='81.0' cy='311.0' r='3' fill='#9467bd'/>
+<circle cx='115.1' cy='311.0' r='3' fill='#9467bd'/>
+<circle cx='183.2' cy='311.0' r='3' fill='#9467bd'/>
+<circle cx='319.5' cy='311.0' r='3' fill='#9467bd'/>
+<circle cx='592.0' cy='311.0' r='3' fill='#9467bd'/>
+<text x='596' y='96' font-size='11' fill='#9467bd'>p1-tiny (analytic bytes)</text>
+<path d='M64.0,312.0 L81.0,312.0 L115.1,312.0 L183.2,312.0 L319.5,312.0 L592.0,312.0' fill='none' stroke='#ff7f0e' stroke-width='2'/>
+<circle cx='64.0' cy='312.0' r='3' fill='#ff7f0e'/>
+<circle cx='81.0' cy='312.0' r='3' fill='#ff7f0e'/>
+<circle cx='115.1' cy='312.0' r='3' fill='#ff7f0e'/>
+<circle cx='183.2' cy='312.0' r='3' fill='#ff7f0e'/>
+<circle cx='319.5' cy='312.0' r='3' fill='#ff7f0e'/>
+<circle cx='592.0' cy='312.0' r='3' fill='#ff7f0e'/>
+<text x='596' y='112' font-size='11' fill='#ff7f0e'>p1-toy</text>
+<path d='M64.0,310.5 L81.0,310.5 L115.1,310.5 L183.2,310.5 L319.5,310.5 L592.0,310.5' fill='none' stroke='#1f77b4' stroke-width='2'/>
+<circle cx='64.0' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='81.0' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='115.1' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='183.2' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='319.5' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='592.0' cy='310.5' r='3' fill='#1f77b4'/>
+<text x='596' y='128' font-size='11' fill='#1f77b4'>p5-tiny (analytic bytes)</text>
+<path d='M64.0,312.0 L592.0,312.0' fill='none' stroke='#d62728' stroke-width='2'/>
+<circle cx='64.0' cy='312.0' r='3' fill='#d62728'/>
+<circle cx='592.0' cy='312.0' r='3' fill='#d62728'/>
+<text x='596' y='144' font-size='11' fill='#d62728'>p5-toy</text>
+<path d='M64.0,303.8 L81.0,295.5 L115.1,279.0 L183.2,246.0 L319.5,180.0 L592.0,48.0' fill='none' stroke='#2ca02c' stroke-width='2'/>
+<circle cx='64.0' cy='303.8' r='3' fill='#2ca02c'/>
+<circle cx='81.0' cy='295.5' r='3' fill='#2ca02c'/>
+<circle cx='115.1' cy='279.0' r='3' fill='#2ca02c'/>
+<circle cx='183.2' cy='246.0' r='3' fill='#2ca02c'/>
+<circle cx='319.5' cy='180.0' r='3' fill='#2ca02c'/>
+<circle cx='592.0' cy='48.0' r='3' fill='#2ca02c'/>
+<text x='596' y='160' font-size='11' fill='#2ca02c'>transformer-tiny (analytic bytes)</text>
+<path d='M64.0,311.3 L81.0,310.6 L115.1,309.3' fill='none' stroke='#9467bd' stroke-width='2'/>
+<circle cx='64.0' cy='311.3' r='3' fill='#9467bd'/>
+<circle cx='81.0' cy='310.6' r='3' fill='#9467bd'/>
+<circle cx='115.1' cy='309.3' r='3' fill='#9467bd'/>
+<text x='596' y='176' font-size='11' fill='#9467bd'>transformer-toy</text>
+<path d='M48.0,311.0 L49.1,311.0 L51.2,311.0' fill='none' stroke='#ff7f0e' stroke-width='2'/>
+<circle cx='48.0' cy='311.0' r='3' fill='#ff7f0e'/>
+<circle cx='49.1' cy='311.0' r='3' fill='#ff7f0e'/>
+<circle cx='51.2' cy='311.0' r='3' fill='#ff7f0e'/>
+<text x='596' y='192' font-size='11' fill='#ff7f0e'>p1-tiny</text>
+<path d='M48.0,310.5 L49.1,310.5 L51.2,310.5' fill='none' stroke='#1f77b4' stroke-width='2'/>
+<circle cx='48.0' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='49.1' cy='310.5' r='3' fill='#1f77b4'/>
+<circle cx='51.2' cy='310.5' r='3' fill='#1f77b4'/>
+<text x='596' y='208' font-size='11' fill='#1f77b4'>p5-tiny</text>
+<path d='M48.0,311.5 L49.1,311.0 L51.2,309.9' fill='none' stroke='#d62728' stroke-width='2'/>
+<circle cx='48.0' cy='311.5' r='3' fill='#d62728'/>
+<circle cx='49.1' cy='311.0' r='3' fill='#d62728'/>
+<circle cx='51.2' cy='309.9' r='3' fill='#d62728'/>
+<text x='596' y='224' font-size='11' fill='#d62728'>transformer-tiny</text>
 </svg>

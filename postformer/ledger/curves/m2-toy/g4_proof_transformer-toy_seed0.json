@@ -1,0 +1,65 @@
+{
+  "claim": "O(1) state and O(1) per-token latency in T",
+  "config": {
+    "d_model": 128,
+    "heads": 4,
+    "layers": 2,
+    "mlp_hid": 256,
+    "rope_base": 10000.0,
+    "tie_embeddings": false,
+    "vocab_size": 66
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "measured": [
+    {
+      "T": 1024,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "transformer-toy",
+      "ms_p90": 2.181581600325444,
+      "ms_per_token_median": 2.066893000574055,
+      "params": 336768,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 2097152,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 2048,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "transformer-toy",
+      "ms_p90": 6.932249799865531,
+      "ms_per_token_median": 6.491128499874321,
+      "params": 336768,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 4194304,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 4096,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "transformer-toy",
+      "ms_p90": 16.6828200000964,
+      "ms_per_token_median": 15.959911999743781,
+      "params": 336768,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 8388608,
+      "torch": "2.14.0+cpu"
+    }
+  ],
+  "model": "transformer-toy",
+  "state_inventory": "see postformer/docs/proof-g4.md"
+}

@@ -1,0 +1,3 @@
+model,T,state_bytes,ms_per_token_median,ms_p90,hardware,dtype,torch,cuda,seed,random_init,params
+p5-toy,1024,40976,1.0506544999770995,1.071082999715145,x86_64 x4 x86_64,fp32,2.14.0+cpu,cpu,0,True,336332
+p5-toy,32768,40976,1.0529834999033483,1.0807071005729085,x86_64 x4 x86_64,fp32,2.14.0+cpu,cpu,0,True,336332

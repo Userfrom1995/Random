@@ -1,0 +1,23 @@
+{
+  "config": {
+    "d_model": 128,
+    "heads": 4,
+    "layers": 2,
+    "mlp_hid": 256,
+    "rope_base": 10000.0,
+    "tie_embeddings": false,
+    "vocab_size": 66
+  },
+  "data": "mqar",
+  "env": {
+    "cuda": "cpu",
+    "dtype": null,
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "final_loss": 3.557309150695801,
+  "model": "transformer-toy",
+  "params_no_embed": 336768,
+  "train_tokens": 1584000
+}

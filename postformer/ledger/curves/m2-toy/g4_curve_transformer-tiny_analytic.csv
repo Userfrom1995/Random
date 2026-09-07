@@ -1,0 +1,7 @@
+model,T,state_bytes,method
+transformer-tiny,1024,25165824,analytic-state_bytes
+transformer-tiny,2048,50331648,analytic-state_bytes
+transformer-tiny,4096,100663296,analytic-state_bytes
+transformer-tiny,8192,201326592,analytic-state_bytes
+transformer-tiny,16384,402653184,analytic-state_bytes
+transformer-tiny,32768,805306368,analytic-state_bytes

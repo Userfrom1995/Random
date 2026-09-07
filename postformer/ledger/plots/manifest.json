@@ -3,6 +3,15 @@
   "g4_models": [
     "p1-tiny",
     "p5-tiny",
+    "transformer-tiny",
+    "p1-tiny (analytic bytes)",
+    "p1-toy",
+    "p5-tiny (analytic bytes)",
+    "p5-toy",
+    "transformer-tiny (analytic bytes)",
+    "transformer-toy",
+    "p1-tiny",
+    "p5-tiny",
     "transformer-tiny"
   ],
   "note": "G4 flatness is judged on g4_curve CSVs (state bytes + ms/token vs T)"
