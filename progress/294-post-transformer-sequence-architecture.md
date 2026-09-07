@@ -25,12 +25,22 @@
 Single technique, single branch, single PR (#295) across continuous `continue` cycles. Never split scaffolding and measurements into separate PRs. All intermediate pushes use `Refs #294`; `Closes #294` only on G1+G2+G3+G4 passing head-to-head with reproducible numbers.
 
 - **Active Milestone:** M1
-- **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [ ] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [ ] baseline Transformer S-tiny/S-small + param counter within 2 percent; [ ] harness five scripts with exact CLI contracts + seeding + ledger schema; [ ] P5 map control + P1-minimal (delta + W=128 + fusion); [ ] unit tests T1-T5 green + viewer fixture snapshot; [ ] first S-tiny smoke rows in ledger.
+- **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot; [ ] first S-tiny smoke rows in ledger.
 - **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [ ] full G1/G2/G3/G4 at S-tiny for baseline vs P1 vs P5; [ ] A1 delta on/off; [ ] A2 window {0,128,256}; [ ] H1/H5 verdicts ledgered; [ ] G4 curve flat within 5 percent.
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [ ] P3 accumulator branch + A3; [ ] P2 SSD + slots G {0,4,16,64} + A4; [ ] A5 state scaling curve; [ ] H2/H3 verdicts ledgered.
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [ ] P4 gated behind P1/P2 ledger + H4 verdict; [ ] A6 vocab/distractor stress; [ ] A7 retrieval-vs-drift split; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
-- **Current step:** Ready for initial build (Milestone 1).
-- **Next steps:** Builder to implement Milestone 1 with real code and zero stubs; unimplemented proposals (P2/P3/P4) stay out of CLI and viewer until their milestone.
+- **Current step:** M1 code complete (models + harness + T1-T5 green); S-tiny smoke rows next.
+- **Next steps:** Builder to run S-tiny smoke (G1/G2/G4 small-T + G3 byte fixture + ledger append/check/plot), then yield `continue` for M2 full gates.
+
+## Builder log (the Builder, 2026-09-07, M1)
+
+- Installed torch CPU 2.14.0 + numpy/pytest on the runner; pinned in `postformer/requirements.txt`.
+- Implemented `models/common.py` (RMSNorm, SwiGLU, RoPE, batched KVWindowBuffer, `param_count_no_embed` excluding input embedding only, sha256-derived `seed_all`).
+- Implemented `models/baseline.py` (pre-norm causal Transformer, full `forward` + incremental `step` with RoPE baked at append), `models/p1_delta_hybrid.py` (gated delta memory + W=128 sliding window + fusion + SwiGLU; reference chunked forward), `models/p5_map.py` (degree-2 map + scaled additive write, identical proj shapes so T2 holds by construction), `models/factory.py`.
+- Parity tuning: to hold the binding +-2% rule with the window branch pinned, P1/P5 MLP hid is 1704 (tiny) / 2726 (small), not the blueprint's 2016/3024 estimate. Measured: tiny +0.024%, small +0.002%.
+- Fixed two real bugs found by parity probing: window `step()` applied RoPE on the flat head-concatenated dim (now per-head, matching `forward`), and harness model init was seeded from global torch state (now `reseed(seed, init-{model})` before every build).
+- Harness: all five CLIs with blueprint contracts; G2 uses score-once strided eval; G3 byte-primary (BPE exits non-zero as deferred); G4 benches the recurrent `step()` path with prefill + warmup.
+- T1-T5 green (9 passed): parity incl. collinear stress, param parity both scales, prefix-invariance causal probe, exact-summary determinism, ledger lint (NaN/drift/schema rejection).
 
 - Dr. Mob, the Researcher
 - the Architect
