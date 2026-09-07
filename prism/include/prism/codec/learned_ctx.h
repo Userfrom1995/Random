@@ -1,0 +1,274 @@
+#pragma once
+#include <cstdint>
+#include <array>
+#include <vector>
+
+namespace prism::codec {
+
+struct R6DRaw; // defined in prism/codec/bitplane.h (raw already-coded magnitude snapshot)
+
+// Learned neural context model (Route 4 / X3a, "beyond-predictive" paradigm).
+//
+// The fixed-context EMA (I28) is a strong online model, but it can only use a
+// coarse summary of the already-coded neighbourhood (significance counts). The
+// magnitude of the already-coded neighbours carries far more information about a
+// coefficient's own magnitude than a binary significance count does. A tiny
+// multilayer perceptron, trained offline on real Kodak imagery and baked into
+// the binary as constants, turns a window of neighbour-magnitude / own-magnitude
+// features into a per-symbol probability estimate. That estimate is blended with
+// the per-context EMA so the coder keeps online adaptation while gaining the
+// richer, data-driven prior.
+//
+// All features are computable from ALREADY-CODED information at both encode and
+// decode time (mirror symmetry is what makes the rANS stream round-trip), so no
+// model table is ever transmitted: the NET stays equal to payload + header
+// (invariant I29).
+
+// Per-symbol feature vector fed to the MLP. Every field is an integer in a small
+// range; the MLP normalises internally.
+struct LCFeat {
+    uint8_t symtype = 0;     // 0 = significance, 1 = sign, 2 = refinement
+    uint8_t orient = 0;      // subband orientation 0..3
+    uint8_t parent_sig = 0;  // parent coefficient already significant (0/1)
+    uint8_t fc = 0;          // significant 4-connected neighbour count 0..4
+    uint8_t dg = 0;          // significant diagonal neighbour count 0..4
+    uint8_t nbsig = 0;       // fc + dg 0..8 (cheap aggregate)
+    uint8_t nmag = 0;        // max already-coded same-subband neighbour magnitude, log2-quantised 0..7
+    uint8_t pmag = 0;        // parent coefficient magnitude, log2-quantised 0..7
+    uint8_t ownmag = 0;       // this coefficient's reconstructed magnitude so far, log2-quantised 0..7
+                             //   (0 while still insignificant; for sign it is the msb position)
+    uint8_t ppos = 0;        // current bitplane index, clamped 0..7
+    uint8_t level = 0;       // wavelet decomposition level (0 = LL, 1..maxlevel); see X3b context fix
+    // X5a cross-component context: the co-located LUMA subband coefficient at the
+    // same (orient, level, x, y). Chroma (Co/Cg) subbands are highly correlated
+    // with luma (Y) at the same location; feeding the luma magnitude/significance
+    // as a CONTEXT FEATURE (NOT a residual to subtract - chroma is already much
+    // smaller than luma after YCoCg-R, so subtractive prediction would inflate the
+    // residual) lets the MLP seed the chroma bitplane prior from luma structure
+    // without fragmenting the per-context EMA. Luma subbands set both to 0.
+    uint8_t lc_mag = 0;      // |luma coeff| at co-located position, log2-quantised 0..7
+    uint8_t lc_sig = 0;      // luma coefficient already significant (0/1)
+    // R6-A: sibling-orientation magnitude (HL<->LH correlation).
+    // For orient 1 (LH): max log2-magnitude of co-positioned HL neighbour at the
+    // same bitplane position. For orient 2 (HL): same but LH. For 0/3: 0.
+    uint8_t sib_mag = 0;
+    // R6-A: parent-child bitplane lag (autocorrelation).
+    // ppos delta from the parent's last-significant bitplane to the current ppos.
+    // 0 = parent just became significant at this bitplane; higher = parent was
+    // significant earlier. Clamped 0..7.
+    uint8_t pplag = 0;
+};
+
+// Build the feature vector from the scalar walk state. This is the single source
+// of truth for feature computation, shared by the encoder, decoder, the offline
+// trainer, and sample collection so encode/decode stay perfectly symmetric.
+inline LCFeat make_lcfeat(uint8_t symtype, uint8_t orient, uint8_t parent_sig,
+                           uint8_t fc, uint8_t dg, uint8_t nmag, uint8_t pmag,
+                           uint8_t ownmag, uint8_t ppos, uint8_t level,
+                           uint8_t lc_mag = 0, uint8_t lc_sig = 0,
+                           uint8_t sib_mag = 0, uint8_t pplag = 0) {
+    LCFeat f;
+    f.symtype = symtype;
+    f.orient = orient;
+    f.parent_sig = parent_sig;
+    f.fc = fc;
+    f.dg = dg;
+    f.nbsig = (uint8_t)(fc + dg);
+    f.nmag = nmag;
+    f.pmag = pmag;
+    f.ownmag = ownmag;
+    f.ppos = ppos;
+    f.level = level;
+    f.lc_mag = lc_mag;
+    f.lc_sig = lc_sig;
+    f.sib_mag = sib_mag;
+    f.pplag = pplag;
+    return f;
+}
+
+// One training / evaluation sample: the feature vector, the true symbol bit, and
+// the coarse context key (legacy I28 base + sign/refine pool) used by the EMA.
+struct LSample {
+    LCFeat feat{};
+    uint8_t label = 0;   // actual bit (0/1)
+    uint32_t coarse = 0; // coarse context id (0..599)
+};
+
+// MLP forward (P(bit==1) in (0,1)) and convenience P(bit==0)*M (rANS safe range).
+float learned_predict_p1(const LCFeat& f);
+uint16_t learned_predict_p0(const LCFeat& f);
+
+// Normalise a feature vector into the MLP input range. Single shared definition
+// so the offline trainer (main.cpp) and the baked inference (learned_ctx.cpp)
+// can never drift apart and break encode/decode symmetry. The array must hold
+// LF floats (currently 15: X3a base 10 + X5a lc_mag/lc_sig + X3b level + F7 sib_mag + F8 pplag).
+void learned_norm(const LCFeat& f, float out[15]);
+
+// Runtime blend weight between the learned prior and the online EMA. 0 = pure
+// EMA (pre-training safe), 1 = pure learned. Initialised from the baked LBlend
+// value but overridable (e.g. by `prism bench-x --blend`) without rebuild.
+float learned_blend();
+void learned_set_blend(float v);
+
+// Runtime override of the MLP-prior pseudocount K in LearnedModel (X3a). Larger K
+// => trust the learned prior more for fine contexts. Overridable without rebuild.
+float learned_pseudo();
+void learned_set_pseudo(float v);
+
+// Online model that blends the learned MLP prior with a per-context EMA over a
+// FINE, magnitude-aware context. The fine context keys on neighbour/own
+// magnitude buckets so it is far more discriminative than the legacy I28 coarse
+// context; but a fine context starves of samples under pure EMA (table-economics
+// law). The learned MLP supplies a data-driven prior that SEEDS each fine context
+// via a pseudocount blend: rare contexts (few samples) lean on the MLP, common
+// contexts converge to the exact per-stream EMA. This takes the MLP's
+// generalisation where EMA cannot adapt and EMA's precision where data is rich.
+struct LearnedModel {
+    // Fine context layout (bit-packed). Buckets chosen so the table stays
+    // bounded yet discriminative. Max id < FINE_POOL.
+    //
+    // X3b context fix: FB_LEVEL was the critical missing dimension. Previously
+    // the context keyed only on (orient, parent_sig, fc, dg, nmag, ownmag,
+    // ppos) and IGNORED the decomposition level, so e.g. HL at level 1 (large
+    // coefficients) and HL at level 5 (tiny coefficients) collided in the same
+    // EMA bucket despite completely different magnitude distributions. Adding
+    // the level separates them and lets the online model track each level's
+    // statistics independently.
+    static constexpr int FB_SYMTYPE = 3;
+    static constexpr int FB_ORIENT = 4;
+    static constexpr int FB_PARENT = 2;
+    static constexpr int FB_FC = 5;
+    static constexpr int FB_DG = 5;
+    static constexpr int FB_NMAG = 8;
+    static constexpr int FB_OWN = 8;
+    static constexpr int FB_PPOS = 8;
+    static constexpr int FB_LEVEL = 6; // 0..5 (X_DEFAULT_LEVELS=5)
+    static constexpr uint32_t FINE_POOL = 3u * 4 * 2 * 5 * 5 * 8 * 8 * 8 * 6; // 1843200
+    // R9: when g_r9_tree_ema=true the model only touches R6D_K*3 = 3072 entries
+    // (1024 leaves * 3 symtypes); the remaining ~1.84M fine-context entries are
+    // never referenced on that path. The full pool is still allocated for a
+    // single shared LearnedModel layout (no conditional sizing), so this is an
+    // intentional ~1800x over-allocation on the R9 experiment path only.
+    static constexpr int EMA_SHIFT = 5;
+    static constexpr uint32_t M = 1u << 16;
+    // Default MLP-prior pseudocount (runtime-overridable via --pseudo). Kept in
+    // sync with the effective default g_pseudo in learned_ctx.cpp (X3b cleanup:
+    // was an inconsistent 32 here vs 64 there).
+    static constexpr float K_PSEUDO = 64.0f;
+
+    LearnedModel() {
+        ema_.assign(FINE_POOL, M / 2);
+        count_.assign(FINE_POOL, 0);
+    }
+
+    static uint32_t fine_ctx(const LCFeat& f) {
+        uint32_t id = 0;
+        id = id * FB_SYMTYPE + (f.symtype % FB_SYMTYPE);
+        id = id * FB_ORIENT + (f.orient % FB_ORIENT);
+        id = id * FB_PARENT + (f.parent_sig ? 1u : 0u);
+        id = id * FB_FC + (uint32_t)(f.fc % FB_FC);
+        id = id * FB_DG + (uint32_t)(f.dg % FB_DG);
+        id = id * FB_NMAG + (uint32_t)(f.nmag % FB_NMAG);
+        id = id * FB_OWN + (uint32_t)(f.ownmag % FB_OWN);
+        id = id * FB_PPOS + (uint32_t)(f.ppos % FB_PPOS);
+        id = id * FB_LEVEL + (uint32_t)(f.level % FB_LEVEL);
+        // The mixed-radix product above can reach FINE_POOL + (FB_LEVEL - 1) at the
+        // extreme feature combination (every field at its max), so reduce modulo
+        // FINE_POOL. Both encoder and decoder compute the identical id, so this
+        // stays a perfect, symmetric context map while never indexing out of the
+        // ema_/count_ pools (which are sized FINE_POOL).
+        return id % FINE_POOL;
+    }
+
+    // Probability (P(0)*M) for the next symbol given its learned features. Does
+    // NOT advance the state (call update() afterwards).
+    //
+    // Two-stage blend: (1) the per-context pseudocount `alpha = n/(n+K)`
+    // weights the online EMA against the MLP prior (rare contexts lean on the
+    // MLP, frequent contexts converge to the exact per-stream EMA); (2) the
+    // global `blend` lever (learned_blend(), overridable via --blend) further
+    // tilts the whole mixture toward the MLP. blend=0 reproduces the original
+    // pure-pseudocount mix; blend=1 forces the MLP prior entirely.
+    uint16_t predict(const LCFeat& f) const {
+        uint32_t c = fine_ctx(f);
+        uint16_t ema = ema_[c];
+        uint32_t n = count_[c];
+        float alpha = (float)n / (float)(n + learned_pseudo());
+        uint16_t mlp = learned_predict_p0(f);
+        float w_ema = alpha * (1.0f - learned_blend());
+        float w_mlp = 1.0f - w_ema;
+        int blended = (int)(w_ema * (float)ema + w_mlp * (float)mlp);
+        if (blended < 1) blended = 1;
+        if (blended > (int)M - 1) blended = (int)M - 1;
+        return (uint16_t)blended;
+    }
+
+    // Like predict(), but the (expensive) MLP prior is supplied by the caller so
+    // it can be computed ONCE per symbol instead of once per bit. The online EMA
+    // is still evaluated per bit for causality, so the adaptive behaviour is
+    // preserved exactly.
+    uint16_t predict_with(const LCFeat& f, uint16_t mlp_p0) const {
+        uint32_t c = fine_ctx(f);
+        uint16_t ema = ema_[c];
+        uint32_t n = count_[c];
+        float alpha = (float)n / (float)(n + learned_pseudo());
+        float w_ema = alpha * (1.0f - learned_blend());
+        float w_mlp = 1.0f - w_ema;
+        int blended = (int)(w_ema * (float)ema + w_mlp * (float)mlp_p0);
+        if (blended < 1) blended = 1;
+        if (blended > (int)M - 1) blended = (int)M - 1;
+        return (uint16_t)blended;
+    }
+
+    // Advance the EMA + sample count with the symbol's actual bit (causal).
+    void update(const LCFeat& f, uint8_t bit) {
+        uint32_t c = fine_ctx(f);
+        uint16_t& p0 = ema_[c];
+        if (bit == 0)
+            p0 += (uint16_t)((M - p0) >> EMA_SHIFT);
+        else
+            p0 -= (uint16_t)(p0 >> EMA_SHIFT);
+        if (p0 < 1) p0 = 1;
+        if (p0 > M - 1) p0 = (uint16_t)(M - 1);
+        if (count_[c] < 0xFFFFu) ++count_[c];
+    }
+
+    // R9 (issue #130): fixed tree-quantized EMA. When g_r9_tree_ema is set, the
+    // online EMA is keyed by the baked R6D property-tree leaf (1024 clusters, 0
+    // transmitted bytes) instead of the 1.84M-entry fine context. Each leaf then
+    // aggregates ~1800x more symbols than a fine context, so the EMA converges
+    // far faster and the cold-start waste on starved fine contexts disappears -
+    // without the transmitted-tree overhead that killed R6-A/B/C/D. The raw
+    // already-coded magnitude snapshot `r` is the SAME information the decoder
+    // reconstructs, so encode and decode compute an identical leaf and the rANS
+    // stream stays byte-exact. The tree is a baked constant (route6d_tree.inc),
+    // so the NET stays equal to payload + header (invariant I29).
+    // Defined in learned_ctx.cpp (references internal R6D-tree helpers).
+    //
+    // INTENTIONAL DESIGN NOTE (reviewer finding #2): the R9 overload returns a
+    // PURE EMA (no MLP prior). This is deliberate: R9 isolates the *granularity*
+    // effect (coarse 1024-leaf cluster vs fine 1.84M context) so the comparison
+    // is pure-EMA-coarse vs MLP-blended-fine, NOT blended-vs-blended. The honest
+    // diagnosis is therefore "coarse clustering is less discriminative than the
+    // fine adaptive EMA even when the fine context is starved", which is the
+    // lever R9 set out to test. A blended-coarse follow-up is an orthogonal
+    // experiment and is NOT claimed in this measurement. If MLP-blended coarse is
+    // later desired, replace the body with:
+    //   uint16_t mlp = learned_predict_p0(f);
+    //   float alpha = (float)count_[c] / (float)(count_[c] + learned_pseudo());
+    //   float w_ema = alpha * (1.0f - learned_blend());
+    //   float w_mlp = 1.0f - w_ema;
+    //   int blended = (int)(w_ema * (float)(ema_[c]) + w_mlp * (float)mlp);
+    uint16_t predict(const LCFeat& f, const R6DRaw& r) const;
+    void update(const LCFeat& f, const R6DRaw& r, uint8_t bit);
+
+private:
+    std::vector<uint16_t> ema_;
+    std::vector<uint32_t> count_;
+};
+
+// R9 global switch + runtime setter (default OFF so existing paths are unchanged).
+extern bool g_r9_tree_ema;
+void learned_set_r9_tree_ema(bool v);
+
+} // namespace prism::codec
