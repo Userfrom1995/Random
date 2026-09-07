@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PostFormer Scoreboard (M1 smoke)</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 4px 8px; font-size: 13px; }
+th { background: #eee; }
+.banner { background: #fff8dc; border: 1px solid #cc0; padding: 8px; margin-bottom: 1em; }
+.pass { color: #080; font-weight: bold; } .fail { color: #a00; font-weight: bold; }
+.drop { border: 2px dashed #888; padding: 1em; margin-top: 1em; }
+svg { border: 1px solid #ccc; margin-top: 1em; max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>PostFormer Scoreboard</h1>
+<div class="banner" id="envelope">Tested envelope: M1 smoke only
+(N&le;8 miniature configs, synthetic streams, random init, CPU).
+No gate claims beyond this envelope. Full gates (N&le;512, 8x, Enwik8 valid) are M2+ work.</div>
+<p>Ledger: <input type="file" id="ledgerFile" accept=".csv"> (or auto-load <code>../ledger/ledger.csv</code>)</p>
+<table id="board"><thead><tr>
+<th>model</th><th>seed</th><th>G1 mqar16</th><th>G1 mqar64</th><th>G1 mqar256</th>
+<th>G2 &Delta;4x</th><th>G2 &Delta;8x</th><th>G3 valid BPB</th><th>G4 state B</th><th>notes</th>
+</tr></thead><tbody></tbody></table>
+<div class="drop" id="drop">Or drop ledger.csv here. Paste fallback: <textarea id="paste" rows="3" cols="60"></textarea>
+<button id="parsePaste">parse</button></div>
+<div id="curves"></div>
+<script>
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const head = lines[0].split(",");
+  return lines.slice(1).map(l => {
+    const cells = l.split(",");
+    const o = {};
+    head.forEach((h, i) => o[h] = cells[i]);
+    return o;
+  });
+}
+function cell(v, good) {
+  if (v === undefined || v === "") return "<td>-</td>";
+  const cls = good === undefined ? "" : (good ? " class='pass'" : " class='fail'");
+  return `<td${cls}>${v}</td>`;
+}
+function render(rows) {
+  const tb = document.querySelector("#board tbody");
+  tb.innerHTML = rows.map(r => "<tr><td>" + r.model + "</td><td>" + r.seed + "</td>"
+    + cell(r.g1_mqar_16) + cell(r.g1_mqar_64) + cell(r.g1_mqar_256)
+    + cell(r.g2_delta_4x) + cell(r.g2_delta_8x) + cell(r.g3_valid_bpb)
+    + cell(r.g4_state_bytes) + "<td>" + (r.notes || "") + "</td></tr>").join("");
+}
+function load(text) { try { render(parseCSV(text)); } catch (e) { alert("parse failed: " + e); } }
+document.getElementById("ledgerFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader(); rd.onload = () => load(rd.result); rd.readAsText(f);
+});
+document.getElementById("parsePaste").addEventListener("click", () =>
+  load(document.getElementById("paste").value));
+const drop = document.getElementById("drop");
+drop.addEventListener("dragover", e => e.preventDefault());
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  const rd = new FileReader(); rd.onload = () => load(rd.result); rd.readAsText(f);
+});
+fetch("../ledger/ledger.csv").then(r => { if (r.ok) return r.text(); })
+  .then(t => { if (t) load(t); }).catch(() => {});
+</script>
+</body>
+</html>
