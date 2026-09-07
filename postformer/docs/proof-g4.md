@@ -13,6 +13,11 @@ generates with O(1) state and O(1) latency per token.
 | P1 | fusion scalars | (B, H) | B*H*e |
 | P5 | map S (per layer) | (B, H, 2*d_k, d_v) | 2*B*H*d_k*d_v*e |
 | P5 | window K ring + V ring | same as P1 | same as P1 |
+| P2 | SSD S (per layer) | (B, H, d_k, d_v) | B*H*d_k*d_v*e |
+| P2 | global slots K+V (capped at G) | 2 x G x (B, H, d_k+d_v) | 2*G*B*H*(d_k+d_v)*e |
+| P2 | window K ring + V ring | same as P1 | same as P1 |
+| P3 | accumulator A + selective S | 2 x (B, H, d_k, d_v) | 2*B*H*d_k*d_v*e |
+| P3 | window K ring + V ring | same as P1 | same as P1 |
 | Base | KV cache (control) | 2 x (B, H, T, hd), grows with T | 2*B*T*d_model*e |
 
 S-tiny P1 (H=4, d_k=d_v=128, W=128, win 4x64, e=4 fp32, B=1):
@@ -33,12 +38,20 @@ it never appears in the inference state.
 - Fusion + SwiGLU: O(d_model) + O(d_model*mlp_hid).
 - No scan over history appears in any update path.
 
-## Empirical bar (latency_state.py)
+## Empirical bar (latency_state.py, Pareto tiers per 2026-09-07 amendment)
 
-Flat = under 5% growth in state bytes AND median ms/token from T=1k to
-T=32k, batch 1, fixed precision, 200 decode steps after warmup. Hardware,
-dtype, torch/cuda versions are logged per row. M1 records smoke points at
-small T on reference configs; the full 1k-32k curve is M2 work.
+Gate 4 passes in one of two tiers (binding amendment 2026-09-07, recorded
+by the Maintainer on #294; strict-O(1)-only is superseded):
+
+- Tier (a) full O(1): under 5% growth in state bytes AND median ms/token
+  from T=1k to T=32k, batch 1, fixed precision, 200 decode steps after
+  warmup, slope statistically zero.
+- Tier (b) Pareto-dominance: state/latency sublinear (strictly
+  subquadratic) AND dominating the baseline at every measured T, with
+  G1+G2+G3 all green. Tier (b) is keep-worthy, not a rejection.
+
+Hardware, dtype, torch/cuda versions are logged per row. M1 records smoke
+points at small T on reference configs; the full 1k-32k curve is M2 work.
 
 ## M2 measured flatness (2026-09-07, CPU fp32, torch 2.14.0+cpu)
 
@@ -57,3 +70,12 @@ small T on reference configs; the full 1k-32k curve is M2 work.
   32k pre-fix). Fixed with `RotaryEmbedding.row()` (byte-identical values,
   O(d)); T1 parity still green (11/11). Curves: `ledger/curves/m2-toy/
   g4_curve_{p1,transformer,p5}-toy_seed0.csv` + S-tiny `*_analytic.csv`.
+
+## M3 state footprints (analytic `state_bytes()`, fp32, batch 1)
+
+- S-tiny P2 (G=16): SSD 262144 + slots 2*16*4*256*4 = 131072 + window
+  262144 + scalars = 655376 B/layer flat; x6 = 3932256 B (~3.75 MB, O(1)
+  in T, tier (a) by construction; timed curve is M3-gate work).
+- S-tiny P3: 2*262144 (A+S) + window 262144 + scalars = 786464 B/layer;
+  x6 = 4718784 B (~4.5 MB) flat, tier (a) by construction.
+- S-tiny P1/P5 reference: flat 3145824 / 4718688 B (see above).
