@@ -73,9 +73,9 @@ class TransformerBlock(nn.Module):
         k = k.view(-1, self.heads, self.hd)
         v = v.view(-1, self.heads, self.hd)
         pos = state["pos"]
-        cos, sin = self.rope.cos_sin(pos + 1, x_t.device, x_t.dtype)
-        q = RotaryEmbedding.apply(q.unsqueeze(2), cos[pos:pos + 1], sin[pos:pos + 1]).squeeze(2)
-        k = RotaryEmbedding.apply(k.unsqueeze(2), cos[pos:pos + 1], sin[pos:pos + 1]).squeeze(2)
+        cos, sin = self.rope.row(pos, x_t.device, x_t.dtype)
+        q = RotaryEmbedding.apply(q.unsqueeze(2), cos, sin).squeeze(2)
+        k = RotaryEmbedding.apply(k.unsqueeze(2), cos, sin).squeeze(2)
         state["k"].append(k.detach())
         state["v"].append(v.detach())
         state["pos"] = pos + 1

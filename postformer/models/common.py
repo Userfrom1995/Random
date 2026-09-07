@@ -63,6 +63,17 @@ class RotaryEmbedding(nn.Module):
         emb = torch.cat([freqs, freqs], dim=-1)
         return emb.cos().to(dtype), emb.sin().to(dtype)
 
+    def row(self, pos: int, device, dtype):
+        """Single-position cos/sin row: O(d), identical values to cos_sin(pos+1)[pos].
+
+        The recurrent step() path must use this (never the full table) so
+        per-token latency stays O(1) in T (G4 flatness).
+        """
+        t = torch.tensor([float(pos)], device=device, dtype=torch.float32)
+        freqs = torch.outer(t, self.inv_freq.to(device))
+        emb = torch.cat([freqs, freqs], dim=-1)
+        return emb.cos().to(dtype), emb.sin().to(dtype)
+
     @staticmethod
     def apply(x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
         # x: (..., L, dim); cos/sin: (L, dim)

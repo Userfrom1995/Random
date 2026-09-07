@@ -137,14 +137,14 @@ class SlidingWindowAttn(nn.Module):
         b = x_t.shape[0]
         q, k, v = self.qkv(x_t).chunk(3, dim=-1)
         pos = state["pos"]
-        cos, sin = self.rope.cos_sin(pos + 1, x_t.device, x_t.dtype)
+        cos, sin = self.rope.row(pos, x_t.device, x_t.dtype)
         # RoPE per head (must match forward()'s per-head rotation exactly).
         q = RotaryEmbedding.apply(
             q.view(b, self.heads, self.hd).unsqueeze(2),
-            cos[pos:pos + 1], sin[pos:pos + 1]).squeeze(2).reshape(b, self.wd)
+            cos, sin).squeeze(2).reshape(b, self.wd)
         k = RotaryEmbedding.apply(
             k.view(b, self.heads, self.hd).unsqueeze(2),
-            cos[pos:pos + 1], sin[pos:pos + 1]).squeeze(2).reshape(b, self.wd)
+            cos, sin).squeeze(2).reshape(b, self.wd)
         state["k"].append(k, v)
         state["pos"] = pos + 1
         kk, vv = state["k"].get()  # (B, m, wd)
