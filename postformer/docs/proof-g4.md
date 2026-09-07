@@ -16,9 +16,10 @@ generates with O(1) state and O(1) latency per token.
 | Base | KV cache (control) | 2 x (B, H, T, hd), grows with T | 2*B*T*d_model*e |
 
 S-tiny P1 (H=4, d_k=d_v=128, W=128, win 4x64, e=4 fp32, B=1):
-delta 4*128*128*4 = 262144 B; window 2*128*256*4 = 262144 B; total/layer
-524304 B; x6 layers = 3146256 B (~3.0 MB, flat in T).
-S-small P1: 6*128*128*4 + 2*128*256*4 = 655360 B/layer; x12 = 7864320 B (~7.5 MB).
+delta 4*128*128*4 = 262144 B; window 2*128*256*4 = 262144 B; fusion
+4*1*4 = 16 B; total/layer 524304 B; x6 layers = 3145824 B (~3.0 MB, flat in T).
+S-small P1: 6*128*128*4 + 2*128*256*4 + 6*4 = 655384 B/layer (incl. the
+H fusion scalars); x12 = 7864608 B (~7.5 MB).
 S-tiny baseline KV at T: 2*T*512*4*6 = 24576*T bytes (linear in T by design).
 
 Chunk size C (64 tiny / 128 small) appears only in training chunking;
