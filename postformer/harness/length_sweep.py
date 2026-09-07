@@ -78,6 +78,9 @@ def main(argv=None):
     add_common_args(p)
     p.add_argument("--baseline-model", default=None,
                    help="baseline arm name for gap_vs_baseline (default: transformer-<scale>)")
+    p.add_argument("--baseline-checkpoint", default=None,
+                   help="checkpoint for the baseline arm; absent = seeded random "
+                        "init flagged random_init:true (NOT a gate measurement)")
     p.add_argument("--t-train", type=int, required=True)
     p.add_argument("--lengths", default=None,
                    help="comma list; default 1x,2x,4x,8x of --t-train")
@@ -99,7 +102,8 @@ def main(argv=None):
     bpb_1x = {}
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
         reseed(a.seed, f"init-{name}")  # deterministic init before any torch draws
-        model, cfg, rnd = load_model(name, a.checkpoint if name == a.model else None,
+        ckpt = a.checkpoint if name == a.model else a.baseline_checkpoint
+        model, cfg, rnd = load_model(name, ckpt,
                                      a.config, {"vocab_size": vocab}, a.device, a.dtype)
         if rnd and name != a.model:
             print(f"note: baseline {name} uses seeded random init (no checkpoint given)")

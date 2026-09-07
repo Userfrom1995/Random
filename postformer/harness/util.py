@@ -85,4 +85,19 @@ def add_common_args(p):
 
 
 def parse_int_list(s):
-    return [int(x) for x in str(s).split(",") if str(x).strip() != ""]
+    """Comma list of ints with optional k/K (x1024) / m/M (x1024**2) suffixes.
+
+    Supports blueprint shorthands such as --lengths 1k,2k,4k,8k (1k = 1024).
+    """
+    out = []
+    for tok in str(s).split(","):
+        t = tok.strip()
+        if not t:
+            continue
+        mult = 1
+        if t[-1] in ("k", "K"):
+            mult, t = 1024, t[:-1]
+        elif t[-1] in ("m", "M"):
+            mult, t = 1024 ** 2, t[:-1]
+        out.append(int(t.strip()) * mult)
+    return out
