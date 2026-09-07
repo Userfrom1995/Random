@@ -1,0 +1,47 @@
+{
+  "bind2hop": {
+    "acc": 0.0
+  },
+  "config": {
+    "d_model": 512,
+    "heads": 8,
+    "layers": 6,
+    "mlp_hid": 2048,
+    "rope_base": 10000.0,
+    "tie_embeddings": false,
+    "vocab_size": 258
+  },
+  "copying": {
+    "32": 0.0
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "episodes": 16,
+  "induction": {
+    "16": 0.0,
+    "64": 0.0
+  },
+  "model": "transformer-tiny",
+  "mqar": {
+    "16": {
+      "acc": 0.015625,
+      "n": 256,
+      "recall@1": 0.015625,
+      "recall@3": 0.03125
+    },
+    "64": {
+      "acc": 0.0,
+      "n": 1024,
+      "recall@1": 0.0,
+      "recall@3": 0.005859375
+    }
+  },
+  "params_no_embed": 25304576,
+  "random_init": true,
+  "seed": 0
+}

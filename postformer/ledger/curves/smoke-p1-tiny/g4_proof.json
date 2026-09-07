@@ -1,0 +1,70 @@
+{
+  "claim": "O(1) state and O(1) per-token latency in T",
+  "config": {
+    "chunk": 64,
+    "d_k": 128,
+    "d_model": 512,
+    "d_v": 128,
+    "heads": 4,
+    "layers": 6,
+    "mlp_hid": 1704,
+    "rope_base": 10000.0,
+    "vocab_size": 8192,
+    "win_hd": 64,
+    "win_heads": 4,
+    "window": 128
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "measured": [
+    {
+      "T": 64,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-tiny",
+      "ms_p90": 12.923717199964813,
+      "ms_per_token_median": 11.924351500056218,
+      "params": 29373756,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 3145824,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 128,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-tiny",
+      "ms_p90": 12.48769299977539,
+      "ms_per_token_median": 12.234160499929203,
+      "params": 29373756,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 3145824,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 256,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-tiny",
+      "ms_p90": 12.301298899819813,
+      "ms_per_token_median": 12.174299999969662,
+      "params": 29373756,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 3145824,
+      "torch": "2.14.0+cpu"
+    }
+  ],
+  "model": "p1-tiny",
+  "state_inventory": "see postformer/docs/proof-g4.md"
+}

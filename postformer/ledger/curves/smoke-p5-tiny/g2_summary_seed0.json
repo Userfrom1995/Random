@@ -1,0 +1,17 @@
+{
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "lengths": [
+    64,
+    128,
+    256
+  ],
+  "split": "synthetic",
+  "stride": 32,
+  "t_train": 64
+}

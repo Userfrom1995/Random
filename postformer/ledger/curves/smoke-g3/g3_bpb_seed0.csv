@@ -1,0 +1,2 @@
+model,split,context,stride,tokenizer,loss_nats,bpb,n_bytes,sha256_data,seed,random_init,params
+p1-small,valid,64,32,byte,5.691402909140916,8.21095875271862,159,9d37d1a1cb4ab6318ff4e6426147691757a51ee6f09a97dc97292e7f76114c46,0,True,113463720

@@ -19,6 +19,19 @@ from ..models.common import param_count_no_embed
 from .util import add_common_args, env_info, load_model, parse_int_list, reseed, write_csv, write_json
 
 
+def stream_synthetic(rng, vocab, length):
+    return torch.tensor(rng.integers(0, vocab, size=length), dtype=torch.long)
+
+
+def stream_bytes(path, length, offset):
+    with open(path, "rb") as f:
+        f.seek(offset)
+        raw = f.read(length)
+    if len(raw) < length:
+        raise SystemExit(f"{path}: only {len(raw)} bytes at offset {offset}, need {length}")
+    return torch.tensor(list(raw), dtype=torch.long)
+
+
 @torch.no_grad()
 def token_nlls(model, ids, device):
     """Per-token NLL for ids[1:] given ids[:-1] as prefix. Returns list[float]."""

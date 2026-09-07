@@ -1,0 +1,9 @@
+{
+  "g2_series": 0,
+  "g4_models": [
+    "p1-tiny",
+    "p5-tiny",
+    "transformer-tiny"
+  ],
+  "note": "G4 flatness is judged on g4_curve CSVs (state bytes + ms/token vs T)"
+}

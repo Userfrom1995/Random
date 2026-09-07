@@ -1,0 +1,25 @@
+{
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "rows": [
+    {
+      "bpb": 8.21095875271862,
+      "context": 64,
+      "loss_nats": 5.691402909140916,
+      "model": "p1-small",
+      "n_bytes": 159,
+      "params": 113463720,
+      "random_init": true,
+      "seed": 0,
+      "sha256_data": "9d37d1a1cb4ab6318ff4e6426147691757a51ee6f09a97dc97292e7f76114c46",
+      "split": "valid",
+      "stride": 32,
+      "tokenizer": "byte"
+    }
+  ]
+}
