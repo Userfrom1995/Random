@@ -1,13 +1,24 @@
 """Empirical ledger: append / check / plot over ledger/ledger.csv.
 
-Schema (one row per model per seed; empty = not yet measured):
-model,params,train_tokens,seed,g1_mqar_16,g1_mqar_64,g1_mqar_256,
+Schema (one row per model per seed per (vocab, window); empty = not yet measured):
+model,params,train_tokens,seed,vocab,window,
+g1_mqar_8,g1_mqar_16,g1_mqar_64,g1_mqar_256,
 g1_induction,g1_copy,g1_2hop,g2_bpb_1x,g2_bpb_4x,g2_bpb_8x,
 g2_delta_4x,g2_delta_8x,g3_valid_bpb,g3_test_bpb,
 g4_state_bytes,g4_ms_per_token,gpu_hours,notes
 
-check: schema lint (required cols, no NaN in filled gate cells) plus the
-binding +-2% param-drift rule (candidate vs transformer arm, same scale).
+vocab is the eval/train vocab both arms shared (migrated M1 smoke rows use
+the G1 vocab 256; G2/G4 smoke cells used 8192 - conflated there, pinned to
+one vocab going forward). window is the p1/p5 sliding-window W ("" for the
+transformer, which has none); A2 variants share (model, seed) and are
+disambiguated by window. g1_mqar_8 holds toy N=train-N recall; the
+16/64/256 cells stay literal (toy N16 there is an extrapolation point, and
+notes must say so).
+
+check: schema lint (every row's keys against SCHEMA, no NaN in filled gate
+cells, every row carries at least one gate cell or an explicit
+deferred/probe/fixture notes tag) plus the binding +-2% param-drift rule
+(candidate vs transformer arm, same scale).
 plot: regenerate g2 degradation + g4 latency curves from CSV only (SVG, no deps).
 """
 
@@ -17,13 +28,26 @@ import json
 import math
 import os
 
-SCHEMA = ["model", "params", "train_tokens", "seed",
-          "g1_mqar_16", "g1_mqar_64", "g1_mqar_256",
+SCHEMA = ["model", "params", "train_tokens", "seed", "vocab", "window",
+          "g1_mqar_8", "g1_mqar_16", "g1_mqar_64", "g1_mqar_256",
           "g1_induction", "g1_copy", "g1_2hop",
           "g2_bpb_1x", "g2_bpb_4x", "g2_bpb_8x", "g2_delta_4x", "g2_delta_8x",
           "g3_valid_bpb", "g3_test_bpb",
           "g4_state_bytes", "g4_ms_per_token", "gpu_hours", "notes"]
-GATE_COLS = SCHEMA[4:19]
+GATE_COLS = ["g1_mqar_8", "g1_mqar_16", "g1_mqar_64", "g1_mqar_256",
+             "g1_induction", "g1_copy", "g1_2hop",
+             "g2_bpb_1x", "g2_bpb_4x", "g2_bpb_8x", "g2_delta_4x", "g2_delta_8x",
+             "g3_valid_bpb", "g3_test_bpb",
+             "g4_state_bytes", "g4_ms_per_token"]
+EMPTY_ROW_TAGS = ("defer", "pend", "todo", "probe", "fixture",
+                  "not measured", "empty by design")
+
+
+def _key(r):
+    # A2 window variants and vocab pins share (model, seed); the full key
+    # keeps those legitimate variants distinct while catching silent dupes.
+    return (r.get("model", ""), r.get("seed", ""),
+            r.get("vocab", ""), r.get("window", ""))
 
 
 def read_ledger(path):
@@ -37,14 +61,24 @@ def cmd_append(a):
     with open(a.run_json) as f:
         run = json.load(f)
     row = {c: run.get(c, "") for c in SCHEMA}
-    exists = os.path.exists(a.ledger)
+    rows = read_ledger(a.ledger)
+    if rows and list(rows[0].keys()) != SCHEMA:
+        raise SystemExit(f"schema mismatch: {list(rows[0].keys())} != SCHEMA")
+    dupes = [r for r in rows if _key(r) == _key(row)]
+    if dupes and not a.force:
+        raise SystemExit(
+            f"duplicate ledger entry for key {_key(row)}; re-appending would "
+            f"silently double-count. Pass --force to upsert.")
+    if dupes:
+        rows = [r for r in rows if _key(r) != _key(row)]
+    rows.append(row)
     os.makedirs(os.path.dirname(os.path.abspath(a.ledger)), exist_ok=True)
-    with open(a.ledger, "a", newline="") as f:
+    with open(a.ledger, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=SCHEMA)
-        if not exists:
-            w.writeheader()
-        w.writerow(row)
-    print(f"appended {row['model']} seed={row['seed']} to {a.ledger}")
+        w.writeheader()
+        w.writerows(rows)
+    print(f"{'upserted' if dupes else 'appended'} {row['model']} seed={row['seed']} "
+          f"vocab={row['vocab']} window={row['window']} to {a.ledger}")
 
 
 def cmd_check(a):
@@ -53,9 +87,14 @@ def cmd_check(a):
     if not rows:
         errors.append("ledger is empty")
     else:
-        if list(rows[0].keys()) != SCHEMA:
-            errors.append(f"schema mismatch: {list(rows[0].keys())} != SCHEMA")
+        seen = set()
         for i, r in enumerate(rows):
+            if list(r.keys()) != SCHEMA:
+                errors.append(f"row {i} schema mismatch: {list(r.keys())} != SCHEMA")
+                continue
+            if _key(r) in seen:
+                errors.append(f"row {i} duplicate key {_key(r)} (append without --force)")
+            seen.add(_key(r))
             for c in GATE_COLS:
                 v = r.get(c, "")
                 if v in ("", None):
@@ -67,14 +106,19 @@ def cmd_check(a):
                     continue
                 if math.isnan(x):
                     errors.append(f"row {i} col {c}: NaN gate value")
+            if all(r.get(c, "") in ("", None) for c in GATE_COLS):
+                notes = (r.get("notes") or "").lower()
+                if not any(tag in notes for tag in EMPTY_ROW_TAGS):
+                    errors.append(
+                        f"row {i} ({r.get('model')}) has no gate cells and no "
+                        f"explicit empty-row tag in notes {EMPTY_ROW_TAGS}")
         # Binding +-2% param drift: candidate vs transformer arm per scale.
         by_scale = {}
         for r in rows:
-            try:
-                scale = r["model"].rsplit("-", 1)[1]
-            except IndexError:
+            if "-" not in r["model"]:
                 errors.append(f"row model name malformed: {r['model']!r}")
                 continue
+            scale = r["model"].rsplit("-", 1)[1]
             by_scale.setdefault(scale, []).append(r)
         for scale, group in by_scale.items():
             base = [g for g in group if g["model"].startswith("transformer-")]
@@ -205,6 +249,9 @@ def main(argv=None):
     q = sub.add_parser("append")
     q.add_argument("--run-json", required=True)
     q.add_argument("--ledger", required=True)
+    q.add_argument("--force", action="store_true",
+                   help="upsert: replace the existing row with the same "
+                        "(model, seed, vocab, window) key instead of failing")
     q.set_defaults(fn=cmd_append)
     q = sub.add_parser("check")
     q.add_argument("--ledger", required=True)
