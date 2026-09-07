@@ -25,7 +25,8 @@
 Single technique, single branch, single PR (#295) across continuous `continue` cycles. Never split scaffolding and measurements into separate PRs. All intermediate pushes use `Refs #294`; `Closes #294` only on G1+G2+G3+G4 passing head-to-head with reproducible numbers.
 
 - **Active Milestone:** M1
-- **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot; [ ] first S-tiny smoke rows in ledger.
+- **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot (static green; Playwright deferred, no browser on runner); [x] first S-tiny smoke rows in ledger (4 rows, check passes, G4 plots).
+- **Active Milestone:** M1 (Complete, ready for review) - global Status stays in-progress (M2-M4 remain on this PR).
 - **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [ ] full G1/G2/G3/G4 at S-tiny for baseline vs P1 vs P5; [ ] A1 delta on/off; [ ] A2 window {0,128,256}; [ ] H1/H5 verdicts ledgered; [ ] G4 curve flat within 5 percent.
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [ ] P3 accumulator branch + A3; [ ] P2 SSD + slots G {0,4,16,64} + A4; [ ] A5 state scaling curve; [ ] H2/H3 verdicts ledgered.
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [ ] P4 gated behind P1/P2 ledger + H4 verdict; [ ] A6 vocab/distractor stress; [ ] A7 retrieval-vs-drift split; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
@@ -41,6 +42,10 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - Fixed two real bugs found by parity probing: window `step()` applied RoPE on the flat head-concatenated dim (now per-head, matching `forward`), and harness model init was seeded from global torch state (now `reseed(seed, init-{model})` before every build).
 - Harness: all five CLIs with blueprint contracts; G2 uses score-once strided eval; G3 byte-primary (BPE exits non-zero as deferred); G4 benches the recurrent `step()` path with prefill + warmup.
 - T1-T5 green (9 passed): parity incl. collinear stress, param parity both scales, prefix-invariance causal probe, exact-summary determinism, ledger lint (NaN/drift/schema rejection).
+- Smoke (random init, zero train tokens, NOT gate results): G1 at chance as expected; G2 deltas computed; G3 path validated on 4KB seeded byte fixture (sha logged, NOT Enwik8); G4 shows the O(1) signature already (P1 flat 3145824 B at T=64/128/256, P5 flat 4718688 B, baseline linear 1.57M/3.15M/6.29M). 4 ledger rows appended, `ledger check` passes, G4 SVGs plotted.
+- Viewer: static validation green (envelope, table, fetch/drop/paste, no CDN); Playwright snapshot deferred (no browser on runner) to M2.
+- Root landing/README untouched per safety net (Python engine, not Pages-hostable; site links deferred to the final milestone).
+- Builder ideas entry: `ideas/2026-09-07-postformer-m1-build.md`.
 
 - Dr. Mob, the Researcher
 - the Architect
