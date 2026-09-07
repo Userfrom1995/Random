@@ -9,7 +9,7 @@ g4_state_bytes,g4_ms_per_token,gpu_hours,notes
 
 vocab is the eval/train vocab both arms shared (migrated M1 smoke rows use
 the G1 vocab 256; G2/G4 smoke cells used 8192 - conflated there, pinned to
-one vocab going forward). window is the p1/p5 sliding-window W ("" for the
+one vocab going forward). window is the p1/p2/p3/p5 sliding-window W ("" for the
 transformer, which has none); A2 variants share (model, seed) and are
 disambiguated by window. g1_mqar_8 holds toy N=train-N recall; the
 16/64/256 cells stay literal (toy N16 there is an extrapolation point, and

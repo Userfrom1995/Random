@@ -121,6 +121,12 @@ def main(argv=None):
     p.add_argument("--grad-clip", type=float, default=1.0)
     p.add_argument("--window", type=int, default=None,
                    help="override sliding-window W (A2: 0/16/32 at matched toy params)")
+    p.add_argument("--slots", type=int, default=None,
+                   help="override P2 global-slot count G (A4: 0/4/16/64; "
+                        "slots=0 is the pure-SSD control)")
+    p.add_argument("--no-accumulator", action="store_true",
+                   help="A3 control: freeze the P3 accumulator branch "
+                        "(dynamics removed, params unchanged)")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--device", default="cpu")
     p.add_argument("--out", required=True)
@@ -155,6 +161,12 @@ def main(argv=None):
         if a.window < 0:
             raise SystemExit("--window must be >= 0")
         overrides["window"] = a.window
+    if a.slots is not None:
+        if a.slots < 0:
+            raise SystemExit("--slots must be >= 0")
+        overrides["slots"] = a.slots
+    if a.no_accumulator:
+        overrides["use_accumulator"] = False
     parts = a.model.rsplit("-", 1)
     if len(parts) != 2:
         raise SystemExit(f"--model must look like p1-toy, got {a.model!r}")
