@@ -1,6 +1,6 @@
 """Model factory: build_model(name, scale, overrides) -> (model, config).
 
-Names: transformer | p1 | p5  x  tiny | small, e.g. "p1-tiny".
+Names: transformer | p1 | p5  x  toy | tiny | small, e.g. "p1-tiny".
 Pinned configs (non-embedding params; MLP hid trimmed so each candidate
 lands within +-2% of its baseline arm - verified by tests/test_params.py):
 
@@ -17,6 +17,12 @@ from .p5_map import P5LM
 
 
 def _p1_cfg(scale: str) -> dict:
+    if scale == "toy":
+        # CPU-trainable proxy (M2 falsification only): 2L d128, 2 delta heads
+        # dk32/dv32, W16, C16, win 2x16, mlp296 (-0.13% vs transformer-toy).
+        return {"layers": 2, "d_model": 128, "heads": 2, "d_k": 32, "d_v": 32,
+                "win_heads": 2, "win_hd": 16, "window": 16, "mlp_hid": 296,
+                "chunk": 16, "rope_base": 10000.0, "vocab_size": 66}
     if scale == "tiny":
         return {"layers": 6, "d_model": 512, "heads": 4, "d_k": 128, "d_v": 128,
                 "win_heads": 4, "win_hd": 64, "window": 128, "mlp_hid": 1704,

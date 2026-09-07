@@ -11,7 +11,7 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "ledger", "params")
 
 def test_param_parity():
     os.makedirs(OUT_DIR, exist_ok=True)
-    for scale in ("tiny", "small"):
+    for scale in ("toy", "tiny", "small"):
         base, _ = count_params(f"transformer-{scale}", scale)
         with open(os.path.join(OUT_DIR, f"params_baseline_{scale}.txt"), "w") as f:
             f.write(f"transformer-{scale} non-embed params: {base}\n")

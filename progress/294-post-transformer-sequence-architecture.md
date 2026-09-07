@@ -24,14 +24,13 @@
 
 Single technique, single branch, single PR (#295) across continuous `continue` cycles. Never split scaffolding and measurements into separate PRs. All intermediate pushes use `Refs #294`; `Closes #294` only on G1+G2+G3+G4 passing head-to-head with reproducible numbers.
 
-- **Active Milestone:** M1
+- **Active Milestone:** M2 (in progress on PR #295; M1 complete)
 - **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot (static green; Playwright deferred, no browser on runner); [x] first S-tiny smoke rows in ledger (4 rows, check passes, G4 plots).
-- **Active Milestone:** M1 (Complete, ready for review) - global Status stays in-progress (M2-M4 remain on this PR).
-- **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [ ] full G1/G2/G3/G4 at S-tiny for baseline vs P1 vs P5; [ ] A1 delta on/off; [ ] A2 window {0,128,256}; [ ] H1/H5 verdicts ledgered; [ ] G4 curve flat within 5 percent.
+- **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [ ] toy matched-budget MQAR training (transformer vs P1 vs P5, seeds 0-2) + G1 eval = A1 (delta vs additive); [ ] A2 window {0,16,32} toy sweep; [ ] H1/H5 toy-envelope verdicts ledgered; [ ] G4 1k-32k flatness (toy timed + S-tiny analytic bytes); [ ] full S-tiny trained gates DEFERRED (CPU-bound, documented).
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [ ] P3 accumulator branch + A3; [ ] P2 SSD + slots G {0,4,16,64} + A4; [ ] A5 state scaling curve; [ ] H2/H3 verdicts ledgered.
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [ ] P4 gated behind P1/P2 ledger + H4 verdict; [ ] A6 vocab/distractor stress; [ ] A7 retrieval-vs-drift split; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
-- **Current step:** M1 code complete (models + harness + T1-T5 green); S-tiny smoke rows next.
-- **Next steps:** Builder to run S-tiny smoke (G1/G2/G4 small-T + G3 byte fixture + ledger append/check/plot), then yield `continue` for M2 full gates.
+- **Current step:** M2a committed (train.py + toy scale + W=0 + T6 green); toy training runs next.
+- **Next steps:** run toy matched-budget training 3 arms x 3 seeds, G1 eval, A2 sweep, G4 curve, ledger append/check/plot, then `continue` (M2 needs follow-up runs) or `review` per one-technique rule only when measured.
 
 ## Builder log (the Builder, 2026-09-07, M1)
 
