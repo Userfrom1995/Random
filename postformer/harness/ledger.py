@@ -163,9 +163,11 @@ def cmd_plot(a):
     if g2:
         svg_line(os.path.join(a.out_dir, "g2_degradation.svg"),
                  "G2 BPB vs length multiple", g2, "length multiple", "BPB")
-    # G4 curves from g4_curve CSVs (state bytes + ms/token vs T).
+    # G4 curves from g4_curve CSVs (state bytes + ms/token vs T), recursive so
+    # per-milestone subdirs (smoke-*, m2-toy/) join the same scoreboard.
     g4_state, g4_ms = [], []
-    for path in sorted(glob.glob(os.path.join(curves_dir, "g4_curve_*.csv"))):
+    for path in sorted(glob.glob(os.path.join(curves_dir, "**", "g4_curve_*.csv"),
+                                 recursive=True)):
         try:
             cr = read_curve_csv(path)
         except FileNotFoundError:
@@ -173,11 +175,16 @@ def cmd_plot(a):
         if not cr:
             continue
         label = cr[0].get("model", os.path.basename(path))
+        if cr[0].get("method", "").startswith("analytic"):
+            label += " (analytic bytes)"
         try:
             g4_state.append((label, [(int(r["T"]), float(r["state_bytes"])) for r in cr]))
+        except (KeyError, ValueError):
+            pass
+        try:
             g4_ms.append((label, [(int(r["T"]), float(r["ms_per_token_median"])) for r in cr]))
         except (KeyError, ValueError):
-            continue
+            pass
     if g4_state:
         svg_line(os.path.join(a.out_dir, "g4_state_bytes.svg"),
                  "G4 state bytes vs T (flat = O(1))", g4_state, "T", "state bytes")
