@@ -8,15 +8,14 @@ with k RMSNormed to unit norm, beta = sigmoid clamped to [0.01, 0.99]
 (iii) learned per-token fusion gate; (iv) SwiGLU.
 
 State per layer (batch 1): H*d_k*d_v (delta S) + 2*W*d_win (window KV) +
-H scalars. No factor of T. Reference kernels: forward_chunk loops in chunks
-of C (fp32 inter-chunk state); step() is the single-token form.
+H scalars. No factor of T. Reference kernel: forward_recurrent applies step()
+token-by-token (chunk groups loop iterations only); step() is the single-token form.
 """
 
 import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .common import KVWindowBuffer, RMSNorm, RotaryEmbedding, SwiGLU
 
@@ -74,8 +73,10 @@ class GatedDeltaMemory(nn.Module):
         o = torch.einsum("bhki,bhk->bhi", S, q)
         return self.w_o(o.reshape(x_t.shape[0], -1)), S
 
-    def forward_chunk(self, x: torch.Tensor, S0: torch.Tensor, chunk: int):
-        """Reference chunked forward: same math as step(), grouped in chunks of C."""
+    def forward_recurrent(self, x: torch.Tensor, S0: torch.Tensor, chunk: int):
+        """Sequential reference forward: applies step() token-by-token; chunk
+        groups loop iterations only and has no mathematical effect (no
+        parallel/chunkwise math, no fp32 cast)."""
         b, t, _ = x.shape
         S = S0
         outs = []
@@ -91,8 +92,10 @@ class SlidingWindowAttn(nn.Module):
     """Exact causal attention over the last W keys. O(W*d) per step."""
 
     def __init__(self, d_model: int, heads: int, head_dim: int, window: int,
-                 rope_base: float = 10000.0):
+                  rope_base: float = 10000.0):
         super().__init__()
+        if window < 0:
+            raise ValueError(f"window must be >= 0, got {window!r}")
         self.heads = heads
         self.hd = head_dim
         self.window = window
@@ -183,7 +186,7 @@ class P1Block(nn.Module):
         h = self.n1(x)
         b, t, _ = x.shape
         S = self.delta.init_state(b, x.device, x.dtype)
-        d_out, _ = self.delta.forward_chunk(h, S, self.chunk)
+        d_out, _ = self.delta.forward_recurrent(h, S, self.chunk)
         w_out = self.window(h)
         x = x + self.fusion(h, d_out, w_out)
         return x + self.mlp(self.n2(x))
