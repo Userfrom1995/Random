@@ -1,13 +1,20 @@
 """M2 matched-budget trainer: MQAR associative-recall + Markov LM training.
 
-Trains baseline and candidate arms under identical tokens, steps, batch,
-optimizer (AdamW cosine, blueprint section "Optimizer shared across arms"),
-and seeds. Checkpoints are torch.save dicts loadable by every harness
---checkpoint flag.
+Trains baseline and candidate arms under identical token streams, steps,
+batch, optimizer (AdamW cosine, blueprint section "Optimizer shared across
+arms"), and seeds: the data RNG is keyed by (seed, data) only, so every arm
+at one seed sees the same episodes in the same order; the init RNG is keyed
+by (seed, model, data), so each arm keeps its own deterministic init.
+Checkpoints are torch.save dicts loadable by every harness --checkpoint flag.
 
 MQAR episodes mirror harness/synthetic_recall.gen_mqar (k v bigrams
 shuffled, permuted queries after a separator, greedy-decodable), trained
-with full-sequence next-token cross-entropy.
+with full-sequence next-token cross-entropy: every position (study pairs,
+separator, and query answers) contributes to the loss. This is deliberate
+for M2 - the study tokens provide LM-shaped gradient and the query-answer
+positions carry the recall gradient measured by G1; a span-masked
+(query-only) loss variant is M3 work (see mqar_query_positions below for the
+exact query-answer index set it must use).
 
 Example (toy proxy, CPU):
   python -m postformer.harness.train --model p1-toy --data mqar \\
@@ -28,7 +35,12 @@ from .util import env_info, write_csv, write_json
 
 
 def gen_mqar_episode(rng, vocab, n_pairs):
-    """One MQAR episode as id list + query-answer spans (mirrors G1 gen)."""
+    """One MQAR episode as an id list (mirrors G1 gen_mqar plus separator).
+
+    Layout: 2*n_pairs study tokens, one separator id (vocab), then the
+    permuted query pairs. Query-answer target positions are given by
+    mqar_query_positions(n_pairs); the M2 loss covers the full sequence
+    (study + separator + query) by design, see module docstring."""
     keys = rng.choice(vocab, size=n_pairs, replace=False)
     vals = rng.integers(0, vocab, size=n_pairs)
     for i in range(n_pairs):
@@ -44,6 +56,20 @@ def gen_mqar_episode(rng, vocab, n_pairs):
     for i in qorder:
         seq += [int(keys[i]), int(vals[i])]
     return seq
+
+
+def mqar_query_positions(n_pairs):
+    """Target-side index set of the query-answer tokens in an MQAR episode.
+
+    Episode layout (see gen_mqar_episode): 2*n_pairs study tokens, one
+    separator, then 2*n_pairs query tokens (key, answer, key, answer, ...).
+    Full-sequence CE (M2) trains on all positions; a future span-masked loss
+    must restrict the loss to the answer positions {2*n+1 + 2*i + 1}.
+    Pure-python helper kept alongside the generator so the masked variant
+    cannot drift from this layout.
+    """
+    base = 2 * n_pairs + 1
+    return [base + 2 * i + 1 for i in range(n_pairs)]
 
 
 def gen_markov_episode(rng, vocab, length, order=3):
@@ -104,9 +130,24 @@ def main(argv=None):
         raise SystemExit("--vocab must be >= 16")
     if a.n_pairs >= a.vocab:
         raise SystemExit("--n-pairs must be < --vocab (keys sampled without replacement)")
+    if a.n_pairs < 1:
+        raise SystemExit("--n-pairs must be >= 1")
+    if a.steps < 1:
+        raise SystemExit("--steps must be >= 1")
+    if a.batch < 1:
+        raise SystemExit("--batch must be >= 1")
+    if a.log_every < 1:
+        raise SystemExit("--log-every must be >= 1")
+    if a.seq_len <= 3:
+        raise SystemExit("--seq-len must exceed the Markov order (3)")
 
-    sub = seed_all(a.seed, f"train-{a.model}-{a.data}")
-    data_rng = np.random.default_rng(sub ^ 0x5F3D2917)
+    # Matched budget: data stream keyed by (seed, data) ONLY - identical
+    # episodes for every arm at one seed. Init keyed by (seed, model, data)
+    # AFTER, so torch's global RNG (consumed by build_model below) keeps a
+    # per-arm deterministic init.
+    data_sub = seed_all(a.seed, f"train-data-{a.data}")
+    data_rng = np.random.default_rng(data_sub ^ 0x5F3D2917)
+    seed_all(a.seed, f"train-init-{a.model}-{a.data}")
     dev = torch.device(a.device)
 
     overrides = {"vocab_size": a.vocab + 2}
