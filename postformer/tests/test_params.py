@@ -10,7 +10,7 @@ def test_param_parity(tmp_path):
         base, _ = count_params(f"transformer-{scale}", scale)
         (out / f"params_baseline_{scale}.txt").write_text(
             f"transformer-{scale} non-embed params: {base}\n")
-        for fam in ("p1", "p5"):
+        for fam in ("p1", "p2", "p3", "p5"):
             n, _ = count_params(f"{fam}-{scale}", scale)
             (out / f"params_{fam}_{scale}.txt").write_text(
                 f"{fam}-{scale} non-embed params: {n} "
