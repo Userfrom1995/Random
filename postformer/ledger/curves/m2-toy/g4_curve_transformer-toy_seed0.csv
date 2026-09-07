@@ -1,0 +1,4 @@
+model,T,state_bytes,ms_per_token_median,ms_p90,hardware,dtype,torch,cuda,seed,random_init,params
+transformer-toy,1024,2097152,2.066893000574055,2.181581600325444,x86_64 x4 x86_64,fp32,2.14.0+cpu,cpu,0,True,336768
+transformer-toy,2048,4194304,6.491128499874321,6.932249799865531,x86_64 x4 x86_64,fp32,2.14.0+cpu,cpu,0,True,336768
+transformer-toy,4096,8388608,15.959911999743781,16.6828200000964,x86_64 x4 x86_64,fp32,2.14.0+cpu,cpu,0,True,336768

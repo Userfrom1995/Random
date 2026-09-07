@@ -38,3 +38,21 @@ Flat = under 5% growth in state bytes AND median ms/token from T=1k to
 T=32k, batch 1, fixed precision, 200 decode steps after warmup. Hardware,
 dtype, torch/cuda versions are logged per row. M1 records smoke points at
 small T on reference configs; the full 1k-32k curve is M2 work.
+
+## M2 measured flatness (2026-09-07, CPU fp32, torch 2.14.0+cpu)
+
+- p1-toy, timed `step()` path, decode-steps 50, warmup 10:
+  T=1024/2048/4096/8192/16384/32768 -> ms 1.062/1.065/1.059/1.056/1.058/1.066
+  (growth 0.4%, bar is <5%: PASS), bytes flat 24592 (PASS).
+- p5-toy: T=1024 -> 1.051ms / 40976 B; T=32768 -> 1.053ms / 40976 B (PASS).
+- transformer-toy control: T=1024/2048/4096 -> ms 2.067/6.491/15.96
+  (superlinear, O(T) attention per step as designed), bytes 2M/4M/8M linear.
+  8k+ points skipped on CPU (quadratic prefill); linearity is analytic.
+- S-tiny analytic bytes (`state_bytes()` formula, no timing claim):
+  baseline 25M/50M/101M/201M/403M/805M linear vs P1 flat 3145824 vs P5 flat
+  4718688 at every T (P1 uses 256x less state than the baseline at 32k).
+- Real bug caught by the gate: every `step()` path rebuilt the full RoPE
+  table via `cos_sin(pos+1)` - O(T) work per token (p1-toy showed 16.3ms at
+  32k pre-fix). Fixed with `RotaryEmbedding.row()` (byte-identical values,
+  O(d)); T1 parity still green (11/11). Curves: `ledger/curves/m2-toy/
+  g4_curve_{p1,transformer,p5}-toy_seed0.csv` + S-tiny `*_analytic.csv`.

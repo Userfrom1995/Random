@@ -1,0 +1,7 @@
+model,T,state_bytes,method
+p1-tiny,1024,3145824,analytic-state_bytes
+p1-tiny,2048,3145824,analytic-state_bytes
+p1-tiny,4096,3145824,analytic-state_bytes
+p1-tiny,8192,3145824,analytic-state_bytes
+p1-tiny,16384,3145824,analytic-state_bytes
+p1-tiny,32768,3145824,analytic-state_bytes

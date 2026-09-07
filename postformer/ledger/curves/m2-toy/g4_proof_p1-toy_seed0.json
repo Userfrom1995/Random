@@ -1,0 +1,112 @@
+{
+  "claim": "O(1) state and O(1) per-token latency in T",
+  "config": {
+    "chunk": 16,
+    "d_k": 32,
+    "d_model": 128,
+    "d_v": 32,
+    "heads": 2,
+    "layers": 2,
+    "mlp_hid": 296,
+    "rope_base": 10000.0,
+    "vocab_size": 66,
+    "win_hd": 16,
+    "win_heads": 2,
+    "window": 16
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "measured": [
+    {
+      "T": 1024,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.081537799564103,
+      "ms_per_token_median": 1.0624529995766352,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 2048,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.104524299807963,
+      "ms_per_token_median": 1.064641499397112,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 4096,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.0983433004184917,
+      "ms_per_token_median": 1.059448500200233,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 8192,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.0783570007333765,
+      "ms_per_token_median": 1.0555019998719217,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 16384,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.1050906001401017,
+      "ms_per_token_median": 1.0579304998827865,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    },
+    {
+      "T": 32768,
+      "cuda": "cpu",
+      "dtype": "fp32",
+      "hardware": "x86_64 x4 x86_64",
+      "model": "p1-toy",
+      "ms_p90": 1.0922017000666528,
+      "ms_per_token_median": 1.065993500105833,
+      "params": 336332,
+      "random_init": true,
+      "seed": 0,
+      "state_bytes": 24592,
+      "torch": "2.14.0+cpu"
+    }
+  ],
+  "model": "p1-toy",
+  "state_inventory": "see postformer/docs/proof-g4.md"
+}
