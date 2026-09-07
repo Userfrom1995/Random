@@ -1,56 +1,59 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-07T15:38Z, maintainer run 34139335684 (event `schedule` at 15:38:25Z)
- - **Action this run:** Standby verification — main 0944bb63 LIVE (Folio M4 Closes #277 SHIPPED, Tabula 23aeb5ce + Sextant 1e06b5b on lineage, pages Deploy success), 0 open PRs, 2 open issues (42 brainstorm, 70 lab-health). No dispatch — lab standby per charter (no auto-ideation).
- - **Main:** `0944bb63a20db02f1c24a7076d543d28d8fc9de8` LIVE (successor to 3d85366d via rebase, `gh api branches/main --jq .commit.sha` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base origin/main 3d85366d` = 3d85366d NOT orphan, `folio/` + `tabula/` + `sextant/` + `folio/packs/ocr/` + `folio/packs/office/` on main, 9 commits over 3d85366d: 4199da17 + 6ef43827 + de6be23a + 1bd121bc + c7af6d87 + 9d632732 + c6ef9e43 + 6639df3c + 0944bb63, pages Deploy success on 0944bb63 verified, recover sweeps 12:45Z + 06:10Z + 03:49Z + 03:00Z + 01:05Z)
- - **Branch retention:** `opencode/issue277-20260904164811` at `bf67b253cabac01dadaa2b0322b1eddb1fb08651` MERGED at 0944bb63 retained (Architect 4199da17 + Builder M4a 6ef43827 + Builder M4b de6be23a..9d632732 + Builder M4c c6ef9e43..6639df3c + Tester bf67b253, Closes #277, NOT orphan on 3d85366d, 10 files modified/added, preview /preview/pr-292/ deployed), `opencode/issue277-folio-m3` at `e00ad03e` MERGED at 2c8f48b retained, `opencode/issue277-folio-m2` at `aabd77cc` MERGED at d5a344a retained, `opencode/issue286-20260904084331` at `1e06b5b3` MERGED at 1e06b5b retained (25 commits researcher->tester, Sextant shipped), no branch deleted.
+ - **Updated:** 2026-09-07T16:07Z, maintainer run 34141663224 (event `created` on issue #70, owner `/oc maintainer` at 16:06:36Z via Lab Health Notice)
+ - **Action this run:** Lab dispatch on #70 — owner-requested docs sync (README.md + index.html stale vs shipped Folio/Tabula/Sextant). Auditor 34078079178 still all green, 0 open PRs, 2 open issues.
+ - **Main:** `e9656dd8823e321d38b1e4576e02ef92c21d2db9` LIVE (successor to 0944bb63 via lab rigor gates, `git ls-remote origin/main` = e9656dd8, `git log --oneline -1` = e9656dd8 lab: establish brutal rigor, NOT orphan, `folio/` + `tabula/` + `sextant/` + `folio/packs/ocr+office` on main, pages Deploy success holding)
+ - **Branch retention:** `opencode/issue277-20260904164811` at `bf67b253` MERGED at 0944bb63 retained (Folio M4), `opencode/issue282-*` Tabula at 23aeb5ce retained, `opencode/issue286-*` Sextant at 1e06b5b retained, `opencode/issue70-20260907160704` at e9656dd8 is current main (lab rigor), no branch deleted.
 
 ## STANDING OWNER DIRECTIVES (active)
- - **FOLIO M4 AUDIT DIRECTIVE (2026-09-04T16:44Z, supreme, via #277 comment):** 6 ingestion defects + 4 UI mandates — RESOLVED at 0944bb63 (whole dropzone clickable + window drag guard + stale filepick reset + OPFS SecurityError fallback + import.meta.url worker + setFile toast; overlay system pdfToCss/cssToPdf pure math, placement toolbar 8 modes, persistent crop bbox, form overlays, bookmark outline tree, studio layout). Anti-facade gates passed.
- - **EXCELLENCE IN CRAFTSMANSHIP CHARTER (2026-09-04T16:28Z, 3d85366d -> 0944bb63):** Dual-frontier standards ratified and verified on M4 (anti-facade invariant, headless visual loop, dual-lens Tester).
- - **FOLIO MILESTONE EPIC (2026-09-04T12:04Z, supreme, via #277 + 3caf426a + d5a344a + 2c8f48b -> 3d85366d -> 0944bb63):** Folio at /folio/ shipped M1-M3 + M4 final SHIPPED at 0944bb63. Issue #277 now CLOSED. Feature-matrix binding satisfied, 4 milestones via Refs then Closes.
- - **CEILING ACCEPTANCE (2026-09-03T19:06Z, supreme, via #130):** Prism finished-at-ceiling (X6b 3.2175/9.6525, M2 1.6% M3 11.5%, 49+ mechanisms rejected). No more Research/Build on #130 or #226.
- - **TABULA SHIPPED (2026-09-04T03:57Z):** Tabula at /tabula/ SHIPPED at 23aeb5ce (PR #285 MERGED). Issue #282 CLOSED, on main 0944bb63 lineage.
- - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (PR #287 MERGED). Issue #286 CLOSED, on main 0944bb63 lineage.
+ - **DOCS SYNC DIRECTIVE (2026-09-07T16:06:36Z, supreme, via #70):** Update README.md + index.html to reflect live shipped state: Folio M4 at 0944bb63 (canvas overlay layer, direct bbox manipulation, OPFS fallback), Tabula at /tabula/ fully merged/operational, Sextant at /sextant/ fully merged/operational. Correct status tags + links + feature tables. Dispatched Lab Engineer this run.
+ - **LAB RIGOR GATES (2026-09-07T15:47Z, via e9656dd8):** Brutal rigor, binding performance gates, subagent orchestration charter merged to main (6 files: .github/agents/* + AGENTS.md). Verified live at e9656dd8.
+ - **FOLIO M4 AUDIT DIRECTIVE (2026-09-04T16:44Z, supreme, via #277):** 6 ingestion defects + 4 UI mandates — RESOLVED at 0944bb63 (still live at e9656dd8).
+ - **EXCELLENCE IN CRAFTSMANSHIP CHARTER (2026-09-04T16:28Z):** Dual-frontier standards ratified and verified on M4.
+ - **FOLIO MILESTONE EPIC (2026-09-04T12:04Z, supreme, via #277):** Folio at /folio/ shipped M1-M3 + M4 final SHIPPED at 0944bb63. Issue #277 now CLOSED.
+ - **CEILING ACCEPTANCE (2026-09-03T19:06Z, supreme, via #130):** Prism finished-at-ceiling closed.
+ - **TABULA SHIPPED (2026-09-04T03:57Z):** Tabula at /tabula/ SHIPPED at 23aeb5ce (on 0944bb63 lineage, still live).
+ - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (still live).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Folio M4 — PR #292 MERGED at 0944bb63 head bf67b253 (Closes #277, branch opencode/issue277-20260904164811):** Architect 4199da17 blueprint + Builder M4a 6ef43827 + Builder M4b de6be23a..9d632732 + Builder M4c c6ef9e43..6639df3c + Tester bf67b253 (placement toolbar 8 modes crosshair+ghost rect, persistent crop bbox with 8 handles via resizeBox/moveBox, commitPlace through M1/M2 ops addStickyNote/addGeomAnnot/addLink+parsePlaceTarget/addStamp/signatureStamp/insertImage/createField/cropPages/burnCrop, describeFields geometry via P()/getRectangle(), #formlayer per-field HTML inputs via pdfToCss committing via fillForm, shared outline tree #bmtree/#bmtree-pages with drag reorder feeding treeToRows, wireStudio sidebar + ? sheet + global keys, a11y <details> fallbacks, #croprow fix, ingestion hardening + overlay.js pure core pdfToCss/cssToPdf + pageBox/canvasBox + toasts/batchprog/canvaswrap/overlay scaffold). Verified folio-m4 15/15 + full 58/58 + tester-m4-regression 6/6 = 64/64 green. Body `Closes #277` executed — issue closed.
- - **Main 0944bb63 — Folio M4 SHIPPED:** Verified via `gh api branches/main` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base 3d85366d 0944bb63` = 3d85366d NOT orphan, `git log 3d85366d..0944bb63` 9 commits, `git ls-tree origin/main:folio` has packs/ocr+office + overlay.js + viewer + app.js studio shell, `progress/277-folio-client-side-pdf-studio.md` on main Status complete, pages Deploy success on 0944bb63 verified 2026-09-07 + recover sweeps 12:45Z + 06:10Z.
- - **Build guard:** 0 open PRs (`gh pr list --state open` = []), `gh issue list --state open` = [42 brainstorm, 70 lab-health] (2 open, #277/#282/#286 closed). Next gates none — Folio epic complete.
- - **Pages:** Deploy static site `pages.yml` success on 0944bb63 verified (recover successes 2026-09-07 12:45Z + 06:10Z + 03:49Z + 03:00Z + 01:05Z). Production /folio/ + /tabula/ + /sextant/ + packs expected 200 after deploy success.
+ - **Main e9656dd8 — Lab rigor charter SHIPPED:** Verified via `git ls-remote origin/main` = e9656dd8, `git log --oneline -1` = e9656dd8 lab: establish brutal rigor, `git diff 0944bb63..e9656dd8 --stat` 6 files only (agents + AGENTS.md), NOT orphan, `git log 0944bb63..e9656dd8` = 1 commit (e9656dd8) on top of 0944bb63 Folio M4, folio/tabula/sextant still on main at e9656dd8.
+ - **Docs mismatch — pending Lab fix:** Verified via `git show HEAD:README.md:48-54` still "in progress" for Tabula/Folio/Sextant and `git show HEAD:index.html:124/136/148` still `<span class="tag">In progress</span>` for all three, vs live CLOSED issues #277/#282/#286 and `git ls-tree origin/main` has folio/tabula/sextant. Lab Engineer will patch both files on #70 continuation branch.
+ - **Build guard:** 0 open PRs (`gh pr list --state open` = []), `gh issue list --state open` = [42 brainstorm, 70 lab-health] (2 open). Next gates none — Folio epic complete, docs sync only.
+ - **Pages:** Deploy static site `pages.yml` success on main holding (prior 0944bb63 deploys success, e9656dd8 is docs-only agents change, no Pages regression expected).
 
 ## IN FLIGHT
- - **No active pipeline — lab standby.** Auditor 34078079178 all green (last 30 runs only expected skipped/success, no failure/timed_out, no billing/provider crash, no step timeout). 0 open PRs, 0 in_progress builds, recover jobs all success (34123561739 at 12:45Z + 34089639755 at 06:10Z + 34071863308 at 01:05Z + 34067434201 at 23:37Z + 34065987259 at 23:07Z + 34061076143 at 21:26Z).
- - **Issue #277 — CLOSED at 0944bb63 (Folio SHIPPED, M1 [x] M2 [x] M3 [x] M4 [x] complete):** Closes #277 executed via PR #292 at 0944bb63.
- - **PR #292 — MERGED at 0944bb63 — complete, retained:** Body `Closes #277` executed, head bf67b253 MERGED, diff 10 files project-only folio/ + folio/tests/ + ideas/ + progress/, preview was live.
+ - **Docs sync Lab on #70 — dispatched this run:** Owner Lab Health Notice 2026-09-07T16:06:36Z requests Lab Engineer to update README.md + index.html. Dispatch `{"action":"lab","issue":70}` this run. No other in-flight builds.
+ - **No active pipeline — lab standby aside from docs sync:** Auditor 34078079178 all green (last 30 runs only expected skipped/success, no failure/timed_out, no billing/provider crash). 0 open PRs, 0 in_progress builds prior to this dispatch, recover jobs all success (34123561739 at 12:45Z + 34089639755 at 06:10Z).
+ - **Issue #277 — CLOSED at 0944bb63 (Folio SHIPPED, M1 [x] M2 [x] M3 [x] M4 [x] complete) — still live at e9656dd8**
+ - **PR #292 — MERGED at 0944bb63 — complete, retained**
  - **Issue #130 - CLOSED completed 2026-09-03T19:11Z (finished-at-ceiling)**
  - **Issue #226 - CLOSED completed (HALTED)**
- - **Issue #282 Tabula - CLOSED SHIPPED at 23aeb5ce (on 0944bb63)**
- - **Issue #286 Sextant - CLOSED SHIPPED at 1e06b5b (on 0944bb63)**
+ - **Issue #282 Tabula - CLOSED SHIPPED at 23aeb5ce (live at e9656dd8)**
+ - **Issue #286 Sextant - CLOSED SHIPPED at 1e06b5b (live at e9656dd8)**
  - **Brainstorm #42 - OPEN (idle until Owner/Maintainer ideation dispatch, 77 comments, candidates Monsoon/Ferrite/Axiom/Plasmid parked)**
- - **Lab Health #70 - OPEN nominal (93 comments)**
+ - **Lab Health #70 - OPEN nominal (94 comments including doc notice)**
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant shipped, Folio Epic M1 [x] + M2 [x] + M3 [x] + M4 [x] SHIPPED at 0944bb63 via PR #292 Closes #277. Lab enters standby — no open PRs, 2 open issues (brainstorm #42, lab-health #70). Next maintainer to confirm triage only on Owner/Maintainer ideation dispatch. Pages 0944bb63 verified success and holding via 2026-09-07 auditor/recover sweeps.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at e9656dd8, lab rigor gates shipped at e9656dd8, docs sync dispatched on #70. Lab standby otherwise — 0 open PRs, 2 open issues (brainstorm #42, lab-health #70). Next sweep verifies Lab PR for README/index sync, dual-gate review, Pages live.
 
 ## NEXT-RUN PLAYBOOK
- 1. If new issue opened with (>7 features or multi-component): dispatch Architect {"action":"architect","issue":N} per Autonomous Milestone Epic Intake (never direct build).
- 2. If owner requests ideas: dispatch Ideator {"action":"ideate"}; pick at most ONE candidate per run.
- 3. If pages deploy shows failure on 0944bb63: `gh workflow run pages.yml --ref main`.
- 4. If new human PR opened: route to Reviewer {"action":"review","pr":N}.
- 5. Otherwise standby [] — no auto ideation, wait for Owner directive.
+ 1. Verify Lab Engineer PR for #70 docs sync opened on e9656dd8, route to Reviewer `{"action":"review","pr":N}` if not auto-triggered, then Tester.
+ 2. If new issue opened with (>7 features or multi-component): dispatch Architect {"action":"architect","issue":N} per Autonomous Milestone Epic Intake.
+ 3. If owner requests ideas: dispatch Ideator {"action":"ideate"}; pick at most ONE candidate per run.
+ 4. If pages deploy shows failure on e9656dd8: `gh workflow run pages.yml --ref main`.
+ 5. Otherwise standby [] after docs PR merges.
 
 ## ISSUES
  - **#130** - CLOSED (ceiling)
  - **#226** - CLOSED (HALTED)
- - **#277** - CLOSED SHIPPED at 0944bb63 (M1 MERGED 2ae1675d Refs #277, re-plan MERGED 3caf426a, M2 MERGED d5a344a, M3 MERGED 2c8f48b Closes #277 then REOPENED at 3d85366d for M4 SHIPPED at 0944bb63 M4a/b/c 64/64 Closes #277)
- - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (on 0944bb63)
- - **#286 Sextant - CLOSED SHIPPED at 1e06b5b (on 0944bb63)**
+ - **#277** - CLOSED SHIPPED at 0944bb63 (live at e9656dd8)
+ - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at e9656dd8)
+ - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at e9656dd8)
  - **#42 - OPEN** brainstorm (idle until dispatched)
- - **#70 - OPEN** lab-health
+ - **#70 - OPEN** lab-health (docs sync in flight via Lab)
 
 ## OPEN QUESTIONS
- - Will pages Deploy on 0944bb63 remain green and serve /folio/ packs live?
- - Will brainstorm triage resume on next Owner ideation dispatch?
+ - Will Lab PR for README/index sync land cleanly on e9656dd8 and pass Reviewer + Tester before Pages redeploy?
+ - Will pages Deploy on e9656dd8 remain green and serve /folio/ + packs/ocr+office + /tabula/ + /sextant/ at 200 through next Auditor cycle?
 
    - Hephaestus, the Maintainer
-<!-- run: 34139335684 -->
+<!-- run: 34141663224 -->
