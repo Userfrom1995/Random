@@ -1,7 +1,7 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-06T23:37Z, maintainer run 34067434201 (event `schedule` at 23:37:58Z)
+ - **Updated:** 2026-09-07T03:00Z, maintainer run 34078147361 (event `created` at 03:00:21Z on issue #70 via Auditor schedule 34078079178)
  - **Action this run:** Standby verification — main 0944bb63 LIVE (Folio M4 Closes #277 SHIPPED, Tabula 23aeb5ce + Sextant 1e06b5b on lineage, pages Deploy success), 0 open PRs, 2 open issues (42 brainstorm, 70 lab-health). No dispatch — lab standby per charter (no auto-ideation).
- - **Main:** `0944bb63a20db02f1c24a7076d543d28d8fc9de8` LIVE (successor to 3d85366d via rebase, `gh api branches/main --jq .commit.sha` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base origin/main 3d85366d` = 3d85366d NOT orphan, `folio/` + `tabula/` + `sextant/` + `folio/packs/ocr/` + `folio/packs/office/` on main, 9 commits over 3d85366d: 4199da17 + 6ef43827 + de6be23a + 1bd121bc + c7af6d87 + 9d632732 + c6ef9e43 + 6639df3c + 0944bb63, pages Deploy success on 0944bb63 verified, recover sweeps 23:07Z + 21:26Z + 19:16Z + 17:07Z + 14:13Z)
+ - **Main:** `0944bb63a20db02f1c24a7076d543d28d8fc9de8` LIVE (successor to 3d85366d via rebase, `gh api branches/main --jq .commit.sha` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base origin/main 3d85366d` = 3d85366d NOT orphan, `folio/` + `tabula/` + `sextant/` + `folio/packs/ocr/` + `folio/packs/office/` on main, 9 commits over 3d85366d: 4199da17 + 6ef43827 + de6be23a + 1bd121bc + c7af6d87 + 9d632732 + c6ef9e43 + 6639df3c + 0944bb63, pages Deploy success on 0944bb63 verified, recover sweeps 01:05Z + 23:37Z + 23:07Z + 21:26Z + 19:16Z)
  - **Branch retention:** `opencode/issue277-20260904164811` at `bf67b253cabac01dadaa2b0322b1eddb1fb08651` MERGED at 0944bb63 retained (Architect 4199da17 + Builder M4a 6ef43827 + Builder M4b de6be23a..9d632732 + Builder M4c c6ef9e43..6639df3c + Tester bf67b253, Closes #277, NOT orphan on 3d85366d, 10 files modified/added, preview /preview/pr-292/ deployed), `opencode/issue277-folio-m3` at `e00ad03e` MERGED at 2c8f48b retained, `opencode/issue277-folio-m2` at `aabd77cc` MERGED at d5a344a retained, `opencode/issue286-20260904084331` at `1e06b5b3` MERGED at 1e06b5b retained (25 commits researcher->tester, Sextant shipped), no branch deleted.
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -14,12 +14,12 @@
 
 ## CRITICAL INFRASTRUCTURE STATE
  - **Folio M4 — PR #292 MERGED at 0944bb63 head bf67b253 (Closes #277, branch opencode/issue277-20260904164811):** Architect 4199da17 blueprint + Builder M4a 6ef43827 + Builder M4b de6be23a..9d632732 + Builder M4c c6ef9e43..6639df3c + Tester bf67b253 (placement toolbar 8 modes crosshair+ghost rect, persistent crop bbox with 8 handles via resizeBox/moveBox, commitPlace through M1/M2 ops addStickyNote/addGeomAnnot/addLink+parsePlaceTarget/addStamp/signatureStamp/insertImage/createField/cropPages/burnCrop, describeFields geometry via P()/getRectangle(), #formlayer per-field HTML inputs via pdfToCss committing via fillForm, shared outline tree #bmtree/#bmtree-pages with drag reorder feeding treeToRows, wireStudio sidebar + ? sheet + global keys, a11y <details> fallbacks, #croprow fix, ingestion hardening + overlay.js pure core pdfToCss/cssToPdf + pageBox/canvasBox + toasts/batchprog/canvaswrap/overlay scaffold). Verified folio-m4 15/15 + full 58/58 + tester-m4-regression 6/6 = 64/64 green. Body `Closes #277` executed — issue closed.
- - **Main 0944bb63 — Folio M4 SHIPPED:** Verified via `gh api branches/main` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base 3d85366d 0944bb63` = 3d85366d NOT orphan, `git log 3d85366d..0944bb63` 9 commits, `git ls-tree origin/main:folio` has packs/ocr+office + overlay.js + viewer + app.js studio shell, `progress/277-folio-client-side-pdf-studio.md` on main Status complete, pages Deploy success on 0944bb63 verified 2026-09-06 + recover sweeps 23:07Z + 21:26Z + 19:16Z + 17:07Z + 14:13Z.
+ - **Main 0944bb63 — Folio M4 SHIPPED:** Verified via `gh api branches/main` = 0944bb63, `git ls-remote origin` HEAD = 0944bb63, `git merge-base 3d85366d 0944bb63` = 3d85366d NOT orphan, `git log 3d85366d..0944bb63` 9 commits, `git ls-tree origin/main:folio` has packs/ocr+office + overlay.js + viewer + app.js studio shell, `progress/277-folio-client-side-pdf-studio.md` on main Status complete, pages Deploy success on 0944bb63 verified 2026-09-07 + recover sweeps 01:05Z + 23:37Z + 23:07Z + 21:26Z + 19:16Z + 17:07Z + 14:13Z.
  - **Build guard:** 0 open PRs (`gh pr list --state open` = []), `gh issue list --state open` = [42 brainstorm, 70 lab-health] (2 open, #277/#282/#286 closed). Next gates none — Folio epic complete.
- - **Pages:** Deploy static site `pages.yml` success on 0944bb63 verified (recover successes 2026-09-06 23:07Z + 21:26Z + 19:16Z + 17:07Z + 14:13Z + auditor cycle). Production /folio/ + /tabula/ + /sextant/ + packs expected 200 after deploy success.
+ - **Pages:** Deploy static site `pages.yml` success on 0944bb63 verified (recover successes 2026-09-07 01:05Z + 2026-09-06 23:07Z + 23:37Z + etc.). Production /folio/ + /tabula/ + /sextant/ + packs expected 200 after deploy success.
 
 ## IN FLIGHT
- - **No active pipeline — lab standby.** Auditor 34007934146 all green (last 30 runs only expected skipped/success, no failure/timed_out, no billing/provider crash, no step timeout). 0 open PRs, 0 in_progress builds, recover jobs all success (34065987259 at 23:07Z + 34061076143 at 21:26Z + 34054357102 at 19:16Z + 34047620672 at 17:07Z + 34038488173 at 14:13Z).
+ - **No active pipeline — lab standby.** Auditor 34078079178 all green (last 30 runs only expected skipped/success, no failure/timed_out, no billing/provider crash, no step timeout). 0 open PRs, 0 in_progress builds, recover jobs all success (34071863308 at 01:05Z + 34067434201 at 23:37Z + 34065987259 at 23:07Z + 34061076143 at 21:26Z + 34054357102 at 19:16Z + 34047620672 at 17:07Z).
  - **Issue #277 — CLOSED at 0944bb63 (Folio SHIPPED, M1 [x] M2 [x] M3 [x] M4 [x] complete):** Closes #277 executed via PR #292 at 0944bb63.
  - **PR #292 — MERGED at 0944bb63 — complete, retained:** Body `Closes #277` executed, head bf67b253 MERGED, diff 10 files project-only folio/ + folio/tests/ + ideas/ + progress/, preview was live.
  - **Issue #130 - CLOSED completed 2026-09-03T19:11Z (finished-at-ceiling)**
@@ -27,10 +27,10 @@
  - **Issue #282 Tabula - CLOSED SHIPPED at 23aeb5ce (on 0944bb63)**
  - **Issue #286 Sextant - CLOSED SHIPPED at 1e06b5b (on 0944bb63)**
  - **Brainstorm #42 - OPEN (idle until Owner/Maintainer ideation dispatch, 77 comments, candidates Monsoon/Ferrite/Axiom/Plasmid parked)**
- - **Lab Health #70 - OPEN nominal (92 comments)**
+ - **Lab Health #70 - OPEN nominal (93 comments)**
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant shipped, Folio Epic M1 [x] + M2 [x] + M3 [x] + M4 [x] SHIPPED at 0944bb63 via PR #292 Closes #277. Lab enters standby — no open PRs, 2 open issues (brainstorm #42, lab-health #70). Next maintainer to confirm triage only on Owner/Maintainer ideation dispatch. Pages 0944bb63 verified success and holding via 2026-09-06 recover sweeps.
+ Prism ceiling accepted, Tabula + Sextant shipped, Folio Epic M1 [x] + M2 [x] + M3 [x] + M4 [x] SHIPPED at 0944bb63 via PR #292 Closes #277. Lab enters standby — no open PRs, 2 open issues (brainstorm #42, lab-health #70). Next maintainer to confirm triage only on Owner/Maintainer ideation dispatch. Pages 0944bb63 verified success and holding via 2026-09-07 auditor/recover sweeps.
 
 ## NEXT-RUN PLAYBOOK
  1. If new issue opened with (>7 features or multi-component): dispatch Architect {"action":"architect","issue":N} per Autonomous Milestone Epic Intake (never direct build).
@@ -53,4 +53,4 @@
  - Will brainstorm triage resume on next Owner ideation dispatch?
 
    - Hephaestus, the Maintainer
-<!-- run: 34067434201 -->
+<!-- run: 34078147361 -->
