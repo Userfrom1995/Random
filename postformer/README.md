@@ -82,7 +82,12 @@ next to it.
   A1: delta shows no advantage over the additive map at toy N8 (H1/H5
   unresolved - N=256 untested). N16 extrapolation collapses for all arms
   (P1 0.039, P5 0.000, T 0.091). 2-hop: P5 0.53 / P1 0.46 / T 0.12.
-- A2 W{0,16,32}: N8 0.275/0.287/0.251 - window contributes little at N8.
+- A2 W{0,16,32}: N8 0.275/0.287/0.251 - HOWEVER the pre-fix G1 harness had
+  no `--window` passthrough, so all three evals ran window 16 (see the
+  `config.window=16` in `g1_summary_p1-toy-W0/W32-s0.json`); the A2
+  conclusion is INVALID pending re-eval with the fixed harness. Ledger rows
+  now carry the true train-window in the `window` column with this disclaimer
+  in `notes`.
 - G4 1k-32k: P1 1.06ms flat (<1%) with bytes flat 24592; P5 1.05ms flat
   (bytes 40976); control 2.07/6.49/15.96ms at 1k/2k/4k with linear bytes.
   S-tiny analytic bytes: baseline 25M-805M linear vs P1 flat 3.15M.

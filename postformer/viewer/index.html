@@ -29,11 +29,30 @@ No gate claims beyond this envelope. Full gates (N&le;512, 8x, Enwik8 valid) are
 <button id="parsePaste">parse</button></div>
 <div id="curves"></div>
 <script>
+function splitCSV(line) {
+  // RFC-4180 quote-aware splitter: the notes column holds quoted commas
+  // (a naive l.split(",") shreds it into 23 cells against a 21-col header).
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c == '"') { if (line[i + 1] == '"') { cur += '"'; i++; } else q = false; }
+      else cur += c;
+    } else if (c == '"') q = true;
+    else if (c == ',') { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur); return out;
+}
+function esc(s) {
+  return String(s === undefined ? "" : s).replace(/[&<>"']/g,
+    c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  const head = lines[0].split(",");
+  const head = splitCSV(lines[0]);
   return lines.slice(1).map(l => {
-    const cells = l.split(",");
+    const cells = splitCSV(l);
     const o = {};
     head.forEach((h, i) => o[h] = cells[i]);
     return o;
@@ -46,10 +65,10 @@ function cell(v, good) {
 }
 function render(rows) {
   const tb = document.querySelector("#board tbody");
-  tb.innerHTML = rows.map(r => "<tr><td>" + r.model + "</td><td>" + r.seed + "</td>"
-    + cell(r.g1_mqar_16) + cell(r.g1_mqar_64) + cell(r.g1_mqar_256)
-    + cell(r.g2_delta_4x) + cell(r.g2_delta_8x) + cell(r.g3_valid_bpb)
-    + cell(r.g4_state_bytes) + "<td>" + (r.notes || "") + "</td></tr>").join("");
+  tb.innerHTML = rows.map(r => "<tr><td>" + esc(r.model) + "</td><td>" + esc(r.seed) + "</td>"
+    + cell(esc(r.g1_mqar_16)) + cell(esc(r.g1_mqar_64)) + cell(esc(r.g1_mqar_256))
+    + cell(esc(r.g2_delta_4x)) + cell(esc(r.g2_delta_8x)) + cell(esc(r.g3_valid_bpb))
+    + cell(esc(r.g4_state_bytes)) + "<td>" + esc(r.notes) + "</td></tr>").join("");
 }
 function load(text) { try { render(parseCSV(text)); } catch (e) { alert("parse failed: " + e); } }
 document.getElementById("ledgerFile").addEventListener("change", e => {
