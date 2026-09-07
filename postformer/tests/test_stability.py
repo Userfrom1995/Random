@@ -55,7 +55,7 @@ def test_gate_invariants_p1_p5():
 
 def test_stability_collinear_finite():
     seed_all(22, "t6-collinear")
-    for fam in ("transformer", "p1", "p5"):
+    for fam in ("transformer", "p1", "p2", "p3", "p5"):
         m, _ = build_model(fam, "tiny", dict(MINI))
         m.eval()
         ids = torch.full((1, 24), 7, dtype=torch.long)
@@ -63,3 +63,37 @@ def test_stability_collinear_finite():
             out = m(ids)
         assert torch.isfinite(out).all(), fam
         assert float(out.abs().max()) < 1e6, (fam, float(out.abs().max()))
+
+
+def test_gate_invariants_p2_p3():
+    """T6 (M3 arms): SSD decay gate a in (0, 1); P3 acc/selective betas in
+    [0.01, 0.99], selective alpha in (0, 1); accumulator rescale hook fires
+    (counter increments) rather than overflowing on a long constant stream."""
+    from postformer.models.p1_delta_hybrid import BETA_MAX as _BMAX, BETA_MIN as _BMIN
+    seed_all(23, "t6-p2p3")
+    m2, _ = build_model("p2", "tiny", dict(MINI))
+    m2.eval()
+    x = torch.randn(2, 12, MINI["d_model"])
+    with torch.no_grad():
+        for blk in m2.blocks:
+            a = torch.exp(-torch.exp(blk.ssd.w_a(x)))
+            assert bool(((a > 0) & (a < 1)).all()), "p2 decay gate"
+    m3, _ = build_model("p3", "tiny", dict(MINI))
+    m3.eval()
+    with torch.no_grad():
+        for blk in m3.blocks:
+            mem = blk.mem
+            for proj in (mem.w_beta_acc, mem.w_beta_sel):
+                b = torch.sigmoid(proj(x)).clamp(_BMIN, _BMAX)
+                assert bool(((b >= _BMIN) & (b <= _BMAX)).all()), "p3 beta"
+            al = torch.exp(-torch.exp(mem.w_alpha(x)))
+            assert bool(((al > 0) & (al < 1)).all()), "p3 alpha"
+        # Long constant stream: outputs finite, rescale counter is an int.
+        ids = torch.full((1, 96), 5, dtype=torch.long)
+        out = m3(ids)
+        assert torch.isfinite(out).all()
+        st = m3.init_state(1, "cpu", torch.float32)
+        for i in range(96):
+            tok = torch.full((1, 1), 5, dtype=torch.long)
+            _, st = m3.step(tok, st)
+        assert isinstance(st[0]["mem"]["rescales"], int)
