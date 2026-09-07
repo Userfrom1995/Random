@@ -58,6 +58,8 @@ class RotaryEmbedding(nn.Module):
         self.max_len = max_len
 
     def cos_sin(self, seq_len: int, device, dtype):
+        if seq_len > self.max_len:
+            raise ValueError(f"seq_len {seq_len} exceeds RoPE max_len {self.max_len}")
         t = torch.arange(seq_len, device=device, dtype=torch.float32)
         freqs = torch.outer(t, self.inv_freq.to(device))
         emb = torch.cat([freqs, freqs], dim=-1)
@@ -69,6 +71,8 @@ class RotaryEmbedding(nn.Module):
         The recurrent step() path must use this (never the full table) so
         per-token latency stays O(1) in T (G4 flatness).
         """
+        if pos >= self.max_len:
+            raise ValueError(f"pos {pos} exceeds RoPE max_len {self.max_len}")
         t = torch.tensor([float(pos)], device=device, dtype=torch.float32)
         freqs = torch.outer(t, self.inv_freq.to(device))
         emb = torch.cat([freqs, freqs], dim=-1)

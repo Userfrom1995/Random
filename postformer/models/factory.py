@@ -4,10 +4,13 @@ Names: transformer | p1 | p5  x  toy | tiny | small, e.g. "p1-tiny".
 Pinned configs (non-embedding params; MLP hid trimmed so each candidate
 lands within +-2% of its baseline arm - verified by tests/test_params.py):
 
-  transformer-tiny: 6L d512 8h mlp2048            (reference, ~25.17M)
+  transformer-tiny: 6L d512 8h mlp2048            (reference, 29366784, ~29.37M)
   p1/p5-tiny:       6L d512 4xh(dk128,dv128) W128 C64  win 4x64 mlp1704
-  transformer-small: 12L d768 12h mlp3072        (reference, ~113.26M)
+  transformer-small: 12L d768 12h mlp3072        (reference, 113462016, ~113.46M)
   p1/p5-small:      12L d768 6xh(dk128,dv128) W128 C128 win 4x64 mlp2726
+
+tie_embeddings is baseline-only: P1/P5 always build a separate lm_head, so
+passing tie_embeddings for p1/p5 is rejected to protect param parity.
 """
 
 from . import baseline as _b
@@ -35,8 +38,7 @@ def _p1_cfg(scale: str) -> dict:
 
 
 def build_model(name: str, scale: str, overrides: dict | None = None):
-    parts = name.split("-", 1)
-    family = parts[0] if len(parts) == 1 else parts[0]
+    family = name.split("-", 1)[0]
     if family == "transformer":
         cfg = dict(_b.SCALES[scale])
     elif family == "p1":
@@ -46,6 +48,10 @@ def build_model(name: str, scale: str, overrides: dict | None = None):
     else:
         raise ValueError(f"unknown family {family!r} in {name!r}")
     if overrides:
+        if family in ("p1", "p5") and overrides.get("tie_embeddings"):
+            raise ValueError("tie_embeddings is baseline-only: P1/P5 always build "
+                             "a separate lm_head; allowing the override would silently "
+                             "break param parity")
         cfg.update({k: v for k, v in overrides.items() if v is not None})
     if family == "transformer":
         model = _b.DecoderLM(cfg)

@@ -10,9 +10,8 @@ import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from .common import RMSNorm, RotaryEmbedding, SwiGLU, causal_mask, param_count_no_embed
+from .common import RMSNorm, RotaryEmbedding, SwiGLU, causal_mask
 
 TINY = {"layers": 6, "d_model": 512, "heads": 8, "mlp_hid": 2048,
         "rope_base": 10000.0, "vocab_size": 8192, "tie_embeddings": False}

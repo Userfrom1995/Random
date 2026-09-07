@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 
 from .common import RMSNorm
-from .p1_delta_hybrid import FusionGate, P1Block, SlidingWindowAttn
+from .p1_delta_hybrid import P1Block
 from .p1_delta_hybrid import BETA_MAX, BETA_MIN, BETA_BIAS_INIT, ALPHA_BIAS_INIT
 
 MAP_SCALE = 0.5
@@ -62,7 +62,10 @@ class GatedMapMemory(nn.Module):
         o = torch.einsum("bhki,bhk->bhi", S, pq)
         return self.w_o(o.reshape(x_t.shape[0], -1)), S
 
-    def forward_chunk(self, x: torch.Tensor, S0: torch.Tensor, chunk: int):
+    def forward_recurrent(self, x: torch.Tensor, S0: torch.Tensor, chunk: int):
+        """Sequential reference forward: applies step() token-by-token; chunk
+        groups loop iterations only and has no mathematical effect (no
+        parallel/chunkwise math, no fp32 cast)."""
         b, t, _ = x.shape
         S = S0
         outs = []
