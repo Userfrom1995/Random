@@ -1,0 +1,6 @@
+# PostFormer M1 requirements (CPU reference kernels; GPU optional).
+# Install CPU torch first: pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+numpy>=1.26
+pyyaml>=6.0
+pytest>=8.0
