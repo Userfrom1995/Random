@@ -32,8 +32,6 @@ Reference kernel: forward_recurrent applies step() token-by-token;
 chunk groups loop iterations only and has no mathematical effect.
 """
 
-import math
-
 import torch
 import torch.nn as nn
 
