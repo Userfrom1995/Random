@@ -232,11 +232,10 @@ def cmd_check(a):
                 if math.isnan(pv) or math.isinf(pv):
                     errors.append(f"{g['model']}: params non-finite: {g['params']!r}")
                     continue
-                try:
-                    drift = abs(pv - bp) / bp
-                except ValueError:
-                    errors.append(f"{g['model']}: params not numeric")
+                if bp == 0:
+                    errors.append(f"{g['model']}: baseline params are zero, drift undefined")
                     continue
+                drift = abs(pv - bp) / bp
                 if math.isnan(drift) or math.isinf(drift):
                     errors.append(f"{g['model']}: param drift non-finite")
                     continue
@@ -252,9 +251,11 @@ def cmd_check(a):
 
 def svg_line(path, title, series, xlabel, ylabel):
     """series: list of (label, [(x, y)]). Minimal dependency-free SVG."""
+    from xml.sax.saxutils import escape as _xml_escape
     W, H, P = 640, 360, 48
     allx = [x for _, pts in series for x, _ in pts]
-    ally = [y for _, pts in series for _, y in pts if y == y]
+    ally = [y for _, pts in series for _, y in pts
+            if y == y and y not in (float("inf"), float("-inf"))]
     if not allx or not ally:
         return
     x0, x1 = min(allx), max(allx)
@@ -269,17 +270,20 @@ def svg_line(path, title, series, xlabel, ylabel):
         return H - P - (y - y0) / (y1 - y0) * (H - 2 * P)
     colors = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e"]
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">',
-             f"<text x='{W // 2}' y='20' text-anchor='middle' font-size='14'>{title}</text>",
-             f"<text x='{W // 2}' y='{H - 6}' text-anchor='middle' font-size='11'>{xlabel}</text>",
+             f"<text x='{W // 2}' y='20' text-anchor='middle' font-size='14'>{_xml_escape(title)}</text>",
+             f"<text x='{W // 2}' y='{H - 6}' text-anchor='middle' font-size='11'>{_xml_escape(xlabel)}</text>",
              f"<text x='12' y='{H // 2}' text-anchor='middle' font-size='11' "
-             f"transform='rotate(-90 12 {H // 2})'>{ylabel}</text>"]
+             f"transform='rotate(-90 12 {H // 2})'>{_xml_escape(ylabel)}</text>"]
     for i, (label, pts) in enumerate(series):
         c = colors[i % len(colors)]
+        pts = [(x, y) for x, y in pts if math.isfinite(y)]
+        if not pts:
+            continue
         d = "M" + " L".join(f"{sx(x):.1f},{sy(y):.1f}" for x, y in pts)
         parts.append(f"<path d='{d}' fill='none' stroke='{c}' stroke-width='2'/>")
         for x, y in pts:
             parts.append(f"<circle cx='{sx(x):.1f}' cy='{sy(y):.1f}' r='3' fill='{c}'/>")
-        parts.append(f"<text x='{W - P + 4}' y='{P + i * 16}' font-size='11' fill='{c}'>{label}</text>")
+        parts.append(f"<text x='{W - P + 4}' y='{P + i * 16}' font-size='11' fill='{c}'>{_xml_escape(label)}</text>")
     parts.append("</svg>")
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as f:
