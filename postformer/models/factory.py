@@ -101,11 +101,13 @@ def _candidate_cfg(family: str, scale: str) -> dict:
 
 
 def build_model(name: str, scale: str, overrides: dict | None = None):
-    # Library-level guard (ValueError): family/scale validated against the
-    # canonical sets so suffixed or middle-tagged names fail loudly here
-    # too; CLI entry points validate the full --model string first via
-    # parse_model_name (SystemExit).
-    family = name.split("-", 1)[0]
+    # Library-level guard (ValueError): family must be a bare canonical
+    # name with no '-' so middle-tagged or suffixed names fail loudly
+    # here too; CLI entry points validate the full --model string first
+    # via parse_model_name (SystemExit).
+    if "-" in name:
+        raise ValueError(f"family name must not contain '-': {name!r}; pass scale separately")
+    family = name
     if family not in ("transformer", "p1", "p2", "p3", "p4", "p5"):
         raise ValueError(f"unknown family {family!r} in {name!r}")
     if scale not in ("toy", "tiny", "small"):
