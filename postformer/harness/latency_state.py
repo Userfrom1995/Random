@@ -64,9 +64,12 @@ def main(argv=None):
             raise SystemExit(
                 f"--vocab {a.vocab} != checkpoint train vocab {_cv}; "
                 f"refusing to partial-load or OOB the embedding")
-    model, cfg, random_init = load_model(a.model, a.checkpoint, a.config, None,
+    if a.vocab is not None and int(a.vocab) < 1:
+        raise SystemExit(f"--vocab must be >= 1, got {a.vocab}")
+    _vocab_ov = {"vocab_size": int(a.vocab)} if a.vocab is not None else None
+    model, cfg, random_init = load_model(a.model, a.checkpoint, a.config, _vocab_ov,
                                          a.device, a.dtype)
-    vocab = a.vocab or cfg["vocab_size"]
+    vocab = int(a.vocab) if a.vocab is not None else cfg["vocab_size"]
     info = env_info()
     info["dtype"] = a.dtype
     bpe = {"fp32": 4, "fp16": 2, "bf16": 2}[a.dtype]
