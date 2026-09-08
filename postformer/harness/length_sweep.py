@@ -88,7 +88,9 @@ def main(argv=None):
     p.add_argument("--split", default="synthetic", choices=["synthetic", "bytes"])
     p.add_argument("--tokenizer", default="byte", choices=["byte", "bpe"])
     p.add_argument("--data-root", default=None)
-    p.add_argument("--vocab", type=int, default=None)
+    p.add_argument("--vocab", type=int, default=None,
+                   help="eval vocab (train --vocab convention); "
+                        "model uses vocab_size = vocab + 2")
     a = p.parse_args(argv)
     if a.tokenizer == "bpe":
         raise SystemExit("BPE is a secondary diagnostic deferred past M1; "
@@ -107,22 +109,29 @@ def main(argv=None):
         _m, cfg0, _ = load_model(a.model, a.checkpoint, a.config, None, a.device, a.dtype)
         vocab = cfg0["vocab_size"]
     else:
+        if int(vocab) < 16:
+            raise SystemExit(f"--vocab must be >= 16, got {vocab}")
         for _name, _ckpt in ((a.model, a.checkpoint),
                              (base_name, a.baseline_checkpoint)):
             if _ckpt:
                 _blob = torch.load(_ckpt, map_location="cpu", weights_only=False)
                 _cv = (( _blob.get("config") or {}).get("vocab_size")
                        if isinstance(_blob, dict) else None)
-                if _cv is not None and int(_cv) != int(vocab):
+                if _cv is not None and int(_cv) != int(vocab) + 2:
                     raise SystemExit(
-                        f"--vocab {vocab} != checkpoint train vocab {_cv} "
+                        f"--vocab {vocab} (vocab_size {int(vocab) + 2}) != "
+                        f"checkpoint train vocab_size {_cv} "
                         f"for {_name}; refusing to partial-load or OOB the embedding")
     rows = []
+    # Explicit --vocab uses the train convention (model vocab_size = vocab + 2,
+    # prompts sampled from 0..vocab-1); the discovered path keeps vocab_size
+    # identity for backward compatibility with existing G2 curves.
+    _vocab_size_ov = int(vocab) + 2 if a.vocab is not None else int(vocab)
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
         reseed(a.seed, f"init-{name}")  # deterministic init before any torch draws
         ckpt = a.checkpoint if name == a.model else a.baseline_checkpoint
         model, cfg, rnd = load_model(name, ckpt,
-                                     a.config, {"vocab_size": vocab}, a.device, a.dtype)
+                                     a.config, {"vocab_size": _vocab_size_ov}, a.device, a.dtype)
         if rnd and name != a.model:
             print(f"note: baseline {name} uses seeded random init (no checkpoint given)")
         for length in lengths:
