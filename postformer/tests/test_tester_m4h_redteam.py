@@ -55,11 +55,12 @@ def test_m4h_g16_vs_g64_bitwise_identical_at_toy_t():
     m64.eval()
     x = torch.randint(0, 64, (1, 33))
     with torch.no_grad():
-        d = (m16.forward(x) - m64.forward(x)).abs().max().item()
-    assert d == 0.0, d
+        o16, o64 = m16.forward(x), m64.forward(x)
+    # Bitwise-identity intent (same seed, no eviction either side).
+    assert torch.equal(o16, o64), (o16 - o64).abs().max().item()
 
 
-def test_m4h_g4_diverges_only_via_eviction():
+def test_m4h_g4_diverges_only_via_eviction_stays_finite():
     # G4 must evict once at T=33 (5 writes > 4 slots); G16 never evicts.
     # Both stay finite; divergence is bounded to the eviction effect.
     torch.manual_seed(7)
@@ -74,7 +75,8 @@ def test_m4h_g4_diverges_only_via_eviction():
     assert torch.isfinite(o4).all() and torch.isfinite(o16).all()
     d = (o4 - o16).abs().max().item()
     assert d > 0.0, "expected G4 eviction to change the last-token read"
-    assert d < 50.0, d  # eviction swaps one slot, must not explode
+    # Smoke bound (observed d ~ O(1)): eviction swaps one slot, must not explode.
+    assert d < 50.0, d
 
 
 def test_m4h_slots_zero_disables_buffer():

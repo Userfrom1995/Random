@@ -11,16 +11,18 @@ from postformer.models.factory import build_model, count_params
 from .conftest import MINI
 
 
-def test_p4_window_flag_accepted_and_rejected_for_transformer():
+def test_p4_window_flag_accepted_and_rejected_for_transformer(tmp_path):
     # CLI-level check: --window must route for p4, reject for transformer.
+    import pytest
     import postformer.harness.synthetic_recall as sr
-    # Parse-equivalent: replicate guard logic via main() with tiny probe.
-    # Light check: family tuples include p4.
-    import inspect
-    src = inspect.getsource(sr.main)
-    assert '"p4"' in src or "'p4'" in src, "p4 missing from window guard"
-    assert "p1\", \"p2\", \"p3\", \"p4\", \"p5\"" in src or "p1', 'p2', 'p3', 'p4', 'p5'" in src \
-        or '("p1", "p2", "p3", "p4", "p5")' in src
+    with pytest.raises(SystemExit):
+        sr.main(["--model", "transformer-toy", "--task", "mqar",
+                 "--window", "16", "--vocab", "64", "--episodes", "1",
+                 "--n-pairs", "8", "--out", str(tmp_path / "rej")])
+    # 1-episode p4 probe must NOT fail the family guard (writes under tmp).
+    sr.main(["--model", "p4-toy", "--task", "mqar",
+             "--window", "8", "--vocab", "64", "--episodes", "1",
+             "--n-pairs", "8", "--out", str(tmp_path / "p4")])
 
 
 def test_p4_parity_within_2pct_all_scales():

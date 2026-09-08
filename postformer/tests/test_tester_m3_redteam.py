@@ -171,7 +171,8 @@ def test_p2_slots_determinism_and_zero_slot_control():
             o1 = m(x)
             o2 = m(x)
         assert torch.isfinite(o1).all(), slots
-        assert (o1 - o2).abs().max().item() == 0.0, slots
+        # Determinism intent: same model, same input, bitwise identical rerun.
+        assert torch.equal(o1, o2), slots
 
 
 # --- Loader ablation inheritance ---
