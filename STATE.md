@@ -1,8 +1,8 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T23:55Z (maintainer run on PR #295, head b1017a22 Refs #294, Tester 427 passed, chaining continue)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4b-M4as fully gated at b1017a22 (Reviewer approve 0a6b30cb + Tester approve-test 427 passed) chaining Builder continue for S-tiny CPU-adapted gates
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` b1017a22, `gh pr view 295` head b1017a22/base cdf3cdae MERGEABLE UNSTABLE, `Refs #294` body, `git log --oneline origin/opencode/issue294-20260907194528 --not origin/main` 50+ commits a062a264..b1017a22 incl. M4b-M4as + tester suites)
- - **Branch retention:** `opencode/issue294-20260907194528` at `b1017a22` OPEN PR #295 (Reviewer approve 0a6b30cb + Tester 427 passed at b1017a22, next Builder continue for S-tiny CPU)
+ - **Updated:** 2026-09-08T23:57Z (maintainer run on PR #295, head b1017a22 Refs #294, Builder continue in_progress)
+ - **Action this run:** `[]` — standby; Builder continue already in_progress (opencode 34292899538 in_progress + 34292908353 pending) on PR #295 head b1017a22
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` b1017a22, `gh pr view 295` head b1017a22/base cdf3cdae MERGEABLE, `Refs #294` body, `git log --oneline origin/opencode/issue294-20260907194528 --not origin/main` 50+ commits a062a264..b1017a22 incl. M4b-M4as + tester suites)
+ - **Branch retention:** `opencode/issue294-20260907194528` at `b1017a22` OPEN PR #295 (Reviewer approve 0a6b30cb + Tester 427 passed at b1017a22, Builder continue in_progress for S-tiny CPU)
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,19 +18,19 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = b1017a22, `gh pr view 295` MERGEABLE UNSTABLE (unstable is pending checks, not conflict) proves NOT orphan, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified, Deploy success on prior heads.
- - **PR #295 OPEN at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed):** Verified `git ls-remote origin opencode/issue294-20260907194528` = b1017a22, `gh pr view 295` head b1017a22/base cdf3cdae MERGEABLE UNSTABLE, `Refs #294` body. Prior gated at 0a6b30cb (M4b-M4as) + Tester 427 passed covers 5 post-M4at red-team suites; on approve dispatches Builder continue.
+ - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = b1017a22, `gh pr view 295` MERGEABLE proves NOT orphan, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified, Deploy success on prior heads.
+ - **PR #295 OPEN at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed):** Verified `git ls-remote origin opencode/issue294-20260907194528` = b1017a22, `gh pr view 295` head b1017a22/base cdf3cdae MERGEABLE, `Refs #294` body. Prior gated at 0a6b30cb (M4b-M4as) + Tester 427 passed covers 5 post-M4at red-team suites; on approve dispatches Builder continue.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny/S-small training now CPU-only per hardware directive.
- - **Model health:** `maintainer` in_progress (this run) -> continue, `opencode-test` 34291067563 completed success at b1017a22 (427 passed, provenance fix), `opencode-review` 34290689188 completed success at 0a6b30cb, no CreditsError.
+ - **Model health:** `maintainer` in_progress (this run) -> standby, `opencode` 34292899538 in_progress + 34292908353 pending (Builder continue for S-tiny CPU), `opencode-test` 34291067563 completed success at b1017a22 (427 passed), `opencode-review` 34290689188 completed success at 0a6b30cb, no CreditsError.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4b at b1017a22 (issue #294 OPEN, PR #295 OPEN b1017a22):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Reviewer approve 0a6b30cb + Tester 427 passed at b1017a22 (state_bytes arity, provenance BaseException fix, 427 total). Chaining Builder continue for S-tiny CPU-adapted gates (reduced tokens/steps, micro-scales, synthetic-first) + S-small audit.
- - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head b1017a22/base cdf3cdae `Refs #294`, MERGEABLE UNSTABLE, NOT orphan, single-PR discipline intact.
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4b at b1017a22 (issue #294 OPEN, PR #295 OPEN b1017a22):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Reviewer approve 0a6b30cb + Tester 427 passed at b1017a22 (state_bytes arity, provenance BaseException fix, 427 total). Builder continue in_progress for S-tiny CPU-adapted gates (reduced tokens/steps, micro-scales, synthetic-first) + S-small audit.
+ - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head b1017a22/base cdf3cdae `Refs #294`, MERGEABLE, NOT orphan, single-PR discipline intact.
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4b at b1017a22 fully gated (Reviewer 0a6b30cb + Tester 427 passed at b1017a22), chaining continue for S-tiny CPU-adapted gates + S-small audit per hardware directive. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small on CPU.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4b at b1017a22 fully gated (Reviewer 0a6b30cb + Tester 427 passed at b1017a22), Builder continue in_progress for S-tiny CPU-adapted gates + S-small audit per hardware directive. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small on CPU.
 
 ## NEXT-RUN PLAYBOOK
  1. Await Builder continue push beyond b1017a22 for S-tiny CPU gates — on push, dispatch Reviewer `{"action":"review","pr":295,"head":"<new>"}`.
@@ -45,8 +45,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4b at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed, next S-tiny CPU gates)
- - **#295 PR** - OPEN at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed, chaining continue)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4b at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed, Builder continue in_progress for S-tiny CPU)
+ - **#295 PR** - OPEN at b1017a22 (Reviewer approve 0a6b30cb + Tester 427 passed, Builder continue in_progress)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN)
 
