@@ -130,10 +130,14 @@ def main(argv=None):
     # identity for backward compatibility with existing G2 curves.
     _vocab_size_ov = int(vocab) + 2 if a.vocab is not None else int(vocab)
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
+        if name == a.model and a.model == base_name and a.baseline_checkpoint:
+            raise SystemExit("--baseline-checkpoint ignored: --model is the baseline; "
+                             "pass --checkpoint instead")
         reseed(a.seed, f"init-{name}")  # deterministic init before any torch draws
         ckpt = a.checkpoint if name == a.model else a.baseline_checkpoint
+        arm_config = a.config if name == a.model else None
         model, cfg, rnd = load_model(name, ckpt,
-                                     a.config, {"vocab_size": _vocab_size_ov}, a.device, a.dtype)
+                                     arm_config, {"vocab_size": _vocab_size_ov}, a.device, a.dtype)
         if rnd and name != a.model:
             print(f"note: baseline {name} uses seeded random init (no checkpoint given)")
         for length in lengths:

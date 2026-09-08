@@ -58,6 +58,14 @@ def main(argv=None):
                         "model uses vocab_size = vocab + 2; "
                         "absent --vocab falls back to the checkpoint vocab_size")
     a = p.parse_args(argv)
+    if a.decode_steps < 1:
+        raise SystemExit("--decode-steps must be >= 1")
+    if a.batch_size < 1:
+        raise SystemExit("--batch-size must be >= 1")
+    if a.warmup < 0:
+        raise SystemExit("--warmup must be >= 0")
+    if not parse_int_list(a.lengths):
+        raise SystemExit("--lengths must list at least one length")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     if a.vocab is not None and a.checkpoint:
         _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
