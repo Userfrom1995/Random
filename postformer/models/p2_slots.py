@@ -17,10 +17,10 @@ Per block: (i) an SSD-lite recurrent branch
 A4 control: `slots=0` disables slot writes/reads (branch contributes
 zeros, params unchanged) and must reproduce pure-SSD behaviour.
 
-State per layer (batch 1): H*d_k*d_v (SSD S) + 2*G*H*(d_k+d_v) (slot K/V,
-capped at G globally, oldest evicted) + 2*W*d_win (window KV) + H
-scalars. No factor of T. Reference kernel: forward_recurrent applies
-step() token-by-token; chunk groups loop iterations only.
+State per layer (batch 1): H*d_k*d_v (SSD S) + G*H*(d_k+d_v) (slot K/V,
+capped at G globally, oldest evicted) + 2*W*d_win (window KV). No
+factor of T. Reference kernel: forward_recurrent applies step()
+token-by-token; chunk groups loop iterations only.
 """
 
 import math
@@ -117,7 +117,7 @@ class SlotBuffer:
         if self.slots == 0:
             self.pos += 1
             return
-        if self.pos % self.stride == 0 or self.pos == 0:
+        if self.pos % self.stride == 0:
             if self.n < self.slots:
                 self.keys[:, :, self.n, :] = k
                 self.vals[:, :, self.n, :] = v
@@ -221,12 +221,15 @@ class P2Block(nn.Module):
         b = x_t.shape[0]
         r_out, state["S"] = self.ssd.step(h, state["S"])
         # Slots observe the same trunk k/v the SSD just consumed.
-        q = self.ssd._split(self.ssd.w_q(h), self.ssd.d_k)
+        # Eval-only incremental path: k/v/q are detached so no partial
+        # graph is built here (training forward uses the prefix-stacked
+        # exact reads with full slot-path grads instead).
+        q = self.ssd._split(self.ssd.w_q(h), self.ssd.d_k).detach()
         k = self.ssd._normed_k(
-            self.ssd._split(self.ssd.w_k(h), self.ssd.d_k))
-        v = self.ssd._split(self.ssd.w_v(h), self.ssd.d_v)
+            self.ssd._split(self.ssd.w_k(h), self.ssd.d_k)).detach()
+        v = self.ssd._split(self.ssd.w_v(h), self.ssd.d_v).detach()
         buf = state["buf"]
-        buf.append(k.detach(), v.detach())
+        buf.append(k, v)
         rd = buf.read(q)
         g_out = (torch.zeros_like(r_out) if rd is None
                  else self._slot_proj(rd))
@@ -238,8 +241,8 @@ class P2Block(nn.Module):
         H, dk, dv = self.ssd.heads, self.ssd.d_k, self.ssd.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        slots = 2 * self.slots * H * (dk + dv) * bpe
-        return H * dk * dv * bpe + slots + win + H * bpe
+        slots = self.slots * H * (dk + dv) * bpe
+        return H * dk * dv * bpe + slots + win
 
 
 class P2LM(nn.Module):
