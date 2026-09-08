@@ -29,7 +29,7 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [x] M2b toy matched-budget MQAR training (transformer vs P1 vs P5, 3 seeds, 1.584M tokens each) + G1 eval = A1; [x] M2c A2 window {0,16,32} toy sweep + G4 1k-32k flatness (toy timed + S-tiny analytic) + RoPE O(T)-per-step fix + ledger 15 rows check-green + plots; [x] G4 Pareto-tier amendment re-lint (proof/viewer/README, no re-run, 2026-09-07 binding); [ ] full S-tiny trained gates DEFERRED (CPU-bound, measured 2026-09-08: p1-tiny ~1s/step at batch2/seq33 so the binding 3000x16xN64+ gate is ~50+h/arm on CPU - needs GPU runner).
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [x] P3 accumulator branch + factory pins (toy 274 / tiny 1532 / small 2468, +0.03% tiny) + `--no-accumulator` A3 flag; [x] P2 SSD + slots G {0,4,16,64} + `--slots` A4 flag + A4 G=0 control (shares P1 hid, -0.01% tiny); [x] M3 test suite (T1/T2/T3 auto-extended over p2/p3 + test_m3.py A3/A4/slot-contract/G4-flatness/loader-inheritance + T6 p2/p3 guards, 34 passed); [x] A2-re + M3 first falsification toy probes (6 arms seed0 1000 steps = 0.528M tokens, fixed --window loader, curves/m3-toy, ledger 18 rows check-green); [ ] A3/A4/A5 sweeps at S-tiny (needs GPU); [ ] H2/H3 verdicts ledgered (H3 unresolved at toy: p3-noacc 0.0612 vs p3 0.0600).
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [x] M4a P4 code (`models/p4_maglite.py` surprise-gated delta + window, factory pins toy 294/tiny 1702/small 2724, parity toy -0.43%/tiny +0.003%/small +0.002%, `test_p4.py` 4 tests, suite 48 passed, 100-step toy smoke finite + checkpoint + eval, proof/README/ideas updated); [x] M4b toy falsification (p4-toy seed0 1000 steps = 0.528M tokens matched to M3 refs, G1 envelope 100 eps: mqar8 0.035 / N16 0.0156 chance / 2hop 0.01 / induction-copy 0.0; BELOW p1-W16-1000 ref 0.0625 and p2 0.0825, H4 NEGATIVE at toy, A6 N16-collapse + A7 retrieval-vs-drift split documented, curves/m4b-toy/, ledger 19 rows check-green); [ ] P4 gated behind P1/P2 ledger + H4 verdict at scale; [ ] A6 vocab/distractor stress at scale; [ ] A7 retrieval-vs-drift split at scale; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
-- **Current step:** M4e toy envelope audit complete (`docs/envelope-audit.md` scoreboard over all 15 trained toy arms + H1-H5 first reads, viewer banner + README updated, 102 passed, ledger 24 rows green). Next: S-tiny full gates on a GPU runner.
+- **Current step:** M4e toy envelope audit complete (`docs/envelope-audit.md` scoreboard over the 20 trained toy rows (ledger rows 5-24) + H1-H5 first reads, viewer banner + README updated, 108 passed, ledger 24 rows green). Next: S-tiny full gates on a GPU runner.
 - **Next steps:** (1) full S-tiny trained gates on a GPU runner via `continue` (train.py supports tiny presets for all five families; at S-tiny the token-per-symbol budget makes A6 realistic); (2) A3/A4/A5 at S-tiny; (3) viewer Playwright snapshot; (4) envelope audit.
 
 ## Builder log (the Builder, 2026-09-07, M2 toy falsification)
@@ -147,3 +147,20 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - `postformer/tests/test_tester_m4b_redteam.py` (hostile regression for the M4b P4-vs-P1 probe); suite re-run left for the torch-env test pass. `Refs #294`.
 
 - the Tester
+
+## Fixer log (the Fixer, 2026-09-08, M4b-M4e review findings)
+
+- Blocking: `tests/test_tester_m4b_redteam.py:131` dropped the tautological
+  `or True` disjunct (header assertion is now strict); renamed the stale
+  `test_m4b_live_ledger_check_green_19_rows` to `..._24_rows`.
+- Test hygiene: renamed `test_m4e_ledger_has_22_rows_all_toy_honest` to
+  `..._24_rows` and fixed its `19 -> 22` docstring to the live 24 rows.
+- Docs: `docs/envelope-audit.md` W32 0.05125 (was truncated), A4
+  `behaviorally identical at score level` with N16 noise-floor note, A6
+  `within 0.065 of ln512` (matches the pinned test threshold), G4 flatness
+  qualified (P1/P5 timed, P2/P3/P4 analytic); `README.md` 108 passed + A4
+  wording; `viewer/index.html` comment now cites the live 24-col header.
+  Builder history above keeps its original numbers; the audit/proof stay the
+  source of truth. `Refs #294` kept.
+
+- the Fixer
