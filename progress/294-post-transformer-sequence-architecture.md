@@ -202,4 +202,33 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   no `forward_chunk` refs. Full pytest re-run left for the Tester (no torch
   on this runner). `Refs #294` kept.
 
+## Fixer log (the Fixer, 2026-09-08, M4b-M4h review findings at bcf769e3)
+
+- Finding 1: added `slots` + `use_accumulator` ledger columns (26-col schema);
+  renamed A4 rows to valid `--model` values (`p2-toy` slots 0/4/64, M3 G16
+  row slots 16) and `p3-noacc-toy` to `p3-toy` use_accumulator False (M3 p3
+  row True); `_key` is now normalized (strip, None-safe) over
+  (model,seed,vocab,window,slots,use_accumulator); cells literal, `check`
+  green on 25 rows.
+- Finding 2: family parse unified to `split("-",1)[0]` in train.py and
+  synthetic_recall.py (rsplit broke guards for variant names); train builds
+  via (family, scale).
+- Finding 3: shared `util.load_model` guard extended to `window` (file-config
+  mismatch fails loudly); explicit `--window` in extra_overrides stays the
+  allowed A2 override path, so length/latency/enwik8 (no --window flag) gain
+  the protection automatically.
+- Finding 4: `params` nan/inf now rejected (per-row plus drift gate, baseline
+  set included); drift nan/inf guarded.
+- Finding 5: `cmd_append` validates the constructed row before writing.
+- Finding 6: `_key` None/whitespace normalized (str(v or "").strip()).
+- Nits: narrowed ideas-a4 G16 equality to A4-internal; ideas-m4e 26-col/25-row
+  counts; audit row labels to slots/noacc names; viewer 26-col comment;
+  `--vocab` vs checkpoint-vocab mismatch guard in length_sweep/latency_state.
+  weights_only stays False (checkpoints are local build artifacts, trusted
+  path only; changing loader semantics without a torch env to verify would
+  risk breaking the Tester gate).
+- Tests updated for the new schema/names (a4_probes, m4b/m4c/m4d/m4g/m4h
+  red-team, test_ledger good_row). Full pytest re-run left for the Tester
+  (no torch/pytest on this runner). `Refs #294` kept.
+
 - the Fixer

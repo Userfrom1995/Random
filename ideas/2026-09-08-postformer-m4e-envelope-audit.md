@@ -22,10 +22,10 @@ plus static viewer validation.
 ## Validation (torch 2.14 CPU, this run)
 
 - Full suite: 102 passed (no new tests; docs-only milestone).
-- `ledger check` green on 24 rows.
+- `ledger check` green on 25 rows.
 - Viewer static check: replicated the page's RFC-4180 `splitCSV` in Python
-  over the live 24-col ledger - header parses to 24 cols, every row parses
-  to 24 cells, quoted-commas notes column stays intact (naive split would
+  over the live 26-col ledger - header parses to 26 cols, every row parses
+  to 26 cells, quoted-commas notes column stays intact (naive split would
   shred it). No browser on the runner, so the Playwright snapshot stays
   deferred.
 
