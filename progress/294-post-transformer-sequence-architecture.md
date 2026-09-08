@@ -252,3 +252,22 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   Full pytest left for Tester (no torch here). `Refs #294` kept.
 
 - the Fixer
+
+## Fixer log (the Fixer, 2026-09-08, 619807ce review findings)
+
+- Finding 1: strict --model gate via factory.parse_model_name
+  (fullmatch on family-scale); wired into util.load_model, train,
+  synthetic_recall, length_sweep (incl. --baseline-model), plus
+  library-level family/scale guards in build_model and strict ledger
+  row-name check. Middle tags (p2-G0-toy) and suffixes (p1-toy-V512)
+  now fail loudly; replay via plain name plus flags. M4i R2
+  acceptance tests rewritten to pin the rejection.
+- Finding 2: proof-g4 P2/P3/P4 rows reworded to byte-flat by
+  construction, tier (a) PENDING timed ms/token curve.
+- Nits: README M2 rows 5-13; viewer title M4e plus self-escaping
+  cell(); ledger g1_* [0,1] range check plus extra-key note;
+  train init-key comment notes strict names. Verified py_compile
+  clean, ledger check green (25 rows). Full pytest left for Tester
+  (no torch here). Refs #294 kept.
+
+- the Fixer

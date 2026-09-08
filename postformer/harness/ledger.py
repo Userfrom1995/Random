@@ -112,6 +112,8 @@ def _validate_row(i, r):
             continue
         if math.isnan(x) or math.isinf(x):
             errors.append(f"row {i} col {c}: non-finite gate value: {v!r}")
+        elif c.startswith("g1_") and not (0.0 <= x <= 1.0):
+            errors.append(f"row {i} col {c}: accuracy {v!r} outside [0, 1]")
     pv = r.get("params", "")
     if pv not in ("", None) and str(pv).strip() != "":
         try:
@@ -140,6 +142,9 @@ def read_ledger(path):
 def cmd_append(a):
     with open(a.run_json) as f:
         run = json.load(f)
+    extra = sorted(k for k in run if k not in SCHEMA)
+    if extra:
+        print(f"note: ignoring extra run-json keys not in SCHEMA: {extra}")
     row = {c: run.get(c, "") for c in SCHEMA}
     rows = read_ledger(a.ledger)
     if rows and list(rows[0].keys()) != SCHEMA:

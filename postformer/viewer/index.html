@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PostFormer Scoreboard (M1 smoke)</title>
+<title>PostFormer Scoreboard (M4e envelope)</title>
 <style>
 body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; }
 table { border-collapse: collapse; width: 100%; }
@@ -61,16 +61,17 @@ function parseCSV(text) {
   });
 }
 function cell(v, good) {
-  if (v === undefined || v === "") return "<td>-</td>";
+  if (v === undefined || v === "" || v === null) return "<td>-</td>";
+  const e = esc(v);
   const cls = good === undefined ? "" : (good ? " class='pass'" : " class='fail'");
-  return `<td${cls}>${v}</td>`;
+  return `<td${cls}>${e}</td>`;
 }
 function render(rows) {
   const tb = document.querySelector("#board tbody");
   tb.innerHTML = rows.map(r => "<tr><td>" + esc(r.model) + "</td><td>" + esc(r.seed) + "</td>"
-    + cell(esc(r.g1_mqar_16)) + cell(esc(r.g1_mqar_64)) + cell(esc(r.g1_mqar_256))
-    + cell(esc(r.g2_delta_4x)) + cell(esc(r.g2_delta_8x)) + cell(esc(r.g3_valid_bpb))
-    + cell(esc(r.g4_state_bytes)) + "<td>" + esc(r.notes) + "</td></tr>").join("");
+    + cell(r.g1_mqar_16) + cell(r.g1_mqar_64) + cell(r.g1_mqar_256)
+    + cell(r.g2_delta_4x) + cell(r.g2_delta_8x) + cell(r.g3_valid_bpb)
+    + cell(r.g4_state_bytes) + "<td>" + esc(r.notes) + "</td></tr>").join("");
 }
 function load(text) { try { render(parseCSV(text)); } catch (e) { alert("parse failed: " + e); } }
 document.getElementById("ledgerFile").addEventListener("change", e => {
