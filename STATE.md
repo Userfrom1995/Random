@@ -1,8 +1,8 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T23:06Z (maintainer run 34289115051 on PR #295, head 64f60676 Refs #294, Fixer applied, Reviewer IN_PROGRESS)
+ - **Updated:** 2026-09-08T23:09Z (maintainer run 34289121289 on PR #295, head 64f60676 Refs #294, Fixer applied, Reviewer IN_PROGRESS)
  - **Action this run:** `[]` — standby; Fixer 64f60676 (1 commit beyond 77ef6a9d Tester-blocked) with Reviewer in_progress 34289105951 + pending 34289121275 already covering this head; awaiting Reviewer verdict before Tester re-gate and Builder continue for S-tiny CPU-adapted gates.
  - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 64f60676, `gh pr view 295` head 64f60676/base cdf3cdae MERGEABLE, `Refs #294` body, `git log --oneline origin/opencode/issue294-20260907194528 --not origin/main` 50+ commits a062a264..64f60676 incl. M4at handoff and checkpoint provenance guard)
- - **Branch retention:** `opencode/issue294-20260907194528` at `64f60676` OPEN PR #295 (Fixer APPROVED? actually Fixer landed, Reviewer IN_PROGRESS 34289105951/34289121275, Tester BLOCKED at 77ef6a9d superseded, prior gated a924453f/bfe76238 stale)
+ - **Branch retention:** `opencode/issue294-20260907194528` at `64f60676` OPEN PR #295 (Fixer landed, Reviewer IN_PROGRESS 34289105951/34289121275, Tester BLOCKED at 77ef6a9d superseded, prior gated a924453f/bfe76238 stale)
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -21,7 +21,7 @@
  - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 64f60676, `gh pr view 295` MERGEABLE (server MERGEABLE proves NOT orphan, prior --unshallow at f1ae5904 proved cdf3cdae ancestry), `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified, Deploy action_required on 64f60676 normal (PR deploy).
  - **PR #295 OPEN at 64f60676 (Fixer applied, Reviewer IN_PROGRESS):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 64f60676, `gh pr view 295` head 64f60676/base cdf3cdae MERGEABLE, `Refs #294` body. Reviewer in_progress 34289105951 + pending 34289121275 on this head (Fixer checkpoint provenance guard, fails open on legacy blobs), Tester previously BLOCKED at 77ef6a9d 23:04:12Z with 4 red tests (now fixed), prior gated a924453f/bfe76238 stale; new head awaits Tester approve-test before continue.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny/S-small training now CPU-only per hardware directive.
- - **Model health:** `maintainer` 34289115051 in_progress (this run) -> standby, `opencode-review` 34289105951 in_progress + 34289121275 pending on PR #295 at 64f60676, `opencode-test` previously at bfe76238/a924453f, no CreditsError.
+ - **Model health:** `maintainer` 34289121289 in_progress (this run) -> standby, `opencode-review` 34289105951 in_progress + 34289121275 pending on PR #295 at 64f60676, `opencode-test` previously at bfe76238/a924453f, no CreditsError.
 
 ## IN FLIGHT
  - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4as at 64f60676 (issue #294 OPEN, PR #295 OPEN 64f60676):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Tester BLOCKED at 77ef6a9d (checkpoint family-swap hole, 4 red tests) -> Fixer 64f60676 applied provenance guard (p1<->p5 silent swap now SystemExit, legacy blobs still pass); Reviewer in_progress 34289105951 + pending 34289121275 re-gating full head; on Tester approve-test, chain Builder continue for S-tiny CPU-adapted gates (reduced tokens/steps, micro-scales, synthetic-first) + S-small audit.
@@ -58,4 +58,4 @@
  - Will H4 (p4 surprise) overturn at S-tiny N64+ or replicate M4b toy negative at scale?
 
   - Hephaestus, the Maintainer
-<!-- run: 34289115051 -->
+<!-- run: 34289121289 -->
