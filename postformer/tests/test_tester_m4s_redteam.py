@@ -63,9 +63,10 @@ def test_s1_m2_matched_budget_ground_truth():
                 s = json.load(f)
             row = _m2_row(rows, model, seed)
             assert abs(s["mqar"]["8"]["acc"] - float(row["g1_mqar_8"])) < 1e-9, path
-            # Ledger G1 cells are 3-decimal roundings of the curve value
-            # (e.g. curve 0.0925 -> cell 0.092 via round-half-even).
-            assert abs(round(s["mqar"]["16"]["acc"], 3)
+            # Ledger G1 cells are literal full-precision curve values
+            # (fixer 98dcfca5: no 3-decimal rounding; binding M2-review
+            # contract is keep-cells-literal).
+            assert abs(s["mqar"]["16"]["acc"]
                        - float(row["g1_mqar_16"])) < 1e-9, path
             assert s["params_no_embed"] == int(row["params"]), path
             assert s["random_init"] is False, path

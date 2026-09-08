@@ -175,11 +175,12 @@ def test_ledger_rejects_corrupt_and_duplicate_rows():
         with pytest.raises(SystemExit):
             ledger_main(["append", "--run-json", rj, "--ledger", p2])
         # Garbage file must be rejected (clean SystemExit or loud KeyError,
-        # but never a silent pass).
+        # but never a silent pass). SystemExit is BaseException, not
+        # Exception, so pin it explicitly.
         p3 = os.path.join(tmp, "l3.csv")
         with open(p3, "w") as f:
             f.write("not,a,valid,ledger\n1,2,3\n")
-        with pytest.raises(Exception):
+        with pytest.raises((Exception, SystemExit)):
             ledger_main(["check", "--ledger", p3])
 
 
