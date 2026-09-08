@@ -17,9 +17,10 @@ svg { border: 1px solid #ccc; margin-top: 1em; max-width: 100%; }
 </head>
 <body>
 <h1>PostFormer Scoreboard</h1>
-<div class="banner" id="envelope">Tested envelope: M1 smoke + M2 toy + M3 code
+<div class="banner" id="envelope">Tested envelope: M1 smoke + M2 toy + M3/M4b/M4c/M4d toy probes
 (miniature configs, synthetic streams, CPU; S-tiny/S-small trained gates need a GPU runner).
-No gate claims beyond this envelope. G4 passes in Pareto tiers: (a) full O(1) flat within 5%
+No gate claims beyond this envelope. Full toy scoreboard: <code>../docs/envelope-audit.md</code>.
+G4 passes in Pareto tiers: (a) full O(1) flat within 5%
 1k-&gt;32k, or (b) sublinear and dominating the baseline at every T with G1+G2+G3 green.</div>
 <p>Ledger: <input type="file" id="ledgerFile" accept=".csv"> (or auto-load <code>../ledger/ledger.csv</code>)</p>
 <table id="board"><thead><tr>
