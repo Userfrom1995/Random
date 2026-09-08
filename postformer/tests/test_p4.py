@@ -26,9 +26,12 @@ def test_p4_surprise_strengthens_write():
         M0 = mem.init_state(1, "cpu", torch.float32)
         x = torch.randn(1, d)
         _, M1 = mem.step(x, M0.clone())
-        # Force a large error by confronting the updated memory with a
-        # fresh random input; error norm must be finite and eta bounded.
-        assert torch.isfinite(M1).all()
+        d_low = (M1 - M0).norm().item()
+        x2 = torch.randn(1, d) * 4.0
+        _, M2 = mem.step(x2, M1.clone())
+        d_high = (M2 - M1).norm().item()
+        assert torch.isfinite(M1).all() and torch.isfinite(M2).all()
+        assert d_high > d_low, (d_high, d_low)
         beta, alpha = mem.gates(x)
         assert bool(((beta >= 0.01) & (beta <= 0.99)).all())
         assert bool(((alpha > 0) & (alpha < 1)).all())
