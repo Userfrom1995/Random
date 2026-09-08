@@ -1,4 +1,4 @@
-# PostFormer (M3: P2/P3 code + tests green; S-tiny trained gates deferred)
+# PostFormer (M4a: P4 code + 48 tests green; S-tiny trained gates deferred)
 
 O(T)-train, O(1)-state sequence modeling vs a causal Transformer baseline
 under matched budgets. Issue #294. All intermediate results use `Refs #294`;
@@ -22,12 +22,13 @@ Every harness JSON records hardware, dtype, torch/cuda versions per row.
 `param_count_no_embed` excludes the input token embedding only (the output
 lm_head counts; applied identically to both arms, so parity is fair).
 Pinned S-tiny baseline = 29366784; P1/P5/P2-tiny = 29373756/29373756/29364522
-(+0.024%/+0.024%/-0.008%); P3-tiny = 29376858 (+0.034%).
-Pinned S-small baseline = 113462016; all four candidates within +-0.04%
+(+0.024%/+0.024%/-0.008%); P3-tiny = 29376858 (+0.034%);
+P4-tiny = 29367660 (+0.003%).
+Pinned S-small baseline = 113462016; all five candidates within +-0.05%
 (see `tests/test_params.py`, which enforces the 2% rule at all three scales for
-p1/p2/p3/p5). To fit the binding +-2% budget with the W=128 window branch
-pinned, MLP hid is trimmed per family (tiny 1704, P3-tiny 1532; small 2726,
-P3-small 2468) instead of the blueprint's 2016/3024 estimate.
+p1/p2/p3/p4/p5). To fit the binding +-2% budget with the W=128 window branch
+pinned, MLP hid is trimmed per family (tiny 1704, P3-tiny 1532, P4-tiny 1702;
+small 2726, P3-small 2468, P4-small 2724) instead of the blueprint's 2016/3024 estimate.
 
 ## Train commands (M2: matched-budget MQAR trainer)
 
@@ -42,7 +43,9 @@ python -m postformer.harness.train --model p1-toy --window 0 ... (same rest)
 python -m postformer.harness.train --model p2-toy --slots 0 ... (same rest)
 # A3 accumulator control (P3 dynamics removed, params unchanged)
 python -m postformer.harness.train --model p3-toy --no-accumulator ... (same rest)
-# Full S-tiny (needs GPU runner): --model {transformer,p1,p2,p3,p5}-tiny --vocab 8192
+# P4 MAG-lite smoke (CPU): --model p4-toy ... (same rest; 100-step smoke
+# verified finite loss + checkpoint + G1 eval; NOT a gate result)
+# Full S-tiny (needs GPU runner): --model {transformer,p1,p2,p3,p4,p5}-tiny --vocab 8192
 ```
 
 Checkpoints are `torch.save` dicts with `state_dict` (plus `config`); every
@@ -110,12 +113,14 @@ next to it.
   step path, KVWindowBuffer, counter),
   `baseline.py` (Transformer toy/tiny/small), `p1_delta_hybrid.py`,
   `p5_map.py`, `p3_decoupled.py` (accumulator + selective + window, A3),
-  `p2_slots.py` (SSD-lite + G exact stride slots, A4), `factory.py`
-  (`build_model`). P4 stays out until M4.
+  `p2_slots.py` (SSD-lite + G exact stride slots, A4),
+  `p4_maglite.py` (surprise-gated delta + window, M4/H4), `factory.py`
+  (`build_model`).
 - `harness/`: the five CLI scripts + `train.py` (matched-budget trainer,
   `--window`/`--slots`/`--no-accumulator` ablation flags) + `ledger.py` + `util.py`.
 - `ledger/`: `ledger.csv` (append-only empirical ledger) + `curves/` (raw CSVs/JSON).
 - `viewer/index.html`: static scoreboard (no CDN, file:// + fetch).
- - `docs/proof-g4.md`: G4 proof appendix (Pareto tiers (a)/(b) + P2/P3
-   inventory). `tests/`: T1-T6 over all five families + `test_m3.py`
-   (A3/A4 controls, slot contract, G4 flatness) - 33 passed.
+ - `docs/proof-g4.md`: G4 proof appendix (Pareto tiers (a)/(b) + P2/P3/P4
+   inventory). `tests/`: T1-T6 over all six families + `test_m3.py`
+   (A3/A4 controls, slot contract, G4 flatness) + `test_p4.py`
+   (surprise grads, P4 causality, P4/P1 state equality) - 48 passed.
