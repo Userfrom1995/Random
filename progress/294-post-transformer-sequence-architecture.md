@@ -487,3 +487,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4an hostile suite (`test_tester_m4an_redteam.py`, small-scale live parity, tie_embeddings live-fire, parse_model_name/build_model locks, per-layer state_size pins, MINI p2/p3 causality, enwik8 name-guard ordering, 26-col ledger green) landed at head since the M4am verification (`d9fd82e8`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4an complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-d9fd82e8 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ao verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `ac6e5d8f`: tree clean, PR #295 OPEN MERGEABLE CLEAN per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests (incl. new `test_tester_m4ao_redteam.py`), zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), zero `forward_chunk` refs in shipped code (grep `postformer --include=*.py` outside tests: no hits), zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4ao hostile suite (`test_tester_m4ao_redteam.py`, p2 determinism, degenerate --slots/--window live-fire, A2/A4 control honesty, ledger tripwire) landed at head since the M4an verification (`72562bc9`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ao complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-72562bc9 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
