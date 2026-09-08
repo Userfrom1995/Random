@@ -391,3 +391,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4z/M4aa/M4ab hostile suites (+2 vocab convention, n==vocab, curve ground truth, W-edge causality, T=1, single-Q-proj split, single-load recall, P5/A1 honesty) plus Fixer P5 pre unit-norm staleness annotation (A1 INVALID until re-run) and single Q-proj step_split / single checkpoint load hardening landed at head since the M4r-v verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ab complete and pushed; S-tiny/S-small full gates remain GPU-blocked and documented. Handing the post-f7a3f503 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ad verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `3b73a60b`: tree clean, `merge-base HEAD FETCH_HEAD` empty locally (known shallow-clone artifact; prior `--unshallow` runs proved NOT orphan at cdf3cdae, PR #295 MERGEABLE CLEAN per gh), body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-`, zero `forward_chunk` code refs in shipped code.
+- No new training: Tester M4ad hostile final-gate suite (current-head pins, 300 passed at 448e838c + 6 new, all green per Tester approve-test) landed at head since the M4ac verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ad complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-448e838c delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
