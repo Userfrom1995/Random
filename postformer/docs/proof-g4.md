@@ -62,8 +62,8 @@ points at small T on reference configs; the full 1k-32k curve is M2 work.
 
 - p1-toy, timed `step()` path, decode-steps 50, warmup 10:
   T=1024/2048/4096/8192/16384/32768 -> ms 1.062/1.065/1.059/1.056/1.058/1.066
-  (growth 0.4%, bar is <5%: PASS), bytes flat 24592 (PASS).
-- p5-toy: T=1024 -> 1.051ms / 40976 B; T=32768 -> 1.053ms / 40976 B (PASS).
+  (growth 0.4%, bar is <5%: PASS), bytes flat 24576 (PASS).
+- p5-toy: T=1024 -> 1.051ms / 40960 B; T=32768 -> 1.053ms / 40960 B (PASS).
 - transformer-toy control: T=1024/2048/4096 -> ms 2.067/6.491/15.96
   (superlinear, O(T) attention per step as designed), bytes 2M/4M/8M linear.
   8k+ points skipped on CPU (quadratic prefill); linearity is analytic.
