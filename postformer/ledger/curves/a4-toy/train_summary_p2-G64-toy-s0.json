@@ -1,0 +1,30 @@
+{
+  "config": {
+    "chunk": 16,
+    "d_k": 32,
+    "d_model": 128,
+    "d_v": 32,
+    "heads": 2,
+    "layers": 2,
+    "mlp_hid": 296,
+    "rope_base": 10000.0,
+    "slot_stride": 8,
+    "slots": 64,
+    "vocab_size": 66,
+    "win_hd": 16,
+    "win_heads": 2,
+    "window": 16
+  },
+  "data": "mqar",
+  "env": {
+    "cuda": "13.0",
+    "dtype": null,
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cu130"
+  },
+  "final_loss": 3.942723035812378,
+  "model": "p2-toy",
+  "params_no_embed": 336074,
+  "train_tokens": 528000
+}
