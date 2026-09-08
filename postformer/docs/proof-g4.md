@@ -18,6 +18,9 @@ generates with O(1) state and O(1) latency per token.
 | P2 | window K ring + V ring | same as P1 | same as P1 |
 | P3 | accumulator A + selective S | 2 x (B, H, d_k, d_v) | 2*B*H*d_k*d_v*e |
 | P3 | window K ring + V ring | same as P1 | same as P1 |
+| P4 | surprise-gated M (per layer) | (B, H, d_k, d_v) | B*H*d_k*d_v*e |
+| P4 | window K ring + V ring | same as P1 | same as P1 |
+| P4 | fusion scalars | (B, H) | B*H*e |
 | Base | KV cache (control) | 2 x (B, H, T, hd), grows with T | 2*B*T*d_model*e |
 
 S-tiny P1 (H=4, d_k=d_v=128, W=128, win 4x64, e=4 fp32, B=1):
@@ -79,3 +82,8 @@ points at small T on reference configs; the full 1k-32k curve is M2 work.
 - S-tiny P3: 2*262144 (A+S) + window 262144 = 786432 B/layer;
   x6 = 4718592 B (~4.5 MB) flat, tier (a) by construction.
 - S-tiny P1/P5 reference: flat 3145824 / 4718688 B (see above).
+- S-tiny P4 (H=4, d_k=d_v=128, W=128, win 4x64, e=4): fast weights
+  262144 + window 262144 + fusion 16 = 524304 B/layer; x6 = 3145824 B
+  (~3.0 MB) flat, identical inventory to P1 by construction (the
+  surprise proj and error gain are parameters, not state). Tier (a) by
+  construction; timed curve is M4-gate work.
