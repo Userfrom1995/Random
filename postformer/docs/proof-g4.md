@@ -1,8 +1,9 @@
 # G4 Asymptotic Proof Appendix (M1 skeleton; Builder fills measured shapes)
 
-Claim: every M1 arm (Transformer baseline, P1 Delta-Hybrid, P5 map control)
-trains subquadratically and, except for the baseline KV cache by design,
-generates with O(1) state and O(1) latency per token.
+Claim: every arm (Transformer baseline, P1 Delta-Hybrid, P5 map control,
+P2 SSD-slots, P3 decoupled, P4 MAG-lite) trains subquadratically and,
+except for the baseline KV cache by design, generates with O(1) state
+and O(1) latency per token.
 
 ## M1 state inventory (per layer, batch B, bytes-per-element e)
 

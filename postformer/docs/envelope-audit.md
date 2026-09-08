@@ -33,8 +33,9 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
 ## Ablation verdicts at toy (all open at scale)
 
 - A1 (delta on/off): P1 0.2875 vs P5 0.300 at N8 (3 seeds). No delta advantage;
-  H1/H5 unresolved (N=256 untested).
-- A2 (window on/off): rows 16/17 evals ran window 16 pre-fix, so the
+  H1/H5 unresolved (N=256 untested). Caveat: P5 RMS+unit-norms q while P1
+  leaves q raw, so the control differs by query scale as well as the write rule.
+- A2 (window on/off): rows 17/18 evals ran window 16 pre-fix, so the
   W0/W16/W32 comparison is INVALID as an A2 result; the A2-re seed0 probe
   (W0 0.0875 / W16-ref 0.0625 / W32 0.05125) shows no window advantage at toy N8.
 - A3 (accumulator on/off): p3-noacc 0.06125 vs p3 0.0600. Unresolved at toy.
