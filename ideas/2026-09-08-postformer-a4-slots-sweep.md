@@ -2,7 +2,8 @@
 
 Refs #294. Toy falsification only, NOT a gate result. Protocol mirrors the M3
 and M4b matched-budget probes: seed0, 1000 steps x batch16 = 0.528M MQAR
-tokens, vocab64/N8, lr 3e-4 CPU fp32. Same (seed, data) keying, so the episode
+tokens, vocab64/N8, lr 3e-4 fp32 (train + G1 eval on CUDA cu130 per the
+`a4-toy` summaries, not CPU). Same (seed, data) keying, so the episode
 stream is identical to the M3 p2-G16 probe and the M4b p4 probe; init is keyed
 per (seed, model, data) with model string `p2-toy` for all three arms, so G0
 differs from G4/G64 by slot count alone.

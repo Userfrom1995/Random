@@ -70,7 +70,7 @@ def test_m4g_single_arm_cells_match_ledger():
     p3 = by_model[("p3-toy", "64")][0]
     assert float(p3["g1_mqar_8"]) == pytest.approx(0.0600, abs=1e-9)
     noacc = by_model[("p3-noacc-toy", "64")][0]
-    assert float(noacc["g1_mqar_8"]) == pytest.approx(0.0612, abs=1e-9)
+    assert float(noacc["g1_mqar_8"]) == pytest.approx(0.06125, abs=1e-9)
     p4 = by_model[("p4-toy", "64")][0]
     assert float(p4["g1_mqar_8"]) == pytest.approx(0.035, abs=1e-9)
     assert float(p4["g1_mqar_16"]) == pytest.approx(1 / 64, abs=1e-9)

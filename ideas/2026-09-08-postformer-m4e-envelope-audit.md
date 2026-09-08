@@ -9,8 +9,8 @@ plus static viewer validation.
 
 ## Files
 
-- `postformer/docs/envelope-audit.md`: the audit. One table over all 15
-  trained toy arms (ledger rows 4-23) with exact mqar8/N16/2hop cells taken
+- `postformer/docs/envelope-audit.md`: the audit. One table over all 20
+  trained toy rows (ledger rows 5-24) with exact mqar8/N16/2hop cells taken
   from `ledger.csv`, plus ablation verdicts (A1 unresolved, A2 invalid pre-fix
   with A2-re no-advantage, A3 unresolved, A4 slots-help-but-count-untested,
   A6 floor, A7 split) and H1-H5 first reads (H4 NEGATIVE at toy, rest open).

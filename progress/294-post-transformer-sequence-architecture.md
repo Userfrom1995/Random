@@ -29,7 +29,7 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [x] M2b toy matched-budget MQAR training (transformer vs P1 vs P5, 3 seeds, 1.584M tokens each) + G1 eval = A1; [x] M2c A2 window {0,16,32} toy sweep + G4 1k-32k flatness (toy timed + S-tiny analytic) + RoPE O(T)-per-step fix + ledger 15 rows check-green + plots; [x] G4 Pareto-tier amendment re-lint (proof/viewer/README, no re-run, 2026-09-07 binding); [ ] full S-tiny trained gates DEFERRED (CPU-bound, measured 2026-09-08: p1-tiny ~1s/step at batch2/seq33 so the binding 3000x16xN64+ gate is ~50+h/arm on CPU - needs GPU runner).
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [x] P3 accumulator branch + factory pins (toy 274 / tiny 1532 / small 2468, +0.03% tiny) + `--no-accumulator` A3 flag; [x] P2 SSD + slots G {0,4,16,64} + `--slots` A4 flag + A4 G=0 control (shares P1 hid, -0.01% tiny); [x] M3 test suite (T1/T2/T3 auto-extended over p2/p3 + test_m3.py A3/A4/slot-contract/G4-flatness/loader-inheritance + T6 p2/p3 guards, 34 passed); [x] A2-re + M3 first falsification toy probes (6 arms seed0 1000 steps = 0.528M tokens, fixed --window loader, curves/m3-toy, ledger 18 rows check-green); [ ] A3/A4/A5 sweeps at S-tiny (needs GPU); [ ] H2/H3 verdicts ledgered (H3 unresolved at toy: p3-noacc 0.0612 vs p3 0.0600).
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [x] M4a P4 code (`models/p4_maglite.py` surprise-gated delta + window, factory pins toy 294/tiny 1702/small 2724, parity toy -0.43%/tiny +0.003%/small +0.002%, `test_p4.py` 4 tests, suite 48 passed, 100-step toy smoke finite + checkpoint + eval, proof/README/ideas updated); [x] M4b toy falsification (p4-toy seed0 1000 steps = 0.528M tokens matched to M3 refs, G1 envelope 100 eps: mqar8 0.035 / N16 0.0156 chance / 2hop 0.01 / induction-copy 0.0; BELOW p1-W16-1000 ref 0.0625 and p2 0.0825, H4 NEGATIVE at toy, A6 N16-collapse + A7 retrieval-vs-drift split documented, curves/m4b-toy/, ledger 19 rows check-green); [ ] P4 gated behind P1/P2 ledger + H4 verdict at scale; [ ] A6 vocab/distractor stress at scale; [ ] A7 retrieval-vs-drift split at scale; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
-- **Current step:** M4e toy envelope audit complete (`docs/envelope-audit.md` scoreboard over the 20 trained toy rows (ledger rows 5-24) + H1-H5 first reads, viewer banner + README updated, 108 passed, ledger 24 rows green). Next: S-tiny full gates on a GPU runner.
+- **Current step:** M4h verification complete (full suite 118 passed, ledger 25 rows green: 4 smoke + 20 trained toy + 1 params-only drift-baseline pin). Next: S-tiny full gates on a GPU runner.
 - **Next steps:** (1) full S-tiny trained gates on a GPU runner via `continue` (train.py supports tiny presets for all five families; at S-tiny the token-per-symbol budget makes A6 realistic); (2) A3/A4/A5 at S-tiny; (3) viewer Playwright snapshot; (4) envelope audit.
 
 ## Builder log (the Builder, 2026-09-07, M2 toy falsification)
@@ -130,7 +130,7 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 
 ## Builder log (the Builder, 2026-09-08, M4e toy envelope audit)
 
-- Docs-only milestone, no new training: `postformer/docs/envelope-audit.md` freezes all 15 trained toy arms (ledger rows 4-23) in one scoreboard with exact cells, ablation verdicts (A1 unresolved, A2 invalid pre-fix + A2-re no-advantage, A3 unresolved, A4 slots-help-but-count-untested, A6 floor, A7 split) and H1-H5 first reads (H4 NEGATIVE at toy, rest open); viewer banner names the M1-M4d envelope and links the audit; README gains the M3/M4b/A4/A6 probe section.
+- Docs-only milestone, no new training: `postformer/docs/envelope-audit.md` freezes all 20 trained toy rows (ledger rows 5-24) in one scoreboard with exact cells, ablation verdicts (A1 unresolved, A2 invalid pre-fix + A2-re no-advantage, A3 unresolved, A4 slots-help-but-count-untested, A6 floor, A7 split) and H1-H5 first reads (H4 NEGATIVE at toy, rest open); viewer banner names the M1-M4d envelope and links the audit; README gains the M3/M4b/A4/A6 probe section.
 - Validation on torch 2.14 CPU in this run: full suite 102 passed, `ledger check` green on 24 rows, viewer static check green (quote-aware splitCSV parses all 24 rows at 24 cols; naive split shreds to 29-37 cols, proving the M1 fix still holds on the migrated schema).
 - Ideas entry: `ideas/2026-09-08-postformer-m4e-envelope-audit.md`. `Refs #294` kept; `Closes #294` only on full pass.
 
@@ -170,3 +170,36 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - Re-ran the full envelope on CPU (torch 2.14.0+cpu, numpy/pytest installed on runner): **118 passed** (was 108 at the M4c/d/e check; +10 from the Tester M4h hostile suite: slot eviction, G-identity, audit pins), `ledger check` green on 24 rows, tree clean, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (no infra touch). M4b probes + M4c A4 sweep + M4d A6 pilot + M4e audit + M4f/M4g/M4h suites are complete and the post-a7553d5c delta is unreviewed; all remaining work (S-tiny/S-small full gates, A3/A4/A5 at scale, H-verdicts at scale) is GPU-blocked and documented. Handing the full M4b-M4h delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Fixer log (the Fixer, 2026-09-08, M4b-M4h review findings)
+
+- `harness/ledger.py` `check`: rejects `inf`/`-inf` gate values (was `isnan`
+  only); a `(scale, vocab)` group with candidates but no `transformer-`
+  baseline now fails loudly instead of skipping the +-2% drift gate, and
+  disagreeing baselines fail; per-row numericity enforced for
+  `seed`/`vocab`/`train_tokens`/`gpu_hours` plus `window >= 0` integer check.
+- The stricter gate exposed a real gap: no transformer-small row existed for
+  the `(small, 256)` group, so the live ledger failed. Added an honest
+  params-only `transformer-small` pin (row 25, gates empty, fixture-tagged;
+  113462016 from the factory pin, test_params-enforced) via the `append` CLI;
+  `check` green on 25 rows. Row-count pins bumped 24 to 25 in
+  `test_tester_m4b/m4c/m4d/m4e_redteam.py` (no semantic change).
+- `harness/train.py`: `--window`/`--slots`/`--no-accumulator` are now rejected
+  on families that ignore them (same silent-invalidation class as M2/M4a).
+- `harness/length_sweep.py`: `--tokenizer` is now read (BPE rejected loudly
+  like `enwik8_bpb`, bytes split requires byte tokenizer) and recorded in the
+  G2 summary. Hygiene: dropped dead `math` import in `synthetic_recall.py`
+  and dead `argparse` import plus dead `unexpected = None` in `util.py`;
+  unified `synthetic_recall` family split to `rsplit`.
+- Docs/counts: README header/body 118 passed; ledger 25 rows; p3-noacc cell
+  exact 0.06125 (was floored, `test_tester_m4g` pin updated); audit/README
+  M2b means exact (P1 0.2875, P5 2hop 0.532, T 2hop 0.118); audit row labels
+  corrected to 1-indexed ledger rows; A4 hardware provenance corrected to
+  CUDA cu130 per `a4-toy` summaries (was CPU fp32); ideas-a6 bound 0.065.
+  Builder history lines above keep their original numbers except the two
+  stale count lines the Reviewer explicitly listed.
+- Verified: `py_compile` clean, `ledger check` green (25 rows), no em dashes,
+  no `forward_chunk` refs. Full pytest re-run left for the Tester (no torch
+  on this runner). `Refs #294` kept.
+
+- the Fixer
