@@ -32,7 +32,7 @@ import torch
 import torch.nn as nn
 
 from .common import RMSNorm, SwiGLU
-from .p1_delta_hybrid import FusionGate, SlidingWindowAttn
+from .p1_delta_hybrid import SlidingWindowAttn
 from .p1_delta_hybrid import BETA_MAX, BETA_MIN, BETA_BIAS_INIT, ALPHA_BIAS_INIT
 
 
@@ -123,8 +123,9 @@ class DecoupledMemory(nn.Module):
         selective_out is the selective-branch read from the post-step S
         with the current q; recurrent_out - selective_out is exactly the
         accumulator contribution (exact: both reads are linear in the
-        post-step states, which evolve independently). One pass, no
-        shadow recomputation of the sequence."""
+        post-step states, which evolve independently). Reuses the step()
+        selective path; performs one extra w_q projection plus selective
+        read per token (2x Q-proj cost, documented here, not hidden)."""
         r_out, state = self.step(x_t, state)
         q = self._split(self.w_q(x_t), self.d_k)
         S = state["S"]
