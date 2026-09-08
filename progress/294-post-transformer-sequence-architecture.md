@@ -415,3 +415,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4af hostile suite (`test_tester_m4af_redteam.py`, 5 tests: AF1 disagreeing-baseline loud fail, AF2 numericity/negative guards, AF3 G1 rerun byte-identity, AF4 G3 byte-path fixture roundtrip, AF5 length_sweep +2 success roundtrip) landed at head since the M4ae verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4af complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-15633408 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ag verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `d45b3f24`: tree clean, PR #295 OPEN MERGEABLE CLEAN per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), zero `forward_chunk` refs in shipped code.
+- No new training: Tester M4ag hostile suite (G4 flatness, inventory formulae, ledger honesty) landed at head since the M4af verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ag complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-a3d73128 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
