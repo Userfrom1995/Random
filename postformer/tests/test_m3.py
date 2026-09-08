@@ -104,3 +104,36 @@ def test_train_ablation_flags():
         train_main(["--model", "p3-toy", "--data", "mqar", "--steps", "2",
                     "--batch", "2", "--no-accumulator",
                     "--out", os.path.join(tmp, "d")])
+
+
+def test_load_model_inherits_ablation_config():
+    """load_model inherits non-param ablation keys (use_accumulator, slots)
+    from the checkpoint config (M2-A2 lesson); a --config file disagreeing
+    with the checkpoint fails loudly instead of running the wrong arm."""
+    import torch, yaml
+    from postformer.harness.util import load_model
+    import tempfile, os
+    with tempfile.TemporaryDirectory() as tmp:
+        m, cfg = build_model("p3", "toy", {"vocab_size": 66,
+                                           "use_accumulator": False})
+        ckpt = os.path.join(tmp, "ckpt.pt")
+        torch.save({"state_dict": m.state_dict(), "config": cfg}, ckpt)
+        m2, cfg2, rnd = load_model("p3-toy", ckpt, None, {"vocab_size": 66},
+                                   "cpu", "fp32")
+        assert rnd is False
+        assert cfg2["use_accumulator"] is False, cfg2.get("use_accumulator")
+        assert m2.blocks[0].mem.use_accumulator is False
+        # slots inheritance on a P2 checkpoint
+        m3, cfg3 = build_model("p2", "toy", {"vocab_size": 66, "slots": 0})
+        ckpt3 = os.path.join(tmp, "ckpt3.pt")
+        torch.save({"state_dict": m3.state_dict(), "config": cfg3}, ckpt3)
+        _, cfg4, _ = load_model("p2-toy", ckpt3, None, {"vocab_size": 66},
+                                "cpu", "fp32")
+        assert cfg4["slots"] == 0, cfg4.get("slots")
+        # --config disagreement is loud
+        ypath = os.path.join(tmp, "bad.yaml")
+        with open(ypath, "w") as f:
+            yaml.safe_dump({"use_accumulator": True}, f)
+        with pytest.raises(SystemExit):
+            load_model("p3-toy", ckpt, ypath, {"vocab_size": 66},
+                       "cpu", "fp32")
