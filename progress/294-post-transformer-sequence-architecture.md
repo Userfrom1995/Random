@@ -527,3 +527,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4as hostile suite landed at head since the M4ar verification (`a875e682`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4as complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-a875e682 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4at/M4au verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `b1017a22`: tree clean, `--unshallow` re-run, `merge-base HEAD origin/main = cdf3cdae` (NOT orphan; missing base is the known shallow-clone artifact), PR #295 OPEN MERGEABLE CLEAN per gh, body `Refs #294`.
+- Verified without torch/pytest (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean via merge-base diff), zero `forward_chunk` refs in shipped code, zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4at/M4au hostile suites (`test_tester_m4at_redteam.py` AT6 provenance-guard pin fix, `test_tester_m4au_redteam.py` head-delta locks) plus Fixer hardening (A4 G4 summary-cell scope, baseline tie_embeddings honors, state_bytes length, cfg.update overrides, arg gates) landed at head since the M4as verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4au complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-bfe76238 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
