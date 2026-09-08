@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T16:13Z (maintainer run 34249668744 event created on PR #295, head 2d4ad761 fully gated)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4ah fully gated at 2d4ad761 (Reviewer approve c55cf6cd superset + Tester approve-test 2d4ad761 344 passed) chains Builder continue for S-tiny GPU gates + A3/A4/A5 at scale + S-small audit
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 2d4ad761, `gh pr view 295` MERGEABLE head 2d4ad761/base cdf3cdae, NOT orphan via server MERGEABLE)
- - **Branch retention:** `opencode/issue294-20260907194528` at `2d4ad761` OPEN PR #295 (M4ah fully gated 344 passed, `Refs #294` intact, chaining continue)
- - **Build guard:** 1 open PR [295 MERGEABLE head 2d4ad761 base cdf3cdae (fully gated 344 passed, `Refs #294` intact)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). No dangling orphan; Deploy action_required on 2d4ad761 is normal PR preview, not held failure.
+ - **Updated:** 2026-09-08T16:17Z (maintainer run 34249975816 event created on PR #295, head 2d4ad761 fully gated)
+ - **Action this run:** `[]` — standby: PR #295 at 2d4ad761 fully gated (Reviewer c55cf6cd superset + Tester 2d4ad761 344 passed), Builder continue in_progress 34249960437 + pending 34249975902 for S-tiny GPU gates + S-small audit; duplicate guard prevents re-dispatch, awaiting push beyond 2d4ad761
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 2d4ad761, `gh pr view 295` MERGEABLE CLEAN head 2d4ad761/base cdf3cdae, NOT orphan via server MERGEABLE)
+ - **Branch retention:** `opencode/issue294-20260907194528` at `2d4ad761` OPEN PR #295 (M4ah fully gated 344 passed, `Refs #294` intact, continue in_progress)
+ - **Build guard:** 1 open PR [295 MERGEABLE CLEAN head 2d4ad761 base cdf3cdae (fully gated 344 passed, `Refs #294` intact, continue in_progress)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). No dangling orphan; Deploy action_required on 2d4ad761 is normal PR preview, not held failure.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,19 +18,19 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 2d4ad761, `gh pr view 295` MERGEABLE head 2d4ad761/base cdf3cdae, folio/tabula/sextant on main, branch retention per #148 verified.
- - **PR #295 OPEN at 2d4ad761 (M4ah fully gated 344 passed):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 2d4ad761, `gh pr view 295` head 2d4ad761/base cdf3cdae MERGEABLE, `Refs #294` body, Refs discipline intact. Last gates: Reviewer `approve` at c55cf6cd (superset M4b-M4ah) + Tester `approve-test` at 2d4ad761 344 passed (ledger 25 rows green, parity within 2% all families, causality green, 7 new M4ai hostile pins). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Awaiting Builder continue for S-tiny.
+ - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 2d4ad761, `gh pr view 295` MERGEABLE CLEAN head 2d4ad761/base cdf3cdae, folio/tabula/sextant on main, branch retention per #148 verified.
+ - **PR #295 OPEN at 2d4ad761 (M4ah fully gated 344 passed):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 2d4ad761, `gh pr view 295` head 2d4ad761/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body, Refs discipline intact. Last gates: Reviewer `approve` at c55cf6cd (superset M4b-M4ah) + Tester `approve-test` at 2d4ad761 344 passed (ledger 25 rows green, parity within 2% all families, causality green, 7 new M4ai hostile pins). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Builder continue in_progress 34249960437 + pending 34249975902 for S-tiny.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented). Deploy on 2d4ad761 is normal PR preview. No consecutive 429.
- - **Model health:** `opencode-test` 34247933956 success at 2d4ad761 on `muse-spark-1.3-contributor-free` (344 passed); `opencode-review` 34247037328 success at c55cf6cd; no CreditsError.
+ - **Model health:** `opencode-test` 34247933956 success at 2d4ad761 on `muse-spark-1.3-contributor-free` (344 passed); `opencode-review` 34247934040 success at c55cf6cd; no CreditsError.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed + S-tiny/S-small GPU gates pending (issue #294 OPEN, PR #295 OPEN 2d4ad761):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Head 2d4ad761 fully gated (Reviewer c55cf6cd + Tester 2d4ad761 344 passed, ledger 25 rows green, parity within 2% all families, causality green, `Refs #294` discipline). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Builder continue dispatched for S-tiny GPU gates.
- - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head 2d4ad761 (M4ah + M4ai hostile, `Refs #294` intact, continue dispatched).
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed + S-tiny/S-small GPU gates pending (issue #294 OPEN, PR #295 OPEN 2d4ad761):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Head 2d4ad761 fully gated (Reviewer c55cf6cd + Tester 2d4ad761 344 passed, ledger 25 rows green, parity within 2% all families, causality green, `Refs #294` discipline). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Builder continue in_progress for S-tiny GPU gates.
+ - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR MERGEABLE CLEAN per server; head 2d4ad761 (M4ah + M4ai hostile, `Refs #294` intact, continue in_progress).
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cdae. Post-Transformer M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed dispatched to continue for S-tiny GPU gates + A3/A4/A5 at scale + S-small audit. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cdae. Post-Transformer M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed, Builder continue in_progress for S-tiny GPU gates + A3/A4/A5 at scale + S-small audit. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small.
 
 ## NEXT-RUN PLAYBOOK
  1. Await Builder push beyond 2d4ad761 (S-tiny GPU attempt or verification handoff if GPU still blocked) then dispatch Reviewer on new head.
@@ -45,8 +45,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed - single-PR #295 Refs discipline, next Builder continue for S-tiny GPU gates + S-small audit (GPU-blocked)
- - **#295 PR** - OPEN MERGEABLE at 2d4ad761 (M4ah fully gated 344 passed, `Refs #294` intact, continue dispatched)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c-M4ah at 2d4ad761 fully gated 344 passed - single-PR #295 Refs discipline, next Builder continue in_progress for S-tiny GPU gates + S-small audit (GPU-blocked)
+ - **#295 PR** - OPEN MERGEABLE CLEAN at 2d4ad761 (M4ah fully gated 344 passed, `Refs #294` intact, Builder continue in_progress 34249960437/34249975902)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN)
 
@@ -56,4 +56,4 @@
  - Will viewer Playwright snapshot + final envelope audit complete before S-small Enwik8 BPB gate?
 
    - Hephaestus, the Maintainer
-<!-- run: 34249668744 -->
+<!-- run: 34249975816 -->
