@@ -21,8 +21,9 @@ Both recurrent branches share one QKV trunk (no duplicated projections);
 each has its own output proj. (iii) exact sliding-window attention
 (reused from P1) covers local induction. SwiGLU closes the block.
 
-State per layer (batch 1): H*d_k*d_v (accumulator A) + H*d_k*d_v
-(selective S) + 2*W*d_win (window KV) + 2*H scalars. No factor of T.
+State per layer (batch 1): H*d_k*d_v (accumulator A, zeros when
+disabled) + H*d_k*d_v (selective S) + 2*W*d_win (window KV). No
+factor of T.
 Reference kernel: forward_recurrent applies step() token-by-token; chunk
 groups loop iterations only and has no mathematical effect.
 """
@@ -77,13 +78,19 @@ class DecoupledMemory(nn.Module):
         # Norm-guard rescale hook: decay-free accumulation would otherwise
         # grow without bound on long streams. Rescale (not clip) preserves
         # the stored direction; the fire count is ledgered, never silent.
+        # The scale is computed under no-grad but applied outside, so the
+        # rescaled A keeps its autograd graph (a where() built inside
+        # no-grad would detach trunk k/v/beta grads on every firing step).
         with torch.no_grad():
             n = A.norm(dim=(-2, -1), keepdim=True).clamp_min(1e-12)
             over = (n > self.rescale_cap)
             if bool(over.any()):
                 state["rescales"] += int(over.sum().item())
-                A = torch.where(over, A * (self.rescale_cap / n), A)
-        return A
+                scale = torch.where(over, self.rescale_cap / n,
+                                    torch.ones_like(n))
+            else:
+                return A
+        return A * scale
 
     def step(self, x_t: torch.Tensor, state: dict):
         """x_t: (B, d). Returns (out (B, d), state). O(H*d_k*d_v)."""
@@ -205,7 +212,9 @@ class P3Block(nn.Module):
         H, dk, dv = self.mem.heads, self.mem.d_k, self.mem.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        return 2 * H * dk * dv * bpe + win + 2 * H * bpe
+        mem = (H * dk * dv * bpe if not self.mem.use_accumulator
+               else 2 * H * dk * dv * bpe)
+        return mem + win
 
 
 class P3LM(nn.Module):
