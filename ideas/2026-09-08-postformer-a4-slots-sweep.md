@@ -39,12 +39,17 @@ differs from G4/G64 by slot count alone.
   0.04625) and 3x on 2-hop (0.03 vs 0.01) at identical params (336074,
   zero router params by construction) and identical data. G0 also sits below
   the matched P1 ref (0.0625).
-- Slot-count ceiling: G4 and G64 collapse to bit-identical scores
-  (A4-internal train loss equal to 16 digits, all G1 cells equal). Mechanism: toy MQAR
-  episodes are T=33 tokens with slot stride 8, so at most 5 slot writes ever
-  occur; any G >= 5 holds the full write history and behaves identically.
-  Slot COUNT therefore stays untested until S-tiny N64+ (T_train 512), where
-  write counts exceed small-G capacity and eviction actually fires.
+- Slot-count ceiling: G4/G64 summary cells equal (train loss
+  3.942723035812378, mqar8 0.0825, 2hop 0.03); per-episode N16 CSVs
+  differ (7 pred flips out of 1600, acc/recall@3 unchanged, rank
+  column noisy). G4 (capacity 4/5 writes at T=33, stride 8 gives
+  writes at 0,8,16,24,32) evicts position 0, so this equality does
+  not follow from the G>=5 full-history argument; slot COUNT stays
+  untested until S-tiny N64+ (T_train 512), where write counts exceed
+  small-G capacity and eviction actually fires. Provenance note: the
+  bit-identical 16-digit train curves across all 11 points are
+  unexplained given different eviction sets at i=32 (G64 training
+  provenance disclosed, not re-run here).
 - H2 stays open pending S-tiny scale. A4 at toy is a partial pass: existence
   of slot benefit confirmed, capacity scaling not yet probed.
 
