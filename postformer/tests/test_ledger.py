@@ -18,7 +18,7 @@ def write(path, rows):
 
 def good_row(model="p1-tiny", params="29373756"):
     return {"model": model, "params": params, "train_tokens": "0", "seed": "0",
-            "vocab": "8192", "window": "128",
+            "vocab": "8192", "window": "128", "slots": "", "use_accumulator": "",
             "g1_mqar_8": "", "g1_mqar_16": "0.1", "g1_mqar_64": "", "g1_mqar_256": "",
             "g1_induction": "", "g1_copy": "", "g1_2hop": "",
             "g2_bpb_1x": "", "g2_bpb_4x": "", "g2_bpb_8x": "",

@@ -40,15 +40,26 @@ def _ledger_rows():
         return list(csv.DictReader(f))
 
 
+def _ledger_by_slot():
+    out = {}
+    for r in _ledger_rows():
+        if r["model"] == "p2-toy" and r["vocab"] == "64" \
+                and r["train_tokens"] == "528000":
+            out[int(r["slots"])] = r
+    return out
+
+
 def test_m4c_n8_csv_recompute_matches_ledger_cells():
     """Independent recompute: raw N8 CSV accuracy must equal ledger cells."""
-    rows = {r["model"]: r for r in _ledger_rows()}
+    rows = _ledger_by_slot()
     for g in (0, 4, 64):
         csv_acc = _acc(os.path.join(A4, f"g1_mqar_N8_seed0_p2-G{g}-toy-s0.csv"))
-        assert csv_acc == pytest.approx(float(rows[f"p2-G{g}-toy"]["g1_mqar_8"]))
+        assert csv_acc == pytest.approx(float(rows[g]["g1_mqar_8"]))
         assert csv_acc == pytest.approx(
             json.load(open(os.path.join(A4, f"g1_summary_p2-G{g}-toy-s0.json")))
             ["mqar"]["8"]["acc"])
+        assert rows[g]["model"] == "p2-toy"
+        assert rows[g]["slots"] == str(g)
 
 
 def _scored_signal(path):
@@ -119,15 +130,15 @@ def test_m4c_g4_g64_jsons_differ_only_in_config():
 
 
 def test_m4c_ledger_dedup_rejects_duplicate_slot_row(tmp_path):
-    """Appending an existing (model,seed,vocab,window) key must fail; --force upserts."""
+    """Appending an existing (model,seed,vocab,window,slots) key must fail; --force upserts."""
     import shutil
     from postformer.harness.ledger import main as ledger_main
     copy = str(tmp_path / "ledger.csv")
     shutil.copy(LEDGER, copy)
-    # SCHEMA-shaped run-json colliding with the live p2-G4-toy row key
+    # SCHEMA-shaped run-json colliding with the live p2-toy slots=4 row key
     dupe = str(tmp_path / "dupe.json")
-    json.dump({"model": "p2-G4-toy", "params": 336074, "train_tokens": 528000,
-               "seed": 0, "vocab": 64, "window": 16,
+    json.dump({"model": "p2-toy", "params": 336074, "train_tokens": 528000,
+               "seed": 0, "vocab": 64, "window": 16, "slots": 4,
                "g1_mqar_8": 0.0825, "notes": "dupe probe Refs #294"}, open(dupe, "w"))
     with pytest.raises(SystemExit):
         ledger_main(["append", "--run-json", dupe, "--ledger", copy])
@@ -142,19 +153,22 @@ def test_m4c_ledger_dedup_rejects_duplicate_slot_row(tmp_path):
 def test_m4b_p4_csv_recompute_matches_ledger_cell():
     """M4b P4 probe: raw N8 CSV recompute must equal the ledger cell (anti-fabrication)."""
     csv_acc = _acc(os.path.join(M4B, "g1_mqar_N8_seed0_p4-toy-s0.csv"))
-    rows = {r["model"]: r for r in _ledger_rows()}
+    rows = {r["model"]: r for r in _ledger_rows() if r["slots"] == ""}
     assert csv_acc == pytest.approx(float(rows["p4-toy"]["g1_mqar_8"]))
     assert csv_acc == pytest.approx(
         json.load(open(os.path.join(M4B, "g1_summary_p4-toy-s0.json")))["mqar"]["8"]["acc"])
-    # H4 negative read: p4 below the matched p1 ref and below p2-G4
-    assert csv_acc < float(rows["p2-G4-toy"]["g1_mqar_8"])
+    # H4 negative read: p4 below the matched p1 ref and below p2 slots=4
+    by_slot = _ledger_by_slot()
+    assert csv_acc < float(by_slot[4]["g1_mqar_8"])
     assert "NOT a gate result" in rows["p4-toy"]["notes"]
 
 
 def test_m4c_no_gate_claim_in_new_rows():
     """Every new M4b/M4c ledger row must disclaim gate status and keep Refs discipline."""
-    rows = {r["model"]: r for r in _ledger_rows()}
-    for m in ("p4-toy", "p2-G0-toy", "p2-G4-toy", "p2-G64-toy"):
-        assert "NOT a gate result" in rows[m]["notes"], m
-        assert "Refs #294" in rows[m]["notes"], m
-        assert "Closes" not in rows[m]["notes"], m
+    rows = _ledger_rows()
+    p4 = [r for r in rows if r["model"] == "p4-toy"]
+    assert len(p4) == 1
+    for r in p4 + [v for v in _ledger_by_slot().values()]:
+        assert "NOT a gate result" in r["notes"], (r["model"], r["slots"])
+        assert "Refs #294" in r["notes"], (r["model"], r["slots"])
+        assert "Closes" not in r["notes"], (r["model"], r["slots"])

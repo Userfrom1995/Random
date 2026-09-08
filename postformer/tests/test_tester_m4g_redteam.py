@@ -6,7 +6,7 @@ plus a viewer banner link and README updates. Docs can lie quietly, so this
 suite recomputes every audit scoreboard cell from ledger.csv (never trusting
 the markdown alone), re-derives the M2b 3-seed means, pins the A4/A6 audit
 claims against raw curves, replicates the viewer's RFC-4180 splitCSV in
-Python over the live 24-col ledger, and enforces Refs discipline. If any of
+Python over the live 26-col ledger, and enforces Refs discipline. If any of
 these fail, the audit narrative is fabrication and the PR goes to the Fixer.
 """
 
@@ -63,20 +63,21 @@ def test_m4g_single_arm_cells_match_ledger():
     rows = _rows()
     by_model = {}
     for r in rows:
-        by_model.setdefault((r["model"], r["vocab"]), []).append(r)
-    p2 = by_model[("p2-toy", "64")][0]
+        by_model.setdefault((r["model"], r["vocab"], r["slots"],
+                             r["use_accumulator"]), []).append(r)
+    p2 = by_model[("p2-toy", "64", "16", "")][0]
     assert float(p2["g1_mqar_8"]) == pytest.approx(0.0825, abs=1e-9)
     assert float(p2["g1_2hop"]) == pytest.approx(0.03, abs=1e-9)
-    p3 = by_model[("p3-toy", "64")][0]
+    p3 = by_model[("p3-toy", "64", "", "True")][0]
     assert float(p3["g1_mqar_8"]) == pytest.approx(0.0600, abs=1e-9)
-    noacc = by_model[("p3-noacc-toy", "64")][0]
+    noacc = by_model[("p3-toy", "64", "", "False")][0]
     assert float(noacc["g1_mqar_8"]) == pytest.approx(0.06125, abs=1e-9)
-    p4 = by_model[("p4-toy", "64")][0]
+    p4 = by_model[("p4-toy", "64", "", "")][0]
     assert float(p4["g1_mqar_8"]) == pytest.approx(0.035, abs=1e-9)
     assert float(p4["g1_mqar_16"]) == pytest.approx(1 / 64, abs=1e-9)
-    g0 = by_model[("p2-G0-toy", "64")][0]
-    g4 = by_model[("p2-G4-toy", "64")][0]
-    g64 = by_model[("p2-G64-toy", "64")][0]
+    g0 = by_model[("p2-toy", "64", "0", "")][0]
+    g4 = by_model[("p2-toy", "64", "4", "")][0]
+    g64 = by_model[("p2-toy", "64", "64", "")][0]
     assert float(g0["g1_mqar_8"]) == pytest.approx(0.04625, abs=1e-9)
     assert float(g4["g1_mqar_8"]) == pytest.approx(0.0825, abs=1e-9)
     assert float(g64["g1_mqar_8"]) == pytest.approx(0.0825, abs=1e-9)
@@ -140,12 +141,12 @@ def test_m4g_viewer_splitcsv_parses_live_ledger():
     with open(LEDGER) as f:
         lines = [ln.rstrip("\n") for ln in f if ln.strip()]
     header = _split_csv(lines[0])
-    assert len(header) == 24, len(header)
+    assert len(header) == 26, len(header)
     for ln in lines[1:]:
         cells = _split_csv(ln)
-        assert len(cells) == 24, (len(cells), ln[:80])
+        assert len(cells) == 26, (len(cells), ln[:80])
     naive = lines[1].split(",")
-    assert len(naive) != 24, "notes quote check: naive split must shred"
+    assert len(naive) != 26, "notes quote check: naive split must shred"
 
 
 def test_m4g_audit_refs_discipline_and_no_emdashes():

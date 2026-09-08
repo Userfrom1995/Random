@@ -52,9 +52,14 @@ def test_m4b_matched_budget_token_math():
     assert t["train_tokens"] == 528000 == 1000 * 16 * 33
     assert t["model"] == "p4-toy" and t["data"] == "mqar"
     rows = _ledger_rows()
-    for m in ("p2-toy", "p3-toy", "p3-noacc-toy"):
-        hit = [x for x in rows if x["model"] == m]
+    for m, extra in (("p2-toy", {"slots": "16"}),
+                     ("p3-toy", {"use_accumulator": "True"})):
+        hit = [x for x in rows if x["model"] == m
+               and all(x[k] == v for k, v in extra.items())]
         assert hit and int(hit[0]["train_tokens"]) == 528000, m
+    noacc = [x for x in rows if x["model"] == "p3-toy"
+             and x["use_accumulator"] == "False"]
+    assert noacc and int(noacc[0]["train_tokens"]) == 528000, "p3-noacc"
     # Train curve: finite, final below first (4.3195 -> 4.1157 per ideas).
     with open(os.path.join(M4B, "train_curve_p4-toy-s0.csv")) as f:
         curve = list(csv.DictReader(f))
@@ -79,13 +84,14 @@ def test_m4b_n16_collapse_is_chance():
 def test_m4b_h4_negative_ordering_holds():
     """H4 first read NEGATIVE: p4 below matched P1-ref, P2, P3 at same budget."""
     rows = _ledger_rows()
-    by_model = {r["model"]: r for r in rows if r["model"] in
-                ("p4-toy", "p2-toy", "p3-toy")}
-    p4 = float(by_model["p4-toy"]["g1_mqar_8"])
-    assert p4 == pytest.approx(0.035)
-    assert p4 < float(by_model["p2-toy"]["g1_mqar_8"])  # 0.0825
-    assert p4 < float(by_model["p3-toy"]["g1_mqar_8"])  # 0.0600
-    assert p4 < 0.0625  # matched p1-W16-1000 ref quoted in ideas/progress
+    p4 = [r for r in rows if r["model"] == "p4-toy"][0]
+    p2 = [r for r in rows if r["model"] == "p2-toy" and r["slots"] == "16"][0]
+    p3 = [r for r in rows if r["model"] == "p3-toy"
+          and r["use_accumulator"] == "True"][0]
+    assert float(p4["g1_mqar_8"]) == pytest.approx(0.035)
+    assert float(p4["g1_mqar_8"]) < float(p2["g1_mqar_8"])  # 0.0825
+    assert float(p4["g1_mqar_8"]) < float(p3["g1_mqar_8"])  # 0.0600
+    assert float(p4["g1_mqar_8"]) < 0.0625  # matched p1-W16-1000 ref
     text = open(IDEAS).read()
     assert "NEGATIVE" in text and "H4 stays open" in text
 
