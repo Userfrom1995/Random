@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T02:33Z, maintainer run 34180260197 (event `created` on PR #295, Userfrom1995 /oc maintainer)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4d fully gated at aee36d73 (Reviewer a7c09979 + Tester aee36d73 102 passed) chaining Builder continue for S-tiny GPU gates, Refs #294 intact.
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` = cdf3cdae, `gh pr view 295` MERGEABLE head aee36d73/base cdf3cdae per server NOT orphan, `folio/` + `tabula/` + `sextant/` on main, Deploy action_required on aee36d73)
+ - **Updated:** 2026-09-08T03:05Z, maintainer run 34180522490 (event `created` on PR #295, Userfrom1995 /oc maintainer)
+ - **Action this run:** `[]` — standby, PR #295 M4d fully gated at aee36d73 (Reviewer a7c09979 + Tester aee36d73 102 passed), Builder continue already in_progress 34180512357 for S-tiny GPU gates, Refs #294 intact.
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` = cdf3cdae, `gh pr view 295` MERGEABLE CLEAN head aee36d73/base cdf3cdae per server NOT orphan, `folio/` + `tabula/` + `sextant/` on main, Deploy success on cdf3cdae + action_required on aee36d73)
  - **Branch retention:** `opencode/issue294-20260907194528` at `aee36d73` OPEN PR #295 (research a062a264 + architect ccbb2ca6 + Builder M1-M4d + Tester aee36d73 102 passed, ~225 files, 24 ledger rows, `Refs #294`).
- - **Build guard:** 1 open PR [295 MERGEABLE head aee36d73 base cdf3cdae], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Reviewer approve at a7c09979 (M4b+M4c+M4d) + Tester approve-test at aee36d73 (102 passed, M4f hostile: vocab512 recomputed, grouped drift gate, parity within 2% all families) covers to aee36d73; new head fully gated, Builder continue for S-tiny GPU training pending.
+ - **Build guard:** 1 open PR [295 MERGEABLE head aee36d73 base cdf3cdae], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Reviewer approve at a7c09979 (M4b+M4c+M4d) + Tester approve-test at aee36d73 (102 passed, M4f hostile: vocab512 recomputed, grouped drift gate, parity within 2% all families) covers to aee36d73; new head fully gated, Builder continue 34180512357 in_progress for S-tiny GPU training.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,18 +18,18 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cdae).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, gh PR view 295 MERGEABLE per server (prior rebase at f1ae5904 + Tester chain at aee36d73), folio/tabula/sextant on main, Deploy success on cdf3cdae + action_required on aee36d73 PR head.
- - **PR #295 OPEN MERGEABLE at aee36d73, fully gated M4d — continue dispatched:** Verified `gh pr view 295` OPEN head aee36d73/base cdf3cdae `Refs #294`, `git ls-remote origin opencode/issue294-20260907194528` = aee36d73, `gh issue view 294` OPEN, Tester approve-test at aee36d73 (102 passed, M4f hostile: vocab512 pilot cells recomputed, grouped drift gate attacked both ways, parity within 2% all families, step-forward <=1e-4, ledger 24 rows check-green) + Reviewer approve at a7c09979 (M4b+M4c+M4d) covers to aee36d73 (diff is 7-test suite only); chaining continue for S-tiny GPU full gates + A3/A4/A5 + S-small Enwik8.
+ - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, gh PR view 295 MERGEABLE CLEAN per server (prior rebase at f1ae5904 + Tester chain at aee36d73), folio/tabula/sextant on main, Deploy success on cdf3cdae + action_required on aee36d73 PR head.
+ - **PR #295 OPEN MERGEABLE at aee36d73, fully gated M4d — Builder continue in_progress:** Verified `gh pr view 295` OPEN head aee36d73/base cdf3cdae `Refs #294`, `git ls-remote origin opencode/issue294-20260907194528` = aee36d73, `gh issue view 294` OPEN, Tester approve-test at aee36d73 (102 passed, M4f hostile: vocab512 pilot cells recomputed, grouped drift gate, parity within 2% all families, step-forward <=1e-4, ledger 24 rows check-green) + Reviewer approve at a7c09979 (M4b+M4c+M4d) covers to aee36d73; Builder continue 34180512357 in_progress + 34180522523 pending for S-tiny GPU full gates + A3/A4/A5 + S-small Enwik8.
  - **No infra anomaly:** `opencode.json` both knobs free (muse-spark-1.3 / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no CreditsError, no stalled pipeline, no orphan recovery needed.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture — M1+M2-toy+M3+M4a+M4b+M4c+M4d fully gated at aee36d73 awaiting Builder continue for S-tiny GPU gates (#294 OPEN, PR #295 OPEN aee36d73):** Owner challenge via #42 with binding 4 gates (G4 amended to Pareto tiers a/b). Researcher 34156774420 + Architect 34157097837 complete. Reviewer approve at a7c09979 (M4b+M4c+M4d: A6 pilot honesty, vocab-grouped drift, no stubs) + Tester approve-test at aee36d73 (102 passed: 95 pre + 7 M4f hostile, ledger 24 rows) fully gates to aee36d73; new Builder continue will target S-tiny GPU gates (3 arms x 5 families x 3 seeds, vocab 8192) + A3/A4/A5 at scale + S-small Enwik8 audit per progress/294-post-transformer-sequence-architecture.md. Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. S-tiny gate ~50+h/arm on CPU, GPU runner required.
- - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; Tester aee36d73 gated, Builder S-tiny continue now dispatched.
+ - **Post-Transformer Sequence Architecture — M1+M2-toy+M3+M4a+M4b+M4c+M4d fully gated at aee36d73 awaiting Builder continue for S-tiny GPU gates (#294 OPEN, PR #295 OPEN aee36d73):** Owner challenge via #42 with binding 4 gates (G4 amended to Pareto tiers a/b). Researcher 34156774420 + Architect 34157097837 complete. Reviewer approve at a7c09979 (M4b+M4c+M4d: A6 pilot honesty, vocab-grouped drift, no stubs) + Tester approve-test at aee36d73 (102 passed: 95 pre + 7 M4f hostile, ledger 24 rows) fully gates to aee36d73; Builder continue 34180512357 in_progress for S-tiny GPU gates (3 arms x 5 families x 3 seeds, vocab 8192) + A3/A4/A5 at scale + S-small Enwik8 audit per progress/294-post-transformer-sequence-architecture.md. Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. S-tiny gate ~50+h/arm on CPU, GPU runner required.
+ - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; Tester aee36d73 gated, Builder S-tiny continue in_progress.
  - **Issue #70 — OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cdae.
  - **No other active pipeline:** No infra anomaly, no Auditor bug, no orphan recovery needed.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cdae. Post-Transformer M1+M2-toy+M3+M4a+M4b+M4c+M4d fully gated at aee36d73 (Reviewer a7c09979 + Tester aee36d73 102 passed, ledger 24 rows), S-tiny GPU full gates + A3/A4/A5 + S-small Enwik8 envelope next via continue on same PR. `Refs #294` until full gate pass head-to-head.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cdae. Post-Transformer M1+M2-toy+M3+M4a+M4b+M4c+M4d fully gated at aee36d73 (Reviewer a7c09979 + Tester aee36d73 102 passed, ledger 24 rows), S-tiny GPU full gates + A3/A4/A5 + S-small Enwik8 envelope next via continue in_progress on same PR. `Refs #294` until full gate pass head-to-head.
 
 ## NEXT-RUN PLAYBOOK
  1. Await Builder push beyond aee36d73 (S-tiny GPU gates or CPU toy sweeps + A3/A4/A5 at toy/scale + viewer snapshot) -> Reviewer re-gate.
@@ -46,7 +46,7 @@
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cdae)
  - **#293** - MERGED docs sync at cdf3cdae (Refs #70)
  - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d gated at aee36d73 (102 passed, S-tiny GPU gates next)
- - **#295 PR** - OPEN MERGEABLE at aee36d73, fully gated M4d (Reviewer a7c09979 + Tester aee36d73 102 passed), Builder continue dispatched
+ - **#295 PR** - OPEN MERGEABLE at aee36d73, fully gated M4d (Reviewer a7c09979 + Tester aee36d73 102 passed), Builder continue 34180512357 in_progress
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (docs sync SHIPPED at cdf3cdae via Refs #70)
 
@@ -56,4 +56,4 @@
  - Will H1-H5 verdicts at S-tiny/S-small resolve per progress/294-post-transformer-sequence-architecture.md (A1-A7)?
 
    - Hephaestus, the Maintainer
-<!-- run: 34180260197 -->
+<!-- run: 34180522490 -->
