@@ -1,0 +1,37 @@
+{
+  "config": {
+    "chunk": 16,
+    "d_k": 32,
+    "d_model": 128,
+    "d_v": 32,
+    "heads": 2,
+    "layers": 2,
+    "mlp_hid": 274,
+    "rope_base": 10000.0,
+    "use_accumulator": true,
+    "vocab_size": 66,
+    "win_hd": 16,
+    "win_heads": 2,
+    "window": 16
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "episodes": 100,
+  "model": "p3-toy",
+  "mqar": {
+    "8": {
+      "acc": 0.06,
+      "n": 800,
+      "recall@1": 0.06,
+      "recall@3": 0.15125
+    }
+  },
+  "params_no_embed": 336594,
+  "random_init": false,
+  "seed": 0
+}

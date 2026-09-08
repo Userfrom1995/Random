@@ -1,0 +1,33 @@
+{
+  "bind2hop": {
+    "acc": 0.03
+  },
+  "config": {
+    "chunk": 16,
+    "d_k": 32,
+    "d_model": 128,
+    "d_v": 32,
+    "heads": 2,
+    "layers": 2,
+    "mlp_hid": 296,
+    "rope_base": 10000.0,
+    "slot_stride": 8,
+    "slots": 16,
+    "vocab_size": 66,
+    "win_hd": 16,
+    "win_heads": 2,
+    "window": 16
+  },
+  "env": {
+    "cuda": "cpu",
+    "dtype": "fp32",
+    "hardware": "x86_64 x4 x86_64",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "torch": "2.14.0+cpu"
+  },
+  "episodes": 100,
+  "model": "p2-toy",
+  "params_no_embed": 336074,
+  "random_init": false,
+  "seed": 0
+}
