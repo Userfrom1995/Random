@@ -1,6 +1,5 @@
 """Shared harness helpers: model loading, dtypes, CSV/JSON output, env info."""
 
-import argparse
 import csv
 import json
 import os
@@ -57,7 +56,7 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     random_init = False
     if blob is not None:
         sd = blob["state_dict"] if isinstance(blob, dict) and "state_dict" in blob else blob
-        missing, unexpected = model.load_state_dict(sd, strict=False), None
+        missing = model.load_state_dict(sd, strict=False)
         if missing.missing_keys or missing.unexpected_keys:
             raise SystemExit(f"checkpoint mismatch: missing={missing.missing_keys} "
                              f"unexpected={missing.unexpected_keys}")
