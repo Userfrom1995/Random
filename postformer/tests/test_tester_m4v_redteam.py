@@ -94,12 +94,31 @@ def test_v6_no_em_dashes_in_docs():
     import subprocess as sp
     # Scope: only files this PR added/touched (pre-existing ideas files
     # elsewhere in the repo predate the invariant and are out of scope).
-    files = sp.run(["git", "diff", "--name-only", "origin/main...HEAD"],
-                   capture_output=True, text=True).stdout.split()
+    # This runner is often a shallow clone with no origin/main merge base,
+    # so fall back to disk enumeration when the diff is unavailable.
+    files = []
+    try:
+        r = sp.run(["git", "diff", "--name-only", "origin/main...HEAD"],
+                   capture_output=True, text=True, timeout=60)
+        if r.returncode == 0 and r.stdout.strip():
+            files = r.stdout.split()
+    except Exception:
+        files = []
     scoped = [f for f in files if f.startswith(
         ("docs/research/issue-294", "ideas/2026-09-0",
          "progress/294-", "postformer/"))]
+    if not scoped:
+        import glob as _glob
+        scoped = (
+            _glob.glob("docs/research/issue-294*")
+            + _glob.glob("ideas/2026-09-0*")
+            + _glob.glob("progress/294-*")
+            + [f for f in _glob.glob("postformer/**/*.py", recursive=True)
+               if "__pycache__" not in f]
+        )
     assert scoped, "no PR-scoped files found"
+    scoped = [f for f in scoped
+              if "__pycache__" not in f and not f.endswith((".pyc", ".pkl"))]
     out = sp.run(["git", "grep", "-l", "\u2014", "--"] + scoped,
                  capture_output=True, text=True).stdout.strip()
     assert out == "", out
