@@ -140,7 +140,7 @@ def main(argv=None):
                    help="episodes per progress flush; decode is greedy batch-1 "
                         "(batched greedy decode is M2 work)")
     p.add_argument("--window", type=int, default=None,
-                   help="eval sliding-window W for p1/p2/p3/p5 arms; default inherits "
+                   help="eval sliding-window W for p1/p2/p3/p4/p5 arms; default inherits "
                         "the checkpoint's train window (fails if --config "
                         "disagrees with the checkpoint and no override is given)")
     a = p.parse_args(argv)
@@ -153,9 +153,9 @@ def main(argv=None):
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     overrides = {"vocab_size": a.vocab + 2}
     family = a.model.split("-", 1)[0]
-    if a.window is not None and family not in ("p1", "p2", "p3", "p5"):
-        raise SystemExit("--window applies to p1/p2/p3/p5 arms only (transformer has no window)")
-    if family in ("p1", "p2", "p3", "p5"):
+    if a.window is not None and family not in ("p1", "p2", "p3", "p4", "p5"):
+        raise SystemExit("--window applies to p1/p2/p3/p4/p5 arms only (transformer has no window)")
+    if family in ("p1", "p2", "p3", "p4", "p5"):
         # A2 guard: the eval window must match the checkpoint's train window
         # unless explicitly overridden; silently evaluating a W0/W32
         # checkpoint as W16 invalidates the ablation (M2 review finding).
