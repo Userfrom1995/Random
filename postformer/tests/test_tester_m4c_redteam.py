@@ -135,7 +135,7 @@ def test_m4c_ledger_dedup_rejects_duplicate_slot_row(tmp_path):
     before = len(list(csv.DictReader(open(copy))))
     ledger_main(["append", "--run-json", dupe, "--ledger", copy, "--force"])
     after = len(list(csv.DictReader(open(copy))))
-    assert before == after == 24
+    assert before == after == 25
     ledger_main(["check", "--ledger", copy])
 
 
