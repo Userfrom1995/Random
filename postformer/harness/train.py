@@ -150,7 +150,8 @@ def main(argv=None):
     # Matched budget: data stream keyed by (seed, data) ONLY - identical
     # episodes for every arm at one seed. Init keyed by (seed, model, data)
     # AFTER, so torch's global RNG (consumed by build_model below) keeps a
-    # per-arm deterministic init.
+    # per-arm deterministic init. --model names are strict canonical
+    # (parse_model_name above), so the init key is exact per arm.
     data_sub = seed_all(a.seed, f"train-data-{a.data}")
     data_rng = np.random.default_rng(data_sub ^ 0x5F3D2917)
     seed_all(a.seed, f"train-init-{a.model}-{a.data}")

@@ -87,7 +87,7 @@ Enwik8) are NOT yet measured - they need a GPU runner. Claims beyond the toy
 envelope require M2-S-tiny/M4 gates. Every viewer claim carries this envelope
 next to it.
 
-## M2 toy results (matched budget, 3 seeds, `ledger/ledger.csv` rows 5-15)
+## M2 toy results (matched budget, 3 seeds, `ledger/ledger.csv` data rows 5-13)
 
 - MQAR N8 (train N): P5 0.300 / P1 0.2875 / Transformer 0.146 (chance 0.016).
   A1: delta shows no advantage over the additive map at toy N8 (H1/H5

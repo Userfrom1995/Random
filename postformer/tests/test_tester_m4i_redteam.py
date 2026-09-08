@@ -15,13 +15,13 @@ R1 - ledger "no transformer baseline" false failure (ledger.py:147-153):
   not failed. Breaks test_ledger.py x3 + test_tester_m4f_redteam.py x1.
 
 R2 - suffixed-arm guard misroute (train.py:160, synthetic_recall.py:154):
-  family is parsed with rsplit("-", 1)[0], so ledger-labelled arms such as
-  p2-G0-toy yield family "p2-G0" and their own valid ablation flags are
-  falsely rejected (`--slots applies to p2 arms only`,
-  `--window applies to p1/p2/p3/p4/p5 arms only`). The factory parses
-  family with split("-", 1)[0] ("p2" - correct); the harness guards must
-  use the same parse. Verified live: train + synthetic_recall both
-  misroute on p2-G0-toy.
+  superseded by the strict --model gate (review at 619807ce, finding 1):
+  middle-inserted tags such as p2-G0-toy silently built default G16 while
+  the filename tag suggested G0 (the M2 silent-invalidation class), so
+  all --model entry points now reject non-canonical names loudly via
+  factory.parse_model_name. Curve/file tags (p2-G0-toy-s0) remain
+  filename labels only; replay via the plain name plus --slots/--window
+  flags. The two R2 tests below pin the rejection.
 
 All tests below are self-contained (tmp dirs only, never the live ledger)
 and fast (1-step toy train, 4-episode random-init recall). If any fail,
@@ -29,8 +29,6 @@ the defects above are still present - hand back to the Fixer.
 """
 
 import csv
-import json
-import os
 
 from postformer.harness.ledger import SCHEMA, main as ledger_main
 
@@ -86,17 +84,16 @@ def test_m4i_same_vocab_drift_still_fails_loudly(tmp_path):
         ledger_main(["check", "--ledger", p])
 
 
-def test_m4i_train_guard_accepts_suffixed_p2_slots(tmp_path):
-    """R2: --model p2-G0-toy --slots 0 is a valid p2 ablation, must not misroute."""
+def test_m4i_train_guard_rejects_suffixed_p2_slots():
+    """R2 strict gate: --model p2-G0-toy is a filename tag, not a model name.
+
+    Must fail loudly (never silently train G16 as G0); replay via
+    --model p2-toy --slots 0. Replaces the former acceptance test."""
+    import pytest
     from postformer.harness.train import main as train_main
-    out = str(tmp_path / "train-out")
-    train_main(["--model", "p2-G0-toy", "--slots", "0", "--out", out,
-                "--steps", "1", "--batch", "2", "--log-every", "1",
-                "--seed", "0"])
-    with open(os.path.join(out, "train_summary.json")) as f:
-        s = json.load(f)
-    assert s["config"]["slots"] == 0, s["config"]
-    assert s["model"] == "p2-G0-toy", s["model"]
+    with pytest.raises(SystemExit):
+        train_main(["--model", "p2-G0-toy", "--slots", "0", "--out", "/tmp/m4i-nope",
+                    "--steps", "1", "--batch", "2"])
 
 
 def test_m4i_train_guard_still_rejects_misrouted_slots():
@@ -108,16 +105,17 @@ def test_m4i_train_guard_still_rejects_misrouted_slots():
                     "--steps", "1", "--batch", "2"])
 
 
-def test_m4i_recall_guard_accepts_suffixed_p2_window(tmp_path):
-    """R2: --model p2-G0-toy --window 16 is a valid p2 eval, must not misroute."""
+def test_m4i_recall_guard_rejects_suffixed_p2_window():
+    """R2 strict gate: --model p2-G0-toy --window 16 must fail loudly.
+
+    Replay via --model p2-toy --window 16. Replaces the former
+    acceptance test."""
+    import pytest
     from postformer.harness.synthetic_recall import main as recall_main
-    out = str(tmp_path / "recall-out")
-    recall_main(["--model", "p2-G0-toy", "--window", "16", "--out", out,
-                 "--task", "mqar", "--episodes", "4", "--n-pairs", "2",
-                 "--vocab", "64", "--seed", "0"])
-    with open(os.path.join(out, "g1_summary_seed0.json")) as f:
-        s = json.load(f)
-    assert "mqar" in s, s.keys()
+    with pytest.raises(SystemExit):
+        recall_main(["--model", "p2-G0-toy", "--window", "16", "--out", "/tmp/m4i-nope",
+                     "--task", "mqar", "--episodes", "4", "--n-pairs", "2",
+                     "--vocab", "64", "--seed", "0"])
 
 
 def test_m4i_recall_guard_still_rejects_transformer_window(tmp_path):
