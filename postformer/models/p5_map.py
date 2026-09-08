@@ -5,7 +5,8 @@ Gated linear attention with a parameter-free degree-2 polynomial map
 and a SCALED ADDITIVE write (A1 counterpart to the P1 delta erase):
   S_t = alpha_t * S_{t-1} + beta_t * phi(k_t) v_t^T.
 Projection shapes are identical to P1, so T2 param parity holds by
-construction; A1 varies only the write rule (erase vs additive).
+construction; A1 varies only the write rule (erase vs additive) at matched
+key scale (unit-normed keys in both arms).
 Same W-window branch, fusion, and SwiGLU shell as P1.
 """
 
@@ -48,12 +49,16 @@ class GatedMapMemory(nn.Module):
         return torch.zeros(batch, self.heads, self.d_phi, self.d_v,
                            device=device, dtype=dtype)
 
+    def _normed_k(self, k: torch.Tensor) -> torch.Tensor:
+        k = self.k_norm(k)
+        return k / (k.norm(dim=-1, keepdim=True).clamp_min(1e-6))
+
     def step(self, x_t: torch.Tensor, S: torch.Tensor):
         q = self._split(self.w_q(x_t), self.d_k)
         k = self._split(self.w_k(x_t), self.d_k)
         v = self._split(self.w_v(x_t), self.d_v)
-        q = self.k_norm(q)
-        k = self.k_norm(k)
+        q = self._normed_k(q)
+        k = self._normed_k(k)
         beta = torch.sigmoid(self.w_beta(x_t)).clamp(BETA_MIN, BETA_MAX)
         alpha = torch.exp(-torch.exp(self.w_alpha(x_t)))
         pq, pk = poly_map(q), poly_map(k)
