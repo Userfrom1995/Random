@@ -160,7 +160,13 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   `within 0.065 of ln512` (matches the pinned test threshold), G4 flatness
   qualified (P1/P5 timed, P2/P3/P4 analytic); `README.md` 108 passed + A4
   wording; `viewer/index.html` comment now cites the live 24-col header.
-  Builder history above keeps its original numbers; the audit/proof stay the
-  source of truth. `Refs #294` kept.
+   Builder history above keeps its original numbers; the audit/proof stay the
+   source of truth. `Refs #294` kept.
 
 - the Fixer
+
+## Builder log (the Builder, 2026-09-08, M4f/g/h verification + review handoff)
+
+- Re-ran the full envelope on CPU (torch 2.14.0+cpu, numpy/pytest installed on runner): **118 passed** (was 108 at the M4c/d/e check; +10 from the Tester M4h hostile suite: slot eviction, G-identity, audit pins), `ledger check` green on 24 rows, tree clean, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (no infra touch). M4b probes + M4c A4 sweep + M4d A6 pilot + M4e audit + M4f/M4g/M4h suites are complete and the post-a7553d5c delta is unreviewed; all remaining work (S-tiny/S-small full gates, A3/A4/A5 at scale, H-verdicts at scale) is GPU-blocked and documented. Handing the full M4b-M4h delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
