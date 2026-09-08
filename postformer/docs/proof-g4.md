@@ -14,7 +14,7 @@ generates with O(1) state and O(1) latency per token.
 | P5 | map S (per layer) | (B, H, 2*d_k, d_v) | 2*B*H*d_k*d_v*e |
 | P5 | window K ring + V ring | same as P1 | same as P1 |
 | P2 | SSD S (per layer) | (B, H, d_k, d_v) | B*H*d_k*d_v*e |
-| P2 | global slots K+V (capped at G) | 2 x G x (B, H, d_k+d_v) | 2*G*B*H*(d_k+d_v)*e |
+| P2 | global slots K+V (capped at G) | G x (B, H, d_k) + G x (B, H, d_v) | G*B*H*(d_k+d_v)*e |
 | P2 | window K ring + V ring | same as P1 | same as P1 |
 | P3 | accumulator A + selective S | 2 x (B, H, d_k, d_v) | 2*B*H*d_k*d_v*e |
 | P3 | window K ring + V ring | same as P1 | same as P1 |
@@ -73,9 +73,9 @@ points at small T on reference configs; the full 1k-32k curve is M2 work.
 
 ## M3 state footprints (analytic `state_bytes()`, fp32, batch 1)
 
-- S-tiny P2 (G=16): SSD 262144 + slots 2*16*4*256*4 = 131072 + window
-  262144 + scalars = 655376 B/layer flat; x6 = 3932256 B (~3.75 MB, O(1)
+- S-tiny P2 (G=16): SSD 262144 + slots 16*4*256*4 = 65536 + window
+  262144 = 589824 B/layer flat; x6 = 3538944 B (~3.37 MB, O(1)
   in T, tier (a) by construction; timed curve is M3-gate work).
-- S-tiny P3: 2*262144 (A+S) + window 262144 + scalars = 786464 B/layer;
-  x6 = 4718784 B (~4.5 MB) flat, tier (a) by construction.
+- S-tiny P3: 2*262144 (A+S) + window 262144 = 786432 B/layer;
+  x6 = 4718592 B (~4.5 MB) flat, tier (a) by construction.
 - S-tiny P1/P5 reference: flat 3145824 / 4718688 B (see above).
