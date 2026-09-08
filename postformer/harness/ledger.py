@@ -46,8 +46,10 @@ EMPTY_ROW_TAGS = ("defer", "pend", "todo", "probe", "fixture",
 def _key(r):
     # A2 window variants and vocab pins share (model, seed); the full key
     # keeps those legitimate variants distinct while catching silent dupes.
-    return (r.get("model", ""), r.get("seed", ""),
-            r.get("vocab", ""), r.get("window", ""))
+    # Normalized to str: CSV rows are always strings but run-json values
+    # are JSON numbers, so raw comparison leaves dedup dead for real inputs.
+    return (str(r.get("model", "")), str(r.get("seed", "")),
+            str(r.get("vocab", "")), str(r.get("window", "")))
 
 
 def read_ledger(path):
