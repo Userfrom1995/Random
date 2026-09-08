@@ -58,10 +58,10 @@ def test_m4e_n16_csv_recompute_is_chance():
 
 
 def test_m4e_ledger_has_22_rows_all_toy_honest():
-    """Ledger must hold 22 rows and no toy row may claim a gate pass."""
+    """Ledger must hold 24 rows and no toy row may claim a gate pass."""
     with open(LEDGER) as f:
         rows = list(csv.DictReader(f))
-    assert len(rows) == 22, len(rows)
+    assert len(rows) == 24, len(rows)
     for r in rows:
         blob = (r["notes"] + r["model"]).lower()
         honest = ("toy" in blob or "smoke" in blob or "random init" in blob

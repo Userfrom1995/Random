@@ -162,4 +162,4 @@ def test_m4b_live_ledger_check_green_19_rows():
     """Live ledger must pass `check` (19 M1-M4b rows + A4 sweep rows)."""
     from postformer.harness.ledger import main as ledger_main
     ledger_main(["check", "--ledger", LEDGER])
-    assert len(_ledger_rows()) == 22
+    assert len(_ledger_rows()) == 24
