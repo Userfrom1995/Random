@@ -99,8 +99,8 @@ next to it.
   conclusion is INVALID pending re-eval with the fixed harness. Ledger rows
   now carry the true train-window in the `window` column with this disclaimer
   in `notes`.
-- G4 1k-32k: P1 1.06ms flat (<1%) with bytes flat 24592; P5 1.05ms flat
-  (bytes 40976); control 2.07/6.49/15.96ms at 1k/2k/4k with linear bytes.
+- G4 1k-32k: P1 1.06ms flat (<1%) with bytes flat 24576; P5 1.05ms flat
+  (bytes 40960); control 2.07/6.49/15.96ms at 1k/2k/4k with linear bytes.
   S-tiny analytic bytes: baseline 25M-805M linear vs P1 flat 3.15M.
   (The curve caught a real O(T)-per-step RoPE table rebuild; fixed with
   `RotaryEmbedding.row()`, parity still green.)
