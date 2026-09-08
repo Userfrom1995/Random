@@ -328,3 +328,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4n hostile suite (tiny causality/flatness/parity/live guards) landed at head since the M4m verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4n complete and pushed; S-tiny/S-small full gates remain GPU-blocked and documented. Handing the post-a7553d5c delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4o verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `cba76a3c`: `--unshallow` re-run, `merge-base HEAD FETCH_HEAD = cdf3cdae` (NOT orphan; missing base is the known shallow-clone artifact), PR #295 OPEN MERGEABLE per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests, zero `forward_chunk` refs, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-`.
+- No new training: Tester M4o hostile suite (M4b probe honesty + head pins) landed at head since the M4n verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4o complete and pushed; S-tiny/S-small full gates remain GPU-blocked and documented. Handing the post-a7553d5c delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
