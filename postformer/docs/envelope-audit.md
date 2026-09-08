@@ -41,16 +41,19 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
   W0/W16/W32 comparison is INVALID as an A2 result; the A2-re seed0 probe
   (W0 0.0875 / W16-ref 0.0625 / W32 0.05125) shows no window advantage at toy N8.
 - A3 (accumulator on/off): p3-noacc 0.06125 vs p3 0.0600. Unresolved at toy.
-- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G64 behaviorally
-  identical within the A4 CUDA sweep (identical params 336074 and identical
-  train loss 3.942723035812378; the M3 G16 match at 0.0825 is cross-env
+- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G64 summary-cell
+  equal (identical params 336074 and identical
+  train loss 3.942723035812378; per-episode N16 CSVs differ as
+  disclosed: 7 pred flips, acc/recall unchanged; G4 evicts at T=33,
+  so count scaling untested; the M3 G16 match at 0.0825 is cross-env
   corroboration only, CPU torch 2.14.0+cpu vs CUDA torch 2.14.0+cu130).
   N16 sits far below chance (1/64) for all measured A4-sweep arms
   (G0/G4/G64: 0.005625/0.00125/0.00125 vs chance 0.015625; M3 G16 N16
   unmeasured, ledger row 14 cell empty), so that column is noise floor,
   not signal.
   Slots beat pure-SSD, but toy episodes (T=33, stride 8) admit at most 5 slot
-  writes, so any G >= 5 holds full history and slot COUNT stays untested
+  writes, so only G >= 5 holds full history; G4 holds 4/5 and evicts
+  position 0, so slot COUNT stays untested
   until S-tiny N64+ (T_train 512). H2 open.
 - A6 (vocab stress): both arms at the 0.0 floor at vocab512 under the 1000-step
   toy budget (final loss within 0.065 of ln512); budget below threshold, no
