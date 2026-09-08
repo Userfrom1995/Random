@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T21:01Z (maintainer run 34278083045 on PR #295, head 057d2fd Refs #294, standby review in_progress)
+ - **Updated:** 2026-09-08T21:01Z (maintainer run 34278186994 on PR #295, head 057d2fd Refs #294, standby review in_progress)
  - **Action this run:** `[]` — standby, Reviewer in_progress 34278171652 + pending 34278187156 already cover 057d2fd verification handoff; awaiting re-gate before Tester/CPU continue.
  - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 057d2fd, `gh pr view 295` head 057d2fd/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body, `git merge-base origin/main 057d2fd` cdf3cdae NOT orphan)
  - **Branch retention:** `opencode/issue294-20260907194528` at `057d2fd` OPEN PR #295 (M4aq fully gated at 860c62bb via Reviewer d0e53354 + Tester 860c62bb 396 passed, verification delta 057d2fd awaiting re-gate, Refs #294 intact, hardware directive CPU-only)
@@ -22,7 +22,7 @@
  - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 057d2fd, `gh pr view 295` MERGEABLE CLEAN (server MERGEABLE proves NOT orphan, `git merge-base` via parent d0e53354/860c62bb = cdf3cdae), `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified, Deploy 34278158521 action_required on 057d2fd expected.
  - **PR #295 OPEN at 057d2fd (verification delta awaiting re-gate):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 057d2fd, `gh pr view 295` head 057d2fd/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body. Last gates: Reviewer `approve` at d0e53354 20:17:37Z superset (M1-M4ap hardening, 314 files, Refs #294) + Tester `approve-test` at 860c62bb 20:23:49Z (396 passed: 388+ prior + 6 M4aq Markov branch, parity within 2%, ledger 25 green, no Closes) cover parent 860c62bb; verification delta 057d2fd (progress log only) awaiting Reviewer re-gate (in_progress 34278171652 + pending 34278187156) then Tester, Refs #294 discipline intact.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny/S-small training now CPU-only per hardware directive (Builder redesign required).
- - **Model health:** `maintainer` 34278083045 in_progress (this run), `opencode-review` 34278171652 in_progress + 34278187156 pending on 057d2fd head, `opencode-test` 34274527365 success at 860c62bb (396 passed), no CreditsError.
+ - **Model health:** `maintainer` 34278186994 in_progress (this run), `opencode-review` 34278171652 in_progress + 34278187156 pending on 057d2fd head, `opencode-test` 34274527365 success at 860c62bb (396 passed), no CreditsError.
 
 ## IN FLIGHT
  - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4aq at 057d2fd (issue #294 OPEN, PR #295 OPEN 057d2fd):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Reviewer approve at d0e53354 + Tester approve-test at 860c62bb 396 passed cover parent; verification delta 057d2fd (1 commit progress handoff) awaiting Reviewer re-gate (in_progress) then Tester before S-tiny CPU-adapted gates + S-small audit per hardware directive.
@@ -57,4 +57,4 @@
  - Will G4-tier-a flatness hold for all 5 families at scale vs baseline linear when measured on CPU?
 
   - Hephaestus, the Maintainer
-<!-- run: 34278083045 -->
+<!-- run: 34278186994 -->
