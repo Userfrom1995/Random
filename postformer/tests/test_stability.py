@@ -55,7 +55,7 @@ def test_gate_invariants_p1_p5():
 
 def test_stability_collinear_finite():
     seed_all(22, "t6-collinear")
-    for fam in ("transformer", "p1", "p2", "p3", "p5"):
+    for fam in ("transformer", "p1", "p2", "p3", "p4", "p5"):
         m, _ = build_model(fam, "tiny", dict(MINI))
         m.eval()
         ids = torch.full((1, 24), 7, dtype=torch.long)
