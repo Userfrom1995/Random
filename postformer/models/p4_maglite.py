@@ -119,6 +119,8 @@ class P4Block(nn.Module):
                  win_heads: int, win_hd: int, window: int, mlp_hid: int,
                  chunk: int, rope_base: float = 10000.0):
         super().__init__()
+        if chunk < 1:
+            raise ValueError(f"chunk must be >= 1, got {chunk!r}")
         self.n1 = RMSNorm(d_model)
         self.n2 = RMSNorm(d_model)
         self.mem = SurpriseDeltaMemory(d_model, heads, d_k, d_v)
