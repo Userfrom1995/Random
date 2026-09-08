@@ -100,6 +100,6 @@ def test_v6_no_em_dashes_in_docs():
         ("docs/research/issue-294", "ideas/2026-09-0",
          "progress/294-", "postformer/"))]
     assert scoped, "no PR-scoped files found"
-    out = sp.run(["git", "grep", "-l", "—", "--"] + scoped,
+    out = sp.run(["git", "grep", "-l", "\u2014", "--"] + scoped,
                  capture_output=True, text=True).stdout.strip()
     assert out == "", out

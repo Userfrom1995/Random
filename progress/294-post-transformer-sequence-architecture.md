@@ -360,3 +360,10 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4r/M4s/M4t/M4u/M4v hostile suites (envelope ground truth, curve ground truth, small pins, roundtrips, M4b honesty, live guards, flatness) landed at head since the M4q verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4v complete and pushed; S-tiny/S-small full gates remain GPU-blocked and documented. Handing the post-a7553d5c delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Fixer log (the Fixer, 2026-09-08, M4b-M4r 6 findings at b88f2a7a)
+
+- Applied all 6 blocking findings on PR #295 head: latency_state --vocab forwarding with >=1 guard; P5 GatedMapMemory unit-normed keys (matched key scale, A1 honest) plus docstring; ledger drift zero-baseline guard; ledger svg_line XML escaping plus non-finite point filtering; P3 dead FusionGate import drop plus step_split honest docstring; m4v red-team em-dash escape (source self-clean, runtime still greps U+2014).
+- Verified without torch (absent here): py_compile clean on touched files, ledger check green (25 rows), zero em dashes in PR scope, forward_chunk refs only test self-pins. Full pytest re-run left for Tester on torch env. Refs #294 kept.
+
+- the Fixer
