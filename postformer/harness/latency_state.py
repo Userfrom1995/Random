@@ -53,20 +53,23 @@ def main(argv=None):
     p.add_argument("--warmup", type=int, default=20)
     p.add_argument("--batch-size", type=int, default=1)
     p.add_argument("--report-proof", action="store_true")
-    p.add_argument("--vocab", type=int, default=None)
+    p.add_argument("--vocab", type=int, default=None,
+                   help="eval vocab (train --vocab convention); "
+                        "model uses vocab_size = vocab + 2")
     a = p.parse_args(argv)
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     if a.vocab is not None and a.checkpoint:
         _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
         _cv = ((_blob.get("config") or {}).get("vocab_size")
                if isinstance(_blob, dict) else None)
-        if _cv is not None and int(_cv) != int(a.vocab):
+        if _cv is not None and int(_cv) != int(a.vocab) + 2:
             raise SystemExit(
-                f"--vocab {a.vocab} != checkpoint train vocab {_cv}; "
+                f"--vocab {a.vocab} (vocab_size {int(a.vocab) + 2}) != "
+                f"checkpoint train vocab_size {_cv}; "
                 f"refusing to partial-load or OOB the embedding")
-    if a.vocab is not None and int(a.vocab) < 1:
-        raise SystemExit(f"--vocab must be >= 1, got {a.vocab}")
-    _vocab_ov = {"vocab_size": int(a.vocab)} if a.vocab is not None else None
+    if a.vocab is not None and int(a.vocab) < 16:
+        raise SystemExit(f"--vocab must be >= 16, got {a.vocab}")
+    _vocab_ov = {"vocab_size": int(a.vocab) + 2} if a.vocab is not None else None
     model, cfg, random_init = load_model(a.model, a.checkpoint, a.config, _vocab_ov,
                                          a.device, a.dtype)
     vocab = int(a.vocab) if a.vocab is not None else cfg["vocab_size"]
