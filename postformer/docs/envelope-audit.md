@@ -33,14 +33,16 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
   H1/H5 unresolved (N=256 untested).
 - A2 (window on/off): rows 16/17 evals ran window 16 pre-fix, so the
   W0/W16/W32 comparison is INVALID as an A2 result; the A2-re seed0 probe
-  (W0 0.0875 / W16-ref 0.0625 / W32 0.0512) shows no window advantage at toy N8.
+  (W0 0.0875 / W16-ref 0.0625 / W32 0.05125) shows no window advantage at toy N8.
 - A3 (accumulator on/off): p3-noacc 0.0612 vs p3 0.0600. Unresolved at toy.
-- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G16 (M3) = G64 bit-identical.
+- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G16 (M3) = G64 behaviorally
+  identical at score level. N16 sits far below chance (1/64) for all A4 arms,
+  so that column is noise floor, not signal.
   Slots beat pure-SSD, but toy episodes (T=33, stride 8) admit at most 5 slot
   writes, so any G >= 5 holds full history and slot COUNT stays untested
   until S-tiny N64+ (T_train 512). H2 open.
 - A6 (vocab stress): both arms at the 0.0 floor at vocab512 under the 1000-step
-  toy budget (final loss within 0.06 of ln512); budget below threshold, no
+  toy budget (final loss within 0.065 of ln512); budget below threshold, no
   separation. Sizes the real A6 (3000+ steps or S-tiny).
 - A7 (retrieval-vs-drift): every toy arm shows mqar8 > 2hop > untrained
   transfer 0.0 (induction/copy at chance after MQAR-only training, as expected).
@@ -54,6 +56,7 @@ H4 NEGATIVE at toy (p4 0.035 below matched p1 ref 0.0625 and p2 0.0825).
 
 G1/G2/G3 trained gates: NOT measured (GPU-blocked; p1-tiny is ~1s/step at
 batch2/seq33 on CPU, so the binding gate is ~50+h/arm). G4: analytic + toy
-timed flatness holds for all five families (P1 1.06ms flat <1% 1k-32k;
-P2/P3/P4 flat by shared step-path construction; proof-g4.md is source of
+timed flatness holds (P1/P5 timed flat 1k-32k: P1 1.06ms flat <1%;
+P2/P3/P4 flat analytically by shared step-path construction, not timed;
+proof-g4.md is source of
 truth for byte inventories). G2/G3 trained cells are EMPTY by design.
