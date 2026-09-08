@@ -79,3 +79,13 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - Tests: 34 passed (T1/T2/T3 auto-extended over p2/p3 via conftest; test_m3.py A3/A4/slot-contract/G4-flatness/flags/loader-inheritance; T6 p2/p3 guards). Ideas entry: `ideas/2026-09-08-postformer-m3-decoupled-slots.md`.
 
 - the Builder
+
+## Fixer log (the Fixer, 2026-09-08, M3 review findings)
+
+- P3 `_guard`: scale computed under no-grad, applied outside (`return A * scale`), so trunk grads survive rescale firing (was detached by where() inside no-grad).
+- P2 `state_size`: slots `G*H*(d_k+d_v)` (was 2x), dropped phantom `H*bpe`; docstring matches. P3 `state_size`: conditional accumulator mem + window (no phantom `2*H` scalars); docstring notes A zeros when disabled.
+- Proof `docs/proof-g4.md`: P2/P3 inventory + S-tiny footprints corrected (P2 589824 B/layer, 3538944 B total; P3 786432 B/layer, 4718592 B total). Prior builder log lines above keep historical numbers; proof is the source of truth.
+- Nits: `SlotBuffer.append` stride check deduped (`0 % stride == 0` covers pos 0); `P2Block.step` detaches q/k/v on the eval-only incremental path (training forward keeps full slot-path grads).
+- Verified: py_compile clean on touched models; footprint arithmetic re-computed by hand (no torch on runner); full pytest T1-T6 + M3 suite left for the Tester on a torch env. Refs #294.
+
+- the Fixer
