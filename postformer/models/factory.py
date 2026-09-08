@@ -71,12 +71,6 @@ _FAMILY_DEFAULTS = {
 }
 
 
-def _p1_cfg(scale: str) -> dict:
-    cfg = _trunk_cfg(scale)
-    cfg["mlp_hid"] = _MLP_HID[("p1", scale)]
-    return cfg
-
-
 def _candidate_cfg(family: str, scale: str) -> dict:
     if family not in ("p1", "p2", "p3", "p4", "p5"):
         raise ValueError(f"unknown candidate family {family!r}")

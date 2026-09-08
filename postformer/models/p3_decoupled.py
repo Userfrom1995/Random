@@ -212,14 +212,17 @@ class P3Block(nn.Module):
         H, dk, dv = self.mem.heads, self.mem.d_k, self.mem.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        mem = (H * dk * dv * bpe if not self.mem.use_accumulator
-               else 2 * H * dk * dv * bpe)
-        return mem + win
+        # A stays resident (zeros when use_accumulator=False), so the
+        # inventory always counts both A and S.
+        return 2 * H * dk * dv * bpe + win
 
 
 class P3LM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
+        if config.get("tie_embeddings", False):
+            raise ValueError("tie_embeddings is baseline-only: P3 always "
+                             "builds a separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)
