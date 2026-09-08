@@ -92,5 +92,5 @@ def test_p4_state_flat_matches_p1():
     p1, _ = build_model("p1", "tiny", dict(MINI))
     p4.eval()
     p1.eval()
-    assert p4.state_bytes(1) == p1.state_bytes(1)
+    assert p4.state_bytes(1, 1024) == p1.state_bytes(1, 1024)
     assert p4.state_bytes(1, length=1024) == p4.state_bytes(1, length=32768)
