@@ -96,7 +96,9 @@ def main(argv=None):
                                          {"vocab_size": 256}, a.device, a.dtype)
     if cfg["vocab_size"] != 256:
         raise SystemExit(f"byte-level BPB needs vocab_size 256, got {cfg['vocab_size']}")
-    stride = a.stride or max(1, a.context // 2)
+    if a.stride is not None and a.stride < 1:
+        raise SystemExit("--stride must be >= 1")
+    stride = a.stride if a.stride is not None else max(1, a.context // 2)
     reseed(a.seed, f"g3-{a.split}")
     loss_nats, n_tok = score_stream(model, ids, a.context, stride, a.device, a.max_windows)
     bpb = loss_nats / math.log(2)
