@@ -160,6 +160,7 @@ def main(argv=None):
                     f"n_pairs <= vocab (distinct keys sampled without "
                     f"replacement); reduce --n-pairs or raise --vocab")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
+    _blob = None
     if a.checkpoint:
         _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
         _cv = ((_blob.get("config") or {}).get("vocab_size")
@@ -179,10 +180,9 @@ def main(argv=None):
         # unless explicitly overridden; silently evaluating a W0/W32
         # checkpoint as W16 invalidates the ablation (M2 review finding).
         ckpt_window, cfg_window = None, None
-        if a.checkpoint:
-            blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
-            if isinstance(blob, dict):
-                ckpt_window = (blob.get("config") or {}).get("window")
+        if _blob is not None:
+            if isinstance(_blob, dict):
+                ckpt_window = (_blob.get("config") or {}).get("window")
         if a.config:
             import yaml
             with open(a.config) as f:
