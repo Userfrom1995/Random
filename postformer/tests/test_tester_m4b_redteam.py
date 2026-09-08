@@ -128,7 +128,7 @@ def test_m4b_curves_complete_and_finite():
     for name in expected[:5]:
         with open(os.path.join(M4B, name)) as f:
             rd = csv.DictReader(f)
-            assert "correct" in rd.fieldnames or "loss" in rd.fieldnames or True
+            assert "correct" in rd.fieldnames or "loss" in rd.fieldnames
             for row in rd:
                 for k in ("correct", "loss"):
                     if k in row and row[k] not in ("", None):
@@ -158,8 +158,8 @@ def test_m4b_p4_parity_and_state_still_exact():
     assert p4.state_bytes(1, length=1024) == p4.state_bytes(1, length=32768)
 
 
-def test_m4b_live_ledger_check_green_19_rows():
-    """Live ledger must pass `check` (19 M1-M4b rows + A4 sweep rows)."""
+def test_m4b_live_ledger_check_green_24_rows():
+    """Live ledger must pass `check` (24 M1-M4e rows)."""
     from postformer.harness.ledger import main as ledger_main
     ledger_main(["check", "--ledger", LEDGER])
     assert len(_ledger_rows()) == 24
