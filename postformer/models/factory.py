@@ -121,6 +121,7 @@ def build_model(name: str, scale: str, overrides: dict | None = None):
     if overrides and overrides.get("tie_embeddings"):
         raise ValueError("tie_embeddings is rejected: it silently breaks the pinned "
                          "+-2% param parity (baseline would drop its d*vocab head)")
+    if overrides:
         cfg.update({k: v for k, v in overrides.items() if v is not None})
     if family == "transformer":
         model = _b.DecoderLM(cfg)
