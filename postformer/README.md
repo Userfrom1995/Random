@@ -90,7 +90,8 @@ next to it.
 ## M2 toy results (matched budget, 3 seeds, `ledger/ledger.csv` data rows 5-13)
 
 - MQAR N8 (train N): P5 0.300 / P1 0.2875 / Transformer 0.146 (chance 0.016).
-  A1: delta shows no advantage over the additive map at toy N8 (H1/H5
+  A1: INVALID (P5 cells pre unit-norm fix, ledger rows 8-10; control math
+  changed after measurement, no delta conclusion until P5 re-run; H1/H5
   unresolved - N=256 untested). N16 extrapolation collapses for all arms
   (P1 0.039, P5 0.000, T 0.091). 2-hop: P5 0.532 / P1 0.46 / T 0.118.
 - A2 W{0,16,32}: N8 0.275/0.287/0.251 - HOWEVER the pre-fix G1 harness had
