@@ -27,7 +27,7 @@ P1 on MQAR N=64 by more than 10 points at matched budget, the
 gradient-compression fidelity hypothesis is recorded as rejected.
 
 State per layer (batch 1): H*d_k*d_v (fast weights M) + 2*W*d_win
-(window KV) + H scalars. No factor of T.
+(window KV). No factor of T.
 Reference kernel: forward_recurrent applies step() token-by-token;
 chunk groups loop iterations only and has no mathematical effect.
 """
@@ -152,12 +152,15 @@ class P4Block(nn.Module):
         H, dk, dv = self.mem.heads, self.mem.d_k, self.mem.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        return H * dk * dv * bpe + win + H * bpe
+        return H * dk * dv * bpe + win
 
 
 class P4LM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
+        if config.get("tie_embeddings", False):
+            raise ValueError("tie_embeddings is baseline-only: P4 always "
+                             "builds a separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)

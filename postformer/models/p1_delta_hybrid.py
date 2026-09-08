@@ -7,8 +7,8 @@ with k RMSNormed to unit norm, beta = sigmoid clamped to [0.01, 0.99]
 (ii) exact sliding-window attention (W = 128) for local induction;
 (iii) learned per-token fusion gate; (iv) SwiGLU.
 
-State per layer (batch 1): H*d_k*d_v (delta S) + 2*W*d_win (window KV) +
-H scalars. No factor of T. Reference kernel: forward_recurrent applies step()
+State per layer (batch 1): H*d_k*d_v (delta S) + 2*W*d_win (window KV).
+No factor of T. Reference kernel: forward_recurrent applies step()
 token-by-token (chunk groups loop iterations only); step() is the single-token form.
 """
 
@@ -207,12 +207,15 @@ class P1Block(nn.Module):
         H, dk, dv = self.delta.heads, self.delta.d_k, self.delta.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        return H * dk * dv * bpe + win + H * bpe
+        return H * dk * dv * bpe + win
 
 
 class P1LM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
+        if config.get("tie_embeddings", False):
+            raise ValueError("tie_embeddings is baseline-only: P1 always "
+                             "builds a separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)

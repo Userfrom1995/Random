@@ -91,12 +91,15 @@ class P5Block(P1Block):
         H, dp, dv = self.delta.heads, self.delta.d_phi, self.delta.d_v
         W, wd = self.window.window, self.window.wd
         win = 2 * W * wd * bpe if W > 0 else 0
-        return H * dp * dv * bpe + win + H * bpe
+        return H * dp * dv * bpe + win
 
 
 class P5LM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
+        if config.get("tie_embeddings", False):
+            raise ValueError("tie_embeddings is baseline-only: P5 always "
+                             "builds a separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)
