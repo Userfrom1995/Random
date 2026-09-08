@@ -5,8 +5,9 @@ Gated linear attention with a parameter-free degree-2 polynomial map
 and a SCALED ADDITIVE write (A1 counterpart to the P1 delta erase):
   S_t = alpha_t * S_{t-1} + beta_t * phi(k_t) v_t^T.
 Projection shapes are identical to P1, so T2 param parity holds by
-construction; A1 varies only the write rule (erase vs additive) at matched
-key scale (unit-normed keys in both arms).
+construction; A1 varies the write rule (erase vs additive); NOTE q/k
+unit-norm differs from P1 (raw q, RMSNorm-only k), so query scale also
+differs - see docs/envelope-audit.md.
 Same W-window branch, fusion, and SwiGLU shell as P1.
 """
 
