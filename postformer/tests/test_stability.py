@@ -53,7 +53,7 @@ def test_gate_invariants_p1_p5():
           f"worst P5 beta*||phi(k)||^2 = {worst_p5:.4f} (< {P5_SMOKE_CAP} smoke cap)")
 
 
-def test_stability_collinear_finite():
+def test_stability_collinear_stays_finite():
     seed_all(22, "t6-collinear")
     for fam in ("transformer", "p1", "p2", "p3", "p4", "p5"):
         m, _ = build_model(fam, "tiny", dict(MINI))
@@ -62,6 +62,7 @@ def test_stability_collinear_finite():
         with torch.no_grad():
             out = m(ids)
         assert torch.isfinite(out).all(), fam
+        # Smoke bound (not an envelope claim): collinear stress must not explode.
         assert float(out.abs().max()) < 1e6, (fam, float(out.abs().max()))
 
 
