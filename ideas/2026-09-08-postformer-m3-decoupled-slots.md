@@ -61,7 +61,7 @@ Matched toy probes, seed0, 1000 steps x batch16 = 0.528M tokens/arm,
 vocab64/N8, G1 100 episodes (`postformer/ledger/curves/m3-toy/`, 12 summaries):
 
 - A2-re (fixed loader, eval window == train window): W0 0.0875 / W16
-  0.0625 / W32 0.0512 (2-hop 0.01 all). No window advantage at toy N8;
+  0.0625 / W32 0.05125 (2-hop 0.01 all). No window advantage at toy N8;
   W0 numerically best. A2 gate verdict still needs S-tiny N64+.
 - M3 first falsification: p2 (G16/s8) mqar8 0.0825 / 2hop 0.03 - above the
   matched p1-W16 ref (0.0625), below M2b 3000-step arms (different budget,
