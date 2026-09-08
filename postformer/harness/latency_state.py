@@ -55,6 +55,14 @@ def main(argv=None):
     p.add_argument("--vocab", type=int, default=None)
     a = p.parse_args(argv)
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
+    if a.vocab is not None and a.checkpoint:
+        _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
+        _cv = ((_blob.get("config") or {}).get("vocab_size")
+               if isinstance(_blob, dict) else None)
+        if _cv is not None and int(_cv) != int(a.vocab):
+            raise SystemExit(
+                f"--vocab {a.vocab} != checkpoint train vocab {_cv}; "
+                f"refusing to partial-load or OOB the embedding")
     model, cfg, random_init = load_model(a.model, a.checkpoint, a.config, None,
                                          a.device, a.dtype)
     vocab = a.vocab or cfg["vocab_size"]

@@ -25,15 +25,19 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     config unless the caller explicitly overrides them; a --config file
     value disagreeing with the checkpoint on these keys fails loudly.
     The --window CLI override stays explicitly allowed (deliberate A2
-    protocol, guarded per-harness in synthetic_recall).
+    protocol): an explicit window in extra_overrides may differ from the
+    checkpoint, but a --config file window may not. Length/latency/enwik8
+    harnesses have no --window flag, so any window mismatch there fails
+    via this shared guard.
 
     Returns (model.eval(), config, random_init_flag).
     """
     parts = name.rsplit("-", 1)
     if len(parts) != 2:
         raise SystemExit(f"--model must look like p1-tiny, got {name!r}")
-    family, scale = parts
+    family, scale = name.split("-", 1)[0], parts[1]
     overrides = dict(extra_overrides or {})
+    file_cfg = {}
     if config_path:
         with open(config_path) as f:
             file_cfg = yaml.safe_load(f) or {}
@@ -52,6 +56,15 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
                 f"--config {k}={overrides[k]!r} != checkpoint train "
                 f"{k}={ckpt_cfg[k]!r}; refusing to silently run the wrong "
                 f"ablation arm")
+    if ("window" in ckpt_cfg and "window" in overrides
+            and overrides["window"] != ckpt_cfg["window"]):
+        explicit_window = (extra_overrides or {}).get("window", None)
+        if not (explicit_window is not None
+                and overrides["window"] == explicit_window):
+            raise SystemExit(
+                f"--config window={overrides['window']!r} != checkpoint train "
+                f"window={ckpt_cfg['window']!r}; refusing to silently run the "
+                f"wrong ablation arm (pass --window explicitly to override)")
     model, cfg = build_model(family, scale, overrides or None)
     random_init = False
     if blob is not None:
