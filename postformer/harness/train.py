@@ -157,6 +157,13 @@ def main(argv=None):
     dev = torch.device(a.device)
 
     overrides = {"vocab_size": a.vocab + 2}
+    family = a.model.rsplit("-", 1)[0]
+    if a.window is not None and family not in ("p1", "p2", "p3", "p4", "p5"):
+        raise SystemExit("--window applies to p1/p2/p3/p4/p5 arms only (transformer has no window)")
+    if a.slots is not None and family != "p2":
+        raise SystemExit("--slots applies to p2 arms only")
+    if a.no_accumulator and family != "p3":
+        raise SystemExit("--no-accumulator applies to p3 arms only")
     if a.window is not None:
         if a.window < 0:
             raise SystemExit("--window must be >= 0")
