@@ -68,20 +68,21 @@ def test_m4i_cross_vocab_probe_no_false_positive(tmp_path):
     """R1: wild-params arm at a vocab with no baseline must be skipped, not failed."""
     p = str(tmp_path / "ledger.csv")
     _write(p, [_baseline(vocab="64"),
-               _row(model="p9-probe-toy", params="999999999", seed="9",
+               _row(model="p1-toy", params="999999999", seed="9",
                     vocab="999", gateval="0.05")])
     ledger_main(["check", "--ledger", p])
 
 
-def test_m4i_same_vocab_drift_still_fails_loudly(tmp_path):
+def test_m4i_same_vocab_drift_still_fails_loudly(tmp_path, capsys):
     """Guard must survive the R1 fix: >2% drift at a baselined (scale,vocab) fails."""
     import pytest
     p = str(tmp_path / "ledger.csv")
     _write(p, [_baseline(vocab="64"),
-               _row(model="p9-probe-toy", params="1", seed="9",
+               _row(model="p1-toy", params="1", seed="9",
                     vocab="64", gateval="0.05")])
     with pytest.raises(SystemExit):
         ledger_main(["check", "--ledger", p])
+    assert "param drift" in capsys.readouterr().out
 
 
 def test_m4i_train_guard_rejects_suffixed_p2_slots():

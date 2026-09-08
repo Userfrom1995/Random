@@ -97,17 +97,18 @@ def test_m4f_a6_ledger_cells_match_summaries():
             s["mqar"]["16"]["acc"], abs=1e-9), (model, rows[model])
 
 
-def test_m4f_same_vocab_drift_still_fails_loudly(tmp_path):
-    """A >2% drifter at an existing (scale, vocab) must fail check."""
+def test_m4f_same_vocab_drift_still_fails_loudly(tmp_path, capsys):
+    """A >2% drifter at an existing (scale, vocab) must fail check on drift."""
     copy = str(tmp_path / "ledger.csv")
     shutil.copy(LEDGER, copy)
     bad = str(tmp_path / "bad.json")
-    json.dump({"model": "p9-probe-toy", "params": 1, "train_tokens": 528000,
+    json.dump({"model": "p1-toy", "params": 1, "train_tokens": 528000,
                "seed": 9, "vocab": 64, "window": 16, "g1_mqar_8": 0.05,
                "notes": "same-vocab drift probe Refs #294"}, open(bad, "w"))
     ledger_main(["append", "--run-json", bad, "--ledger", copy, "--force"])
     with pytest.raises(SystemExit):
         ledger_main(["check", "--ledger", copy])
+    assert "param drift" in capsys.readouterr().out
 
 
 def test_m4f_cross_vocab_drift_does_not_false_positive(tmp_path):
@@ -115,7 +116,7 @@ def test_m4f_cross_vocab_drift_does_not_false_positive(tmp_path):
     copy = str(tmp_path / "ledger.csv")
     shutil.copy(LEDGER, copy)
     odd = str(tmp_path / "odd.json")
-    json.dump({"model": "p9-probe-toy", "params": 999999999,
+    json.dump({"model": "p1-toy", "params": 999999999,
                "train_tokens": 528000, "seed": 9, "vocab": 999,
                "window": 16, "g1_mqar_8": 0.05,
                "notes": "cross-vocab grouping probe Refs #294"}, open(odd, "w"))
