@@ -99,8 +99,8 @@ def test_m4h_envelope_audit_pins_match_proof():
 
 
 def test_m4h_a6_vocab_pilot_grouped_drift_in_gate():
-    c_p1, _ = count_params("p1", "toy", {"vocab": 512})
-    c_tr, _ = count_params("transformer", "toy", {"vocab": 512})
+    c_p1, _ = count_params("p1", "toy", {"vocab_size": 514})
+    c_tr, _ = count_params("transformer", "toy", {"vocab_size": 514})
     drift = abs(c_p1 - c_tr) / c_tr
     assert drift <= 0.02, drift
     with open("postformer/ledger/ledger.csv") as f:

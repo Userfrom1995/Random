@@ -83,7 +83,7 @@ def test_m4g_single_arm_cells_match_ledger():
     assert float(g64["g1_mqar_8"]) == pytest.approx(0.0825, abs=1e-9)
     assert float(g0["g1_mqar_8"]) < float(g4["g1_mqar_8"])
     for m in ("p1-toy", "transformer-toy"):
-        v512 = by_model[(m, "512")][0]
+        v512 = [r for r in rows if r["model"] == m and r["vocab"] == "512"][0]
         assert float(v512["g1_mqar_8"]) == 0.0
         assert float(v512["g1_mqar_16"]) == 0.0
         assert float(v512["g1_2hop"]) == 0.0
