@@ -66,6 +66,9 @@ def main(argv=None):
         raise SystemExit("--warmup must be >= 0")
     if not parse_int_list(a.lengths):
         raise SystemExit("--lengths must list at least one length")
+    for _t in parse_int_list(a.lengths):
+        if _t < 1:
+            raise SystemExit(f"--lengths entry {_t} must be >= 1")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     if a.vocab is not None and a.checkpoint:
         _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
