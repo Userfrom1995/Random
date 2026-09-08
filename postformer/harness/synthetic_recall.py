@@ -149,6 +149,16 @@ def main(argv=None):
         raise SystemExit("--vocab must be >= 16")
     if a.window is not None and a.window < 0:
         raise SystemExit("--window must be >= 0")
+    tasks = ["mqar", "induction", "copying", "bind2hop"] if a.task == "all" else [a.task]
+    if "mqar" in tasks:
+        for n in parse_int_list(a.n_pairs):
+            if n < 1:
+                raise SystemExit(f"--n-pairs {n} must be >= 1 (--vocab {a.vocab})")
+            if n > a.vocab:
+                raise SystemExit(
+                    f"--n-pairs {n} > --vocab {a.vocab}; MQAR needs "
+                    f"n_pairs <= vocab (distinct keys sampled without "
+                    f"replacement); reduce --n-pairs or raise --vocab")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     if a.checkpoint:
         _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
@@ -194,8 +204,7 @@ def main(argv=None):
     info["dtype"] = a.dtype
     summary = {"model": a.model, "config": cfg, "seed": a.seed,
                "params_no_embed": param_count_no_embed(model),
-               "episodes": a.episodes, "random_init": random_init, "env": info}
-    tasks = ["mqar", "induction", "copying", "bind2hop"] if a.task == "all" else [a.task]
+                "episodes": a.episodes, "random_init": random_init, "env": info}
     if "mqar" in tasks:
         summary["mqar"] = {}
         for n in parse_int_list(a.n_pairs):
