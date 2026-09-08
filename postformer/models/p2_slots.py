@@ -248,6 +248,9 @@ class P2Block(nn.Module):
 class P2LM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
+        if config.get("tie_embeddings", False):
+            raise ValueError("tie_embeddings is baseline-only: P2 always "
+                             "builds a separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)
