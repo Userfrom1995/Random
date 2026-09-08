@@ -1,6 +1,6 @@
 """Model factory: build_model(name, scale, overrides) -> (model, config).
 
-Names: transformer | p1 | p2 | p3 | p5  x  toy | tiny | small,
+Names: transformer | p1 | p2 | p3 | p4 | p5  x  toy | tiny | small,
 e.g. "p1-tiny". Pinned configs (non-embedding params; MLP hid trimmed so
 each candidate lands within +-2% of its baseline arm - verified by
 tests/test_params.py):
@@ -9,16 +9,20 @@ tests/test_params.py):
   p1/p5-tiny:       6L d512 4xh(dk128,dv128) W128 C64  win 4x64 mlp1704
   p2-tiny:          6L d512 4xh(dk128,dv128) W128 C64  win 4x64 mlp1704 G16
   p3-tiny:          6L d512 4xh(dk128,dv128) W128 C64  win 4x64 mlp1532
+  p4-tiny:          6L d512 4xh(dk128,dv128) W128 C64  win 4x64 mlp1702
   transformer-small: 12L d768 12h mlp3072        (reference, 113462016, ~113.46M)
   p1/p5-small:      12L d768 6xh(dk128,dv128) W128 C128 win 4x64 mlp2726
   p2-small:         12L d768 6xh(dk128,dv128) W128 C128 win 4x64 mlp2726 G16
   p3-small:         12L d768 6xh(dk128,dv128) W128 C128 win 4x64 mlp2468
+  p4-small:         12L d768 6xh(dk128,dv128) W128 C128 win 4x64 mlp2724
 
 P2's stride router is parameter-free, so it shares P1's MLP hid; P3's
 second output proj plus third gate proj costs one hid step (toy 274,
-tiny 1532, small 2468 - measured, not estimated).
+tiny 1532, small 2468 - measured, not estimated). P4 adds one
+surprise proj (d_model x H) plus a per-head error gain (H params) over
+P1, compensated by trimming 2 hid units (measured, see test_params.py).
 
-tie_embeddings is baseline-only: P1/P2/P3/P5 always build a separate
+tie_embeddings is baseline-only: P1/P2/P3/P4/P5 always build a separate
 lm_head, so passing tie_embeddings for them is rejected to protect
 param parity.
 """
@@ -28,6 +32,7 @@ from .common import param_count_no_embed
 from .p1_delta_hybrid import P1LM
 from .p2_slots import P2LM
 from .p3_decoupled import P3LM
+from .p4_maglite import P4LM
 from .p5_map import P5LM
 
 
@@ -56,6 +61,7 @@ _MLP_HID = {
     ("p5", "toy"): 296, ("p5", "tiny"): 1704, ("p5", "small"): 2726,
     ("p2", "toy"): 296, ("p2", "tiny"): 1704, ("p2", "small"): 2726,
     ("p3", "toy"): 274, ("p3", "tiny"): 1532, ("p3", "small"): 2468,
+    ("p4", "toy"): 294, ("p4", "tiny"): 1702, ("p4", "small"): 2724,
 }
 
 _FAMILY_DEFAULTS = {
@@ -72,7 +78,7 @@ def _p1_cfg(scale: str) -> dict:
 
 
 def _candidate_cfg(family: str, scale: str) -> dict:
-    if family not in ("p1", "p2", "p3", "p5"):
+    if family not in ("p1", "p2", "p3", "p4", "p5"):
         raise ValueError(f"unknown candidate family {family!r}")
     cfg = _trunk_cfg(scale)
     cfg["mlp_hid"] = _MLP_HID[(family, scale)]
@@ -84,13 +90,13 @@ def build_model(name: str, scale: str, overrides: dict | None = None):
     family = name.split("-", 1)[0]
     if family == "transformer":
         cfg = dict(_b.SCALES[scale])
-    elif family in ("p1", "p2", "p3", "p5"):
+    elif family in ("p1", "p2", "p3", "p4", "p5"):
         cfg = _candidate_cfg(family, scale)
     else:
         raise ValueError(f"unknown family {family!r} in {name!r}")
     if overrides:
-        if family in ("p1", "p2", "p3", "p5") and overrides.get("tie_embeddings"):
-            raise ValueError("tie_embeddings is baseline-only: P1/P2/P3/P5 always "
+        if family in ("p1", "p2", "p3", "p4", "p5") and overrides.get("tie_embeddings"):
+            raise ValueError("tie_embeddings is baseline-only: P1/P2/P3/P4/P5 always "
                              "build a separate lm_head; allowing the override "
                              "would silently break param parity")
         cfg.update({k: v for k, v in overrides.items() if v is not None})
@@ -102,6 +108,8 @@ def build_model(name: str, scale: str, overrides: dict | None = None):
         model = P2LM(cfg)
     elif family == "p3":
         model = P3LM(cfg)
+    elif family == "p4":
+        model = P4LM(cfg)
     else:
         model = P5LM(cfg)
     return model, cfg
