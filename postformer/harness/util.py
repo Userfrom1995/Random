@@ -19,6 +19,15 @@ DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
 def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     """Build (family-scale) model; load checkpoint if given else seeded random init.
 
+    Non-parameter ablation keys (window, slots, use_accumulator,
+    slot_stride) are not tensor shapes, so a state_dict load cannot catch
+    their mismatch (M2 A2 lesson: a W0 checkpoint silently evaluated as
+    W16). They are therefore inherited from the checkpoint's stored
+    config unless the caller explicitly overrides them; a --config file
+    value disagreeing with the checkpoint on these keys fails loudly.
+    The --window CLI override stays explicitly allowed (deliberate A2
+    protocol, guarded per-harness in synthetic_recall).
+
     Returns (model.eval(), config, random_init_flag).
     """
     parts = name.rsplit("-", 1)
@@ -30,10 +39,23 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
         with open(config_path) as f:
             file_cfg = yaml.safe_load(f) or {}
         overrides.update(file_cfg)
-    model, cfg = build_model(family, scale, overrides or None)
-    random_init = False
+    ckpt_cfg, blob = {}, None
     if checkpoint:
         blob = torch.load(checkpoint, map_location="cpu", weights_only=False)
+        if isinstance(blob, dict):
+            ckpt_cfg = blob.get("config") or {}
+    for k in ("window", "slots", "use_accumulator", "slot_stride"):
+        if k in ckpt_cfg and k not in overrides:
+            overrides[k] = ckpt_cfg[k]
+    for k in ("slots", "use_accumulator", "slot_stride"):
+        if k in overrides and k in ckpt_cfg and overrides[k] != ckpt_cfg[k]:
+            raise SystemExit(
+                f"--config {k}={overrides[k]!r} != checkpoint train "
+                f"{k}={ckpt_cfg[k]!r}; refusing to silently run the wrong "
+                f"ablation arm")
+    model, cfg = build_model(family, scale, overrides or None)
+    random_init = False
+    if blob is not None:
         sd = blob["state_dict"] if isinstance(blob, dict) and "state_dict" in blob else blob
         missing, unexpected = model.load_state_dict(sd, strict=False), None
         if missing.missing_keys or missing.unexpected_keys:
