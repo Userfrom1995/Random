@@ -198,13 +198,15 @@ def cmd_check(a):
                               f"p2-G0-toy are filename labels, never ledger names)")
                 continue
             scale = m.group(2)
-            by_scale.setdefault((scale, r.get("vocab", "")), []).append(r)
+            by_scale.setdefault((scale, _norm(r.get("vocab", ""))), []).append(r)
         for (scale, vocab), group in by_scale.items():
             base = [g for g in group if g["model"].startswith("transformer-")]
             if not base:
                 # No baseline at this (scale, vocab): nothing to compare,
-                # so skip the drift gate (warn-free); drift is enforced
-                # only when a baseline exists (M4i R1 incremental state).
+                # so skip the drift gate; drift is enforced only when a
+                # baseline exists (M4i R1 incremental state).
+                print(f"note: no transformer baseline at scale {scale} "
+                      f"vocab {vocab!r}; skipping drift gate there")
                 continue
             try:
                 bps = {float(str(g["params"]).strip()) for g in base}

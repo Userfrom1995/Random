@@ -134,8 +134,8 @@ def main(argv=None):
     a = p.parse_args(argv)
     if a.vocab < 16:
         raise SystemExit("--vocab must be >= 16")
-    if a.n_pairs >= a.vocab:
-        raise SystemExit("--n-pairs must be < --vocab (keys sampled without replacement)")
+    if a.n_pairs > a.vocab:
+        raise SystemExit("--n-pairs must be <= --vocab (keys sampled without replacement)")
     if a.n_pairs < 1:
         raise SystemExit("--n-pairs must be >= 1")
     if a.steps < 1:
