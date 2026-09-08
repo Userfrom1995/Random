@@ -399,3 +399,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4ad hostile final-gate suite (current-head pins, 300 passed at 448e838c + 6 new, all green per Tester approve-test) landed at head since the M4ac verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ad complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-448e838c delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ae verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `595f5075`: `--unshallow` re-run, `merge-base HEAD FETCH_HEAD = cdf3cdae` (NOT orphan; missing base is the known shallow-clone artifact), PR #295 OPEN MERGEABLE per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (302 changed files, all in scope), zero `forward_chunk` code refs in shipped code (remaining hits are test-file self-pins only).
+- No new training: Tester M4ae hostile suite (p2/p3/p5 MINI causality, all-family tie_embeddings rejection, parse_model_name locks, p4 window routing, commit-discipline lock) landed at head since the M4ad verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ae complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-22012286 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
