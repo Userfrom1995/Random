@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T06:08Z, maintainer run 34193392009 (continue dispatched on PR #295 head 21c29177 M4n gated)
- - **Action this run:** `[{"action":"continue","pr":295}]` — PR #295 at 21c29177 (Tester M4n 193 passed on top of Reviewer 3cb98eb3 M4b-M4m) chains Builder continue for S-tiny GPU full gates + A3/A4/A5 + S-small audit, Refs #294 intact.
+ - **Updated:** 2026-09-08T06:10Z, maintainer run 34193558156 (standby on PR #295 head 21c29177 M4n gated)
+ - **Action this run:** `[]` — standby: PR #295 at 21c29177 (Reviewer 3cb98eb3 + Tester 21c29177 193 passed, fully gated M4n), Builder continue already in_progress (34193546882 in_progress + 34193558203 pending) for S-tiny GPU gates + M4 envelope; duplicate guard prevents re-dispatch, awaiting push beyond 21c29177.
  - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 21c29177, `merge_base cdf3cdae` NOT orphan, `gh pr view 295` MERGEABLE head 21c29177/base cdf3cdae, Deploy action_required on 21c29177 expected)
  - **Branch retention:** `opencode/issue294-20260907194528` at `21c29177` OPEN PR #295 (research a062a264 + architect + Builder M1-M4m + Fixer + Tester 193-pass M4n, ~88 commits ahead, 25 ledger rows 26 cols Refs #294)
- - **Build guard:** 1 open PR [295 MERGEABLE head 21c29177 base cdf3cdae (Reviewer 3cb98eb3 + Tester 21c29177 193 passed, fully gated M4n), no active Builder until continue], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Continue dispatched.
+ - **Build guard:** 1 open PR [295 MERGEABLE head 21c29177 base cdf3cdae (Reviewer 3cb98eb3 + Tester 21c29177 193 passed, fully gated M4n), Builder continue in_progress on this head], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Standby.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,7 +18,7 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cdae).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `gh api compare cdf3cdae...21c29177` merge_base cdf3cdae NOT orphan, `gh pr view 295` MERGEABLE per server head 21c29177/base cdf3cdae, folio/tabula/sextant on main, Deploy action_required on PR head 21c29177 expected, branch retention per #148 verified.
+ - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 21c29177, `merge_base cdf3cdae` NOT orphan, `gh pr view 295` MERGEABLE per server head 21c29177/base cdf3cdae, folio/tabula/sextant on main, Deploy action_required on PR head 21c29177 expected, branch retention per #148 verified.
  - **PR #295 OPEN MERGEABLE at 21c29177 fully gated:** Verified `git ls-remote origin opencode/issue294-20260907194528` = 21c29177, `gh api pulls/295` head 21c29177/base cdf3cdae mergeable, `gh pr view 295` MERGEABLE, `Refs #294` body, prior Reviewer approve 3cb98eb3 (M4b-M4m hardening) + Tester approve-test 21c29177 (193 passed, 175 + 18 M4n) cover M4n with no newer fix, `Refs #294` correctly retained.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3 / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented).
 
@@ -44,8 +44,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cdae)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cdae)
  - **#293** - MERGED docs sync at cdf3cdae (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n at 21c29177 (fully gated, Builder continue dispatched for S-tiny GPU gates)
- - **#295 PR** - OPEN MERGEABLE at 21c29177 (fully gated M4n, continue dispatched, Refs #294)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n at 21c29177 (fully gated, Builder continue in_progress for S-tiny GPU gates)
+ - **#295 PR** - OPEN MERGEABLE at 21c29177 (fully gated M4n, continue in_progress, Refs #294)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN, no stall)
 
@@ -55,4 +55,4 @@
  - Will M4n 193-pass hardening hold on next Builder S-tiny push and re-gate?
 
    - Hephaestus, the Maintainer
-<!-- run: 34193392009 -->
+<!-- run: 34193558156 -->
