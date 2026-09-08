@@ -46,10 +46,30 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     overrides = dict(file_cfg or {})
     overrides.update({k: v for k, v in (extra_overrides or {}).items() if v is not None})
     ckpt_cfg, blob = {}, None
+    ckpt_provenance = None
     if checkpoint:
         blob = torch.load(checkpoint, map_location="cpu", weights_only=False)
         if isinstance(blob, dict):
             ckpt_cfg = blob.get("config") or {}
+            args = blob.get("args") or {}
+            prov = args.get("model") if isinstance(args, dict) else None
+            if isinstance(prov, str) and prov:
+                try:
+                    ckpt_provenance = parse_model_name(prov)[0]
+                except SystemExit:
+                    ckpt_provenance = None
+    # Checkpoint trust boundary (M4at lesson): p1<->p5 share identical
+    # state_dict key sets by design, so strict=False passes vacuously and
+    # a p1 blob scored as p5 (or reverse) exits 0 with the wrong family
+    # label. Refuse loudly when the checkpoint's stored provenance
+    # (blob['args']['model']) disagrees on family. Fail open when
+    # provenance is absent (hand-made blobs, plain state_dicts) so the
+    # trusted same-family path and legacy blobs keep loading.
+    if ckpt_provenance is not None and ckpt_provenance != family:
+        raise SystemExit(
+            f"checkpoint family={ckpt_provenance!r} != requested "
+            f"family={family!r}; refusing to silently score the wrong "
+            f"family arm")
     for k in ("window", "slots", "use_accumulator", "slot_stride"):
         if k in ckpt_cfg and k not in overrides:
             overrides[k] = ckpt_cfg[k]
