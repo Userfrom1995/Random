@@ -157,7 +157,8 @@ def main(argv=None):
     dev = torch.device(a.device)
 
     overrides = {"vocab_size": a.vocab + 2}
-    family = a.model.rsplit("-", 1)[0]
+    family = a.model.split("-", 1)[0]
+    scale = a.model.rsplit("-", 1)[1]
     if a.window is not None and family not in ("p1", "p2", "p3", "p4", "p5"):
         raise SystemExit("--window applies to p1/p2/p3/p4/p5 arms only (transformer has no window)")
     if a.slots is not None and family != "p2":
@@ -177,7 +178,7 @@ def main(argv=None):
     parts = a.model.rsplit("-", 1)
     if len(parts) != 2:
         raise SystemExit(f"--model must look like p1-toy, got {a.model!r}")
-    model, cfg = build_model(parts[0], parts[1], overrides)
+    model, cfg = build_model(family, scale, overrides)
     model = model.to(dev).train()
     n_params = param_count_no_embed(model)
 

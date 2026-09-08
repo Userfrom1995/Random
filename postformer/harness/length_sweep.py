@@ -103,6 +103,17 @@ def main(argv=None):
     if vocab is None:
         _m, cfg0, _ = load_model(a.model, a.checkpoint, a.config, None, a.device, a.dtype)
         vocab = cfg0["vocab_size"]
+    else:
+        for _name, _ckpt in ((a.model, a.checkpoint),
+                             (base_name, a.baseline_checkpoint)):
+            if _ckpt:
+                _blob = torch.load(_ckpt, map_location="cpu", weights_only=False)
+                _cv = (( _blob.get("config") or {}).get("vocab_size")
+                       if isinstance(_blob, dict) else None)
+                if _cv is not None and int(_cv) != int(vocab):
+                    raise SystemExit(
+                        f"--vocab {vocab} != checkpoint train vocab {_cv} "
+                        f"for {_name}; refusing to partial-load or OOB the embedding")
     rows = []
     bpb_1x = {}
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
