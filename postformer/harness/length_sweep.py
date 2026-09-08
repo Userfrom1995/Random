@@ -90,7 +90,9 @@ def main(argv=None):
     p.add_argument("--data-root", default=None)
     p.add_argument("--vocab", type=int, default=None,
                    help="eval vocab (train --vocab convention); "
-                        "model uses vocab_size = vocab + 2")
+                        "model uses vocab_size = vocab + 2; "
+                        "discovered path (no --vocab) keeps raw vocab_size units "
+                        "for backward compat with existing G2 curves")
     a = p.parse_args(argv)
     if a.tokenizer == "bpe":
         raise SystemExit("BPE is a secondary diagnostic deferred past M1; "

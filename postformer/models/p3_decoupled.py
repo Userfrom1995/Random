@@ -94,6 +94,11 @@ class DecoupledMemory(nn.Module):
 
     def step(self, x_t: torch.Tensor, state: dict):
         """x_t: (B, d). Returns (out (B, d), state). O(H*d_k*d_v)."""
+        out, state, _q = self._step_core(x_t, state)
+        return out, state
+
+    def _step_core(self, x_t: torch.Tensor, state: dict):
+        """Shared single-projection core: one w_q/w_k/w_v pass, returns (out, state, q)."""
         q = self._split(self.w_q(x_t), self.d_k)
         k = self._split(self.w_k(x_t), self.d_k)
         v = self._split(self.w_v(x_t), self.d_v)
@@ -115,7 +120,7 @@ class DecoupledMemory(nn.Module):
         o_sel = torch.einsum("bhki,bhk->bhi", S, q)
         out = (self.w_o_acc(o_acc.reshape(x_t.shape[0], -1))
                + self.w_o_sel(o_sel.reshape(x_t.shape[0], -1)))
-        return out, state
+        return out, state, q
 
     def step_split(self, x_t: torch.Tensor, state: dict):
         """Single-token update returning (recurrent_out, selective_out, state).
@@ -123,11 +128,9 @@ class DecoupledMemory(nn.Module):
         selective_out is the selective-branch read from the post-step S
         with the current q; recurrent_out - selective_out is exactly the
         accumulator contribution (exact: both reads are linear in the
-        post-step states, which evolve independently). Reuses the step()
-        selective path; performs one extra w_q projection plus selective
-        read per token (2x Q-proj cost, documented here, not hidden)."""
-        r_out, state = self.step(x_t, state)
-        q = self._split(self.w_q(x_t), self.d_k)
+        post-step states, which evolve independently). Reuses the single
+        w_q projection from the core (no doubled Q-proj cost)."""
+        r_out, state, q = self._step_core(x_t, state)
         S = state["S"]
         o_sel = torch.einsum("bhki,bhk->bhi", S, q)
         s_out = self.w_o_sel(o_sel.reshape(x_t.shape[0], -1))

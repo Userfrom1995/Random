@@ -55,7 +55,8 @@ def main(argv=None):
     p.add_argument("--report-proof", action="store_true")
     p.add_argument("--vocab", type=int, default=None,
                    help="eval vocab (train --vocab convention); "
-                        "model uses vocab_size = vocab + 2")
+                        "model uses vocab_size = vocab + 2; "
+                        "absent --vocab falls back to the checkpoint vocab_size")
     a = p.parse_args(argv)
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     if a.vocab is not None and a.checkpoint:
