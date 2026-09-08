@@ -97,6 +97,23 @@ def cmd_check(a):
             if _key(r) in seen:
                 errors.append(f"row {i} duplicate key {_key(r)} (append without --force)")
             seen.add(_key(r))
+            for c in ("seed", "vocab", "train_tokens", "gpu_hours"):
+                v = r.get(c, "")
+                if v in ("", None):
+                    continue
+                try:
+                    float(v)
+                except (ValueError, TypeError):
+                    errors.append(f"row {i} col {c}: not numeric: {v!r}")
+            w = r.get("window", "")
+            if w not in ("", None):
+                try:
+                    wi = int(w)
+                except (ValueError, TypeError):
+                    errors.append(f"row {i} col window: not an integer: {w!r}")
+                else:
+                    if wi < 0:
+                        errors.append(f"row {i} col window: must be >= 0: {w!r}")
             for c in GATE_COLS:
                 v = r.get(c, "")
                 if v in ("", None):
@@ -106,8 +123,8 @@ def cmd_check(a):
                 except ValueError:
                     errors.append(f"row {i} col {c}: not a number: {v!r}")
                     continue
-                if math.isnan(x):
-                    errors.append(f"row {i} col {c}: NaN gate value")
+                if math.isnan(x) or math.isinf(x):
+                    errors.append(f"row {i} col {c}: non-finite gate value: {v!r}")
             if all(r.get(c, "") in ("", None) for c in GATE_COLS):
                 notes = (r.get("notes") or "").lower()
                 if not any(tag in notes for tag in EMPTY_ROW_TAGS):
@@ -128,12 +145,23 @@ def cmd_check(a):
         for (scale, vocab), group in by_scale.items():
             base = [g for g in group if g["model"].startswith("transformer-")]
             if not base:
+                if any(not g["model"].startswith("transformer-")
+                       for g in group):
+                    errors.append(
+                        f"scale {scale} vocab {vocab}: no transformer baseline; "
+                        f"cannot verify +-2% param parity")
                 continue
             try:
-                bp = float(base[0]["params"])
+                bps = {float(g["params"]) for g in base}
             except ValueError:
                 errors.append(f"scale {scale} vocab {vocab}: baseline params not numeric")
                 continue
+            if len(bps) > 1:
+                errors.append(
+                    f"scale {scale} vocab {vocab}: transformer baselines disagree "
+                    f"on params: {sorted(bps)}")
+                continue
+            bp = bps.pop()
             for g in group:
                 if g["model"].startswith("transformer-"):
                     continue

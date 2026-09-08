@@ -158,8 +158,8 @@ def test_m4b_p4_parity_and_state_still_exact():
     assert p4.state_bytes(1, length=1024) == p4.state_bytes(1, length=32768)
 
 
-def test_m4b_live_ledger_check_green_24_rows():
-    """Live ledger must pass `check` (24 M1-M4e rows)."""
+def test_m4b_live_ledger_check_green_25_rows():
+    """Live ledger must pass `check` (25 M1-M4h rows, incl. the small-baseline pin)."""
     from postformer.harness.ledger import main as ledger_main
     ledger_main(["check", "--ledger", LEDGER])
-    assert len(_ledger_rows()) == 24
+    assert len(_ledger_rows()) == 25

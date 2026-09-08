@@ -4,7 +4,8 @@ Refs #294 (toy proxies only, never gate results). Prior suites pin M4b MQAR
 cells and A4 N8 cells from raw CSVs; this suite attacks the remaining M4b
 envelope (2hop / induction / copy recomputed from raw per-episode CSVs,
 never trusting the summary JSON alone) plus the ledger row-count/scale
-honesty after the A4/A6 sweeps grew the ledger to 24 rows. If any of these
+honesty after the A4/A6 sweeps grew the ledger to 25 rows (24 measured + 1
+params-only drift-baseline pin). If any of these
 fail, the M4b envelope or ledger provenance is fabrication and the PR goes
 back to the Fixer.
 """
@@ -57,11 +58,11 @@ def test_m4e_n16_csv_recompute_is_chance():
     assert got == pytest.approx(_summary()["mqar"]["16"]["acc"], abs=1e-9)
 
 
-def test_m4e_ledger_has_24_rows_all_toy_honest():
-    """Ledger must hold 24 rows and no toy row may claim a gate pass."""
+def test_m4e_ledger_has_25_rows_all_toy_honest():
+    """Ledger must hold 25 rows and no toy row may claim a gate pass."""
     with open(LEDGER) as f:
         rows = list(csv.DictReader(f))
-    assert len(rows) == 24, len(rows)
+    assert len(rows) == 25, len(rows)
     for r in rows:
         blob = (r["notes"] + r["model"]).lower()
         honest = ("toy" in blob or "smoke" in blob or "random init" in blob
