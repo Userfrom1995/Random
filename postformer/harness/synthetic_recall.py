@@ -150,6 +150,15 @@ def main(argv=None):
     if a.window is not None and a.window < 0:
         raise SystemExit("--window must be >= 0")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
+    if a.checkpoint:
+        _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
+        _cv = ((_blob.get("config") or {}).get("vocab_size")
+               if isinstance(_blob, dict) else None)
+        if _cv is not None and int(_cv) != int(a.vocab + 2):
+            raise SystemExit(
+                f"--vocab {a.vocab} (vocab_size {int(a.vocab + 2)}) != "
+                f"checkpoint train vocab_size {_cv} for {a.model}; "
+                f"refusing to partial-load or OOB the embedding")
     overrides = {"vocab_size": a.vocab + 2}
     from ..models.factory import parse_model_name
     family, _scale = parse_model_name(a.model)

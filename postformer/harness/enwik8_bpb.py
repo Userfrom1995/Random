@@ -83,6 +83,15 @@ def main(argv=None):
     if int(ids.max()) > 255:
         raise SystemExit("byte stream out of range")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
+    if a.checkpoint:
+        _blob = torch.load(a.checkpoint, map_location="cpu", weights_only=False)
+        _cv = ((_blob.get("config") or {}).get("vocab_size")
+               if isinstance(_blob, dict) else None)
+        if _cv is not None and int(_cv) != 256:
+            raise SystemExit(
+                f"byte-level BPB needs checkpoint train vocab_size 256, "
+                f"got {_cv} for {a.model}; refusing to partial-load or "
+                f"OOB the embedding")
     model, cfg, random_init = load_model(a.model, a.checkpoint, a.config,
                                          {"vocab_size": 256}, a.device, a.dtype)
     if cfg["vocab_size"] != 256:
