@@ -18,7 +18,7 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
 | p5-toy mean, 3 seeds (rows 8-10) | 0.300 | 0.000 | 0.532 | 1.584M | M2b A1 control |
 | p1-toy W0, seed0 (row 17) | 0.275 | 0.110 | 0.42 | 1.584M | A2 INVALID (see below) |
 | p1-toy W32, seed0 (row 18) | 0.251 | 0.053 | 0.43 | 1.584M | A2 INVALID (see below) |
-| p1-W16-1000 ref, seed0 (curves/m3-toy, note only) | 0.0625 | - | - | 0.528M | M3 matched ref |
+| p1-W16-1000 ref, seed0 (curves/m3-toy, note only) | 0.0625 | - | 0.01 | 0.528M | M3 matched ref |
 | p2-toy G16, seed0 (row 14) | 0.0825 | - | 0.03 | 0.528M | M3 P2 above p1 ref |
 | p3-toy, seed0 (row 15) | 0.0600 | - | 0.01 | 0.528M | M3 P3 at p1 ref |
 | p3-toy noacc, seed0 (row 16) | 0.06125 | - | 0.02 | 0.528M | M3 A3: unresolved |
@@ -41,9 +41,14 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
   W0/W16/W32 comparison is INVALID as an A2 result; the A2-re seed0 probe
   (W0 0.0875 / W16-ref 0.0625 / W32 0.05125) shows no window advantage at toy N8.
 - A3 (accumulator on/off): p3-noacc 0.06125 vs p3 0.0600. Unresolved at toy.
-- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G16 (M3) = G64 behaviorally
-  identical at score level. N16 sits far below chance (1/64) for all A4 arms,
-  so that column is noise floor, not signal.
+- A4 (slots sweep): G0 0.04625 < G4 0.0825 = G64 behaviorally
+  identical within the A4 CUDA sweep (identical params 336074 and identical
+  train loss 3.942723035812378; the M3 G16 match at 0.0825 is cross-env
+  corroboration only, CPU torch 2.14.0+cpu vs CUDA torch 2.14.0+cu130).
+  N16 sits far below chance (1/64) for all measured A4-sweep arms
+  (G0/G4/G64: 0.005625/0.00125/0.00125 vs chance 0.015625; M3 G16 N16
+  unmeasured, ledger row 14 cell empty), so that column is noise floor,
+  not signal.
   Slots beat pure-SSD, but toy episodes (T=33, stride 8) admit at most 5 slot
   writes, so any G >= 5 holds full history and slot COUNT stays untested
   until S-tiny N64+ (T_train 512). H2 open.
