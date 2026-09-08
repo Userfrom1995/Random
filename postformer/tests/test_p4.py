@@ -15,7 +15,7 @@ from .conftest import MINI
 
 
 def test_p4_surprise_strengthens_write():
-    """Same trunk, two memories: the high-error write moves M further than
+    """Same base, scaled input: the high-error write moves M further than
     the low-error write, and both stay finite."""
     seed_all(41, "m4-surprise")
     m, _ = build_model("p4", "tiny", dict(MINI))
@@ -27,9 +27,12 @@ def test_p4_surprise_strengthens_write():
         x = torch.randn(1, d)
         _, M1 = mem.step(x, M0.clone())
         d_low = (M1 - M0).norm().item()
-        x2 = torch.randn(1, d) * 4.0
-        _, M2 = mem.step(x2, M1.clone())
-        d_high = (M2 - M1).norm().item()
+        # Same base M0, same direction, 4x magnitude: reconstruction
+        # error ||v-r|| grows, so the surprise gate must strengthen
+        # the write (same-state comparison, magnitude-scaled error).
+        x2 = x * 4.0
+        _, M2 = mem.step(x2, M0.clone())
+        d_high = (M2 - M0).norm().item()
         assert torch.isfinite(M1).all() and torch.isfinite(M2).all()
         assert d_high > d_low, (d_high, d_low)
         beta, alpha = mem.gates(x)
@@ -83,7 +86,7 @@ def test_p4_step_forward_equivalence_and_prefix():
 
 
 def test_p4_state_flat_matches_p1():
-    """P4 state inventory equals P1 (fast weights + window + H scalars)."""
+    """P4 state inventory equals P1 (fast weights + window)."""
     seed_all(44, "m4-flat")
     p4, _ = build_model("p4", "tiny", dict(MINI))
     p1, _ = build_model("p1", "tiny", dict(MINI))
