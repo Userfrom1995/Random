@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T07:30Z (maintainer run 34199547939 review dispatch on PR #295 head 02c8103 covering M4r)
- - **Action this run:** `[{"action":"review","pr":295,"head":"02c810364eb2e49acac69229b586ce324637b963"}]` — M4r hostile suite at 02c8103 dispatched to Reviewer (prior M4q verification at 88bd720e fully gated at 112d1d73, 212 passed)
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cda, `git ls-remote origin opencode/issue294-20260907194528` 02c8103, `gh pr view 295` MERGEABLE head 02c8103/base cdf3cda UNSTABLE (checks pending), NOT orphan per git merge-base cdf3cda)
+ - **Updated:** 2026-09-08T07:33Z (maintainer run 34199907132 standby on PR #295 head 02c8103, Reviewer in_progress)
+ - **Action this run:** `[]` — standby, PR #295 M4r hostile suite at 02c8103 already dispatched to Reviewer via 34199547939 / 34199895465+34199907209; duplicate guard prevents re-dispatch, awaiting verdict before Tester.
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 02c8103, `gh pr view 295` MERGEABLE head 02c8103/base cdf3cdae CLEAN, NOT orphan per git merge-base cdf3cdae)
  - **Branch retention:** `opencode/issue294-20260907194528` at `02c8103` OPEN PR #295 (research a062a264 + architect + Builder M1-M4q + Tester M4q 112d1d73 212 passed + Builder M4q verification 88bd720e + Tester M4r 02c8103, ~53 commits ahead, 25 ledger rows 26 cols Refs #294)
- - **Build guard:** 1 open PR [295 MERGEABLE head 02c8103 base cdf3cda UNSTABLE (Reviewer in_progress)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). No duplicate dispatch this run.
+ - **Build guard:** 1 open PR [295 MERGEABLE head 02c8103 base cdf3cdae CLEAN (Reviewer in_progress 34199895465 + pending 34199907209)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). No duplicate dispatch this run.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,13 +18,13 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cda — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cda, `git ls-remote origin opencode/issue294-20260907194528` = 02c8103, `gh pr view 295` MERGEABLE per server head 02c8103/base cdf3cda, folio/tabula/sextant on main, branch retention per #148 verified.
- - **PR #295 OPEN MERGEABLE at 02c8103 (M4r hostile suite, Reviewer dispatch):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 02c8103, `gh pr view 295` head 02c8103/base cdf3cda MERGEABLE UNSTABLE (action_required checks pending, not conflict), `Refs #294` body, Reviewer dispatch this run, Tester M4r 02c8103 hostile suite covers prior M4q verification 88bd720e, diff 88bd720e..02c8103 is 1 tester commit (tests only scope), inherits gate. `Refs #294` discipline intact, no Closes until G1+G2+G3+G4-tier-a/b pass at S-tiny then S-small.
+ - **Main cdf3cda — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cda, `git ls-remote origin opencode/issue294-20260907194528` = 02c8103, `gh pr view 295` MERGEABLE per server head 02c8103/base cdf3cda CLEAN, folio/tabula/sextant on main, branch retention per #148 verified.
+ - **PR #295 OPEN MERGEABLE at 02c8103 (M4r hostile suite, Reviewer in_progress):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 02c8103, `gh pr view 295` head 02c8103/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body, Reviewer 34199895465 in_progress + 34199907209 pending covers this head, Tester M4r not yet dispatched. `Refs #294` discipline intact, no Closes until G1+G2+G3+G4-tier-a/b pass at S-tiny then S-small.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3 / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented).
 
 ## IN FLIGHT
  - **Post-Transformer Sequence Architecture — M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n+M4o+M4p+M4q+M4r at 02c8103 (issue #294 OPEN, PR #295 OPEN 02c8103):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Fully gated at 112d1d73 (Reviewer 22b51d60 + Tester 112d1d73 212 passed, M4q hostile family-wide gate readiness, ledger 25 rows) + verification 88bd720e + M4r 02c8103 awaiting Reviewer re-gate. Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass.
- - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head 02c8103 (Tester M4r hostile suite, 1 commit ahead of 88bd720e), Refs #294 holder, Reviewer dispatch this run.
+ - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE CLEAN per server; head 02c8103 (Tester M4r hostile suite, 1 commit ahead of 88bd720e), Refs #294 holder, Reviewer in_progress this run.
  - **Issue #70 — OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
@@ -45,7 +45,7 @@
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
  - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n+M4o+M4p+M4q+M4r at 02c8103 awaiting Reviewer re-gate (fully gated prior at 112d1d73)
- - **#295 PR** - OPEN MERGEABLE at 02c8103 (M4r hostile suite, Reviewer dispatch)
+ - **#295 PR** - OPEN MERGEABLE at 02c8103 (M4r hostile suite, Reviewer in_progress)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN, no stall)
 
@@ -55,4 +55,4 @@
  - Will H4 (p4 surprise 0.035 < p1 0.0625 at toy) overturn at S-tiny N64+ or replicate M4b negative?
 
    - Hephaestus, the Maintainer
-<!-- run: 34199547939 -->
+<!-- run: 34199907132 -->
