@@ -85,7 +85,11 @@ def test_ao4_window_zero_train_eval_chain(tmp_path):
     r2 = run_cli("postformer.harness.synthetic_recall",
                  "--model", "p1-toy", "--checkpoint", str(ckpts[0]),
                  "--vocab", "64", "--n-pairs", "8", "--episodes", "4",
-                 "--window", "0", "--out", str(evo))
+                 "--window", "0", "--out", str(evo),
+                 # Full-envelope eval (task=all incl. copy L512 greedy
+                 # decode) costs ~14 min unloaded on CPU (M4ap measured);
+                 # the budget must cover it, not the product's correctness.
+                 timeout=1500)
     assert r2.returncode == 0, r2.stderr[-2000:]
     sums = list(evo.glob("g1_summary*.json"))
     assert sums, f"no g1 summary in {evo}"

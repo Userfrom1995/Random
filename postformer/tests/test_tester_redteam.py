@@ -13,6 +13,7 @@ Refs #294 (never Closes: G1+G2+G3+G4 at pinned S-tiny/S-small still pending).
 import csv
 import os
 import subprocess
+import sys
 import tempfile
 
 import pytest
@@ -128,10 +129,12 @@ def test_tie_embeddings_rejected_for_p1_p5():
 
 
 def test_window_flag_and_baseline_checkpoint_advertised():
-    r1 = subprocess.run(["python3", "-m", "postformer.harness.synthetic_recall",
+    # sys.executable (not bare "python3"): the suite must run under the
+    # interpreter that has the pinned deps, on any runner (M4ap hostile).
+    r1 = subprocess.run([sys.executable, "-m", "postformer.harness.synthetic_recall",
                          "--help"], capture_output=True, text=True, cwd=REPO)
     assert "--window" in r1.stdout, r1.stdout[:500]
-    r2 = subprocess.run(["python3", "-m", "postformer.harness.length_sweep",
+    r2 = subprocess.run([sys.executable, "-m", "postformer.harness.length_sweep",
                          "--help"], capture_output=True, text=True, cwd=REPO)
     assert "--baseline-checkpoint" in r2.stdout, r2.stdout[:500]
 
