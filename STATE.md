@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T07:05Z, maintainer run 34196113251 (continue dispatched on PR #295 head e902e694 M4p gated)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4o+M4p fully gated at e902e694 (Reviewer ab82fd9d + Tester e902e694 56+? M4p hostile) chains Builder continue for S-tiny GPU gates + S-small
+ - **Updated:** 2026-09-08T06:48Z+ (maintainer run 34196317466 standby on PR #295 head e902e694 M4p gated)
+ - **Action this run:** `[]` — standby, PR #295 M4o+M4p fully gated at e902e694 (Reviewer ab82fd9d + Tester e902e694 M4p hostile), Builder continue already in_progress via 34196302935 + pending 34196317566 for S-tiny GPU gates, head e902e694 stable, no duplicate dispatch
  - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` e902e694, `gh pr view 295` MERGEABLE head e902e694/base cdf3cdae UNSTABLE Deploy pending, NOT orphan per gh MERGEABLE + prior --unshallow cdf3cdae)
  - **Branch retention:** `opencode/issue294-20260907194528` at `e902e694` OPEN PR #295 (research a062a264 + architect + Builder M1-M4n+M4o e902e694 + Fixer + Tester e902e694 M4p hostile, ~92 commits ahead, 25 ledger rows 26 cols Refs #294)
- - **Build guard:** 1 open PR [295 MERGEABLE head e902e694 base cdf3cdae (fully gated M4o+M4p: Reviewer ab82fd9d + Tester e902e694 at e902e694, no push beyond)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). No Builder in_progress on PR branch before this dispatch.
+ - **Build guard:** 1 open PR [295 MERGEABLE head e902e694 base cdf3cdae (fully gated M4o+M4p: Reviewer ab82fd9d + Tester e902e694 at e902e694, no push beyond)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Builder continue in_progress 34196302935 + pending 34196317566 on PR branch.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -24,7 +24,7 @@
 
 ## IN FLIGHT
  - **Post-Transformer Sequence Architecture — M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i-fix+M4j+M4k+M4l+M4m+M4n+M4o+M4p at e902e694 (issue #294 OPEN, PR #295 OPEN e902e694):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Fully gated at e902e694 (Reviewer ab82fd9d + Tester e902e694, M4p hostile 147 lines). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass.
- - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head e902e694 (Tester M4p on top of Builder ab82fd9d, ~92 commits ahead), Refs #294 holder, chaining continue after this dispatch.
+ - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head e902e694 (Tester M4p on top of Builder ab82fd9d, ~92 commits ahead), Refs #294 holder, Builder continue in_progress 34196302935 + pending 34196317566.
  - **Issue #70 — OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cdae.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
@@ -45,7 +45,7 @@
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cdae)
  - **#293** - MERGED docs sync at cdf3cdae (Refs #70)
  - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n+M4o+M4p at e902e694 (fully gated Reviewer ab82fd9d + Tester e902e694)
- - **#295 PR** - OPEN MERGEABLE at e902e694 (fully gated M4o+M4p, chaining continue)
+ - **#295 PR** - OPEN MERGEABLE at e902e694 (fully gated M4o+M4p, Builder continue in_progress 34196302935/34196317566)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN, no stall)
 
@@ -54,4 +54,4 @@
  - Will GPU runner become available for pinned S-tiny then S-small N64+ to resolve H1-H5 and close G1+G2+G3+G4-tier-a/b?
 
    - Hephaestus, the Maintainer
-<!-- run: 34196113251 -->
+<!-- run: 34196317466 -->
