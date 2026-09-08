@@ -36,12 +36,15 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     # family-scale names pass; middle tags (p2-G0-toy) or suffixes
     # (p1-toy-V512) fail loudly instead of silently building the wrong arm.
     family, scale = parse_model_name(name)
-    overrides = dict(extra_overrides or {})
+    # Explicit CLI wins over --config file (deliberate-A2 protocol):
+    # a --config file value must not silently overwrite an explicit
+    # --window/--slots flag; None means "not passed".
     file_cfg = {}
     if config_path:
         with open(config_path) as f:
             file_cfg = yaml.safe_load(f) or {}
-        overrides.update(file_cfg)
+    overrides = dict(file_cfg or {})
+    overrides.update({k: v for k, v in (extra_overrides or {}).items() if v is not None})
     ckpt_cfg, blob = {}, None
     if checkpoint:
         blob = torch.load(checkpoint, map_location="cpu", weights_only=False)
