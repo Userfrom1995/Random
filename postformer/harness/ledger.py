@@ -114,22 +114,25 @@ def cmd_check(a):
                     errors.append(
                         f"row {i} ({r.get('model')}) has no gate cells and no "
                         f"explicit empty-row tag in notes {EMPTY_ROW_TAGS}")
-        # Binding +-2% param drift: candidate vs transformer arm per scale.
+        # Binding +-2% param drift: candidate vs transformer arm per
+        # (scale, vocab). The lm_head scales with vocab, so cross-vocab
+        # rows (e.g. A6 vocab512 pilot vs vocab64 toy) must not be
+        # compared against each other; only same-vocab arms are matched.
         by_scale = {}
         for r in rows:
             if "-" not in r["model"]:
                 errors.append(f"row model name malformed: {r['model']!r}")
                 continue
             scale = r["model"].rsplit("-", 1)[1]
-            by_scale.setdefault(scale, []).append(r)
-        for scale, group in by_scale.items():
+            by_scale.setdefault((scale, r.get("vocab", "")), []).append(r)
+        for (scale, vocab), group in by_scale.items():
             base = [g for g in group if g["model"].startswith("transformer-")]
             if not base:
                 continue
             try:
                 bp = float(base[0]["params"])
             except ValueError:
-                errors.append(f"scale {scale}: baseline params not numeric")
+                errors.append(f"scale {scale} vocab {vocab}: baseline params not numeric")
                 continue
             for g in group:
                 if g["model"].startswith("transformer-"):
