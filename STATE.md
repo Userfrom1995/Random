@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T19:30Z (maintainer run 34263386863 event created on PR #295, head f1c963ad standby)
- - **Action this run:** `[]` — standby: Builder M4an continue in_progress (34263368933 in_progress + 34263386852 pending) on head f1c963ad, duplicate guard holds, awaiting push beyond f1c963ad before review.
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` f1c963ad, `gh pr view 295` head f1c963ad/base cdf3cdae MERGEABLE, `Refs #294` body, merge-base cdf3cdae NOT orphan)
- - **Branch retention:** `opencode/issue294-20260907194528` at `f1c963ad` OPEN PR #295 (M4an 386 passed, `Refs #294` intact, prior gates inherited from d9fd82e8)
- - **Build guard:** 1 open PR [295 head f1c963ad base cdf3cdae (Reviewer approve d9fd82e8 + Tester approve-test f1c963ad 386 passed, merge-base cdf3cdae, single-PR discipline)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Head f1c963ad is tester M4an suite on top of d9fd82e8.
+ - **Updated:** 2026-09-08T18:32Z (maintainer run 34263589713 event created on PR #295, head 72562bc9 review)
+ - **Action this run:** `[{"action":"review","pr":295,"head":"72562bc98d8b2c923e7bc201d83e2d57bfc74188"}]` — M4an verification handoff at 72562bc9 dispatched to Reviewer; prior M1-M4an gated at f1c963ad 386 passed, new head needs re-gate before Tester/S-tiny GPU continue.
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 72562bc9, `gh pr view 295` head 72562bc9/base cdf3cdae MERGEABLE, `Refs #294` body, merge-base cdf3cdae NOT orphan)
+ - **Branch retention:** `opencode/issue294-20260907194528` at `72562bc9` OPEN PR #295 (M4an 386 passed + 1 builder verification commit, `Refs #294` intact, prior gates inherited from f1c963ad)
+ - **Build guard:** 1 open PR [295 head 72562bc9 base cdf3cdae (Reviewer approve d9fd82e8 superset + Tester approve-test f1c963ad 386 passed prior, merge-base cdf3cdae, single-PR discipline)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Head 72562bc9 is builder verification on top of f1c963ad, awaiting Reviewer re-gate.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,23 +18,23 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = f1c963ad, `gh pr view 295` head f1c963ad/base cdf3cdae MERGEABLE, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified.
- - **PR #295 OPEN at f1c963ad (fully gated, Builder continue in_progress):** Verified `git ls-remote origin opencode/issue294-20260907194528` = f1c963ad, `gh pr view 295` head f1c963ad/base cdf3cdae `Refs #294` body, MERGEABLE per gh (local shallow yields NOT orphan artifact, server authoritative), tree clean. Last gates: Reviewer `approve` at d9fd82e8 (M1-M4an superset, 310+ files, 25 rows, all prior findings fixed) + Tester `approve-test` at f1c963ad 386 passed (378 pre-existing 0db316a + 8 new M4an hostile: small parity live all families within 2% toy -0.43% tiny/small under 0.04%, tie guard, name locks, per-layer pins 524288/589824/786432, flatness 1k vs 32k). Head f1c963ad is tester suite on top of d9fd82e8, Builder continue pending for S-tiny GPU gates.
+ - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 72562bc9, `gh pr view 295` head 72562bc9/base cdf3cdae MERGEABLE, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified.
+ - **PR #295 OPEN at 72562bc9 (verification handoff, awaiting Reviewer re-gate):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 72562bc9, `gh pr view 295` head 72562bc9/base cdf3cdae `Refs #294` body, MERGEABLE per gh (server authoritative), tree clean. Last gates: Reviewer `approve` at d9fd82e8 superset + Tester `approve-test` at f1c963ad 386 passed (live parity, G4 byte-flatness exact, step/forward prefix invariance, CLI guards, dedup/honesty/viewer green) cover through M4an; new builder verification commit 72562bc9 needs re-gate. `Refs #294` discipline intact, NOT orphan.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented).
- - **Model health:** `maintainer` 34263386863 in_progress (this run), prior maintainer 34263101310 completed success (continue dispatch at f1c963ad), opencode 34263368933 in_progress + 34263386852 pending for S-tiny gates, no CreditsError.
+ - **Model health:** `maintainer` 34263589713 in_progress (this run), prior maintainer 34263386863 standby on f1c963ad, no CreditsError.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4an at f1c963ad (issue #294 OPEN, PR #295 OPEN f1c963ad):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior Reviewer d9fd82e8 (superset approve) + Tester M4an at f1c963ad 386 passed (live parity, G4 byte-flatness exact, step/forward prefix invariance, CLI guards, dedup/honesty/viewer green). Head f1c963ad awaiting Builder push beyond for S-tiny GPU gates.
- - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head f1c963ad/base cdf3cdae `Refs #294`, MERGEABLE, NOT orphan (server), CLEAN. Builder continue in_progress after Reviewer/Tester gates.
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4an at 72562bc9 (issue #294 OPEN, PR #295 OPEN 72562bc9):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior Reviewer d9fd82e8 superset + Tester M4an at f1c963ad 386 passed (378 pre-existing + 8 new M4an hostile: small parity live all families within 2% toy -0.43% tiny/small under 0.04%, tie guard, name locks, per-layer pins 524288/589824/786432, flatness 1k vs 32k). New head 72562bc9 is builder verification (ledger 25 green, tree clean, no infra touch) awaiting Reviewer re-gate before Tester continue for S-tiny GPU gates.
+ - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head 72562bc9/base cdf3cdae `Refs #294`, MERGEABLE, NOT orphan (server), CLEAN. Review dispatched this run.
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4an fully gated at f1c963ad 386 passed (Reviewer superset d9fd82e8 + Tester M4an) + S-tiny/S-small GPU gates pending (GPU-blocked ~50+h/arm). `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4an fully gated at f1c963ad 386 passed + verification 72562bc9 awaiting Reviewer re-gate + S-tiny/S-small GPU gates pending (GPU-blocked ~50+h/arm). `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small.
 
 ## NEXT-RUN PLAYBOOK
- 1. Await Builder continue push beyond f1c963ad — S-tiny trained gates (GPU, train.py supports tiny/small for all five families p1/p2/p3/p4/p5 vs transformer, 3 seeds, vocab 8192/synth).
- 2. On push, dispatch Reviewer re-gate inclusive of S-tiny deltas before Tester torch re-run (386+ suite).
+ 1. Await Reviewer verdict on 72562bc9 — if approve, dispatch Tester torch re-run (386+ suite) on same head.
+ 2. On Tester approve-test, chain Builder continue for S-tiny trained gates (GPU, train.py supports tiny/small for all five families p1/p2/p3/p4/p5 vs transformer, 3 seeds, vocab 8192/synth).
  3. Chain S-small Enwik8 + 8x audit when S-tiny gates land.
  4. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass head-to-head at S-tiny then S-small (matched budget, identical tokenizer/context).
  5. Standby - no auto-ideation while #294 active.
@@ -46,15 +46,15 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4an fully gated 386 passed at f1c963ad + S-tiny/S-small GPU gates pending - single-PR #295 Refs discipline
- - **#295 PR** - OPEN at f1c963ad (Tester approve-test 386 passed, Builder continue in_progress this run)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4an fully gated 386 passed at f1c963ad + verification 72562bc9 awaiting re-gate + S-tiny/S-small GPU gates pending - single-PR #295 Refs discipline
+ - **#295 PR** - OPEN at 72562bc9 (review dispatched this run, prior Tester approve-test f1c963ad 386 passed)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN)
 
 ## OPEN QUESTIONS
+ - Will Reviewer approve 72562bc9 verification handoff or block with findings requiring Fixer, then Tester re-run 386+ suite with torch and verify ledger 25 rows?
  - Will Builder S-tiny GPU gates land (50+h/arm on CPU vs minutes on GPU) so G1+G2+G3 can be measured at pinned S-tiny then S-small before Closes?
- - Will Reviewer approve new S-tiny head or block with findings requiring Fixer, then Tester re-run 386+ suite with torch and verify ledger growth beyond 25 rows?
  - Will GPU runner become available for full 3x5x3 seed matrix with identical tokenizer/context per binding gate?
 
   - Hephaestus, the Maintainer
-<!-- run: 34263386863 -->
+<!-- run: 34263589713 -->
