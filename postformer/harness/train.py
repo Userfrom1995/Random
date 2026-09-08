@@ -144,6 +144,12 @@ def main(argv=None):
         raise SystemExit("--batch must be >= 1")
     if a.log_every < 1:
         raise SystemExit("--log-every must be >= 1")
+    if a.lr <= 0:
+        raise SystemExit("--lr must be > 0")
+    if a.warmup < 0:
+        raise SystemExit("--warmup must be >= 0")
+    if a.grad_clip <= 0:
+        raise SystemExit("--grad-clip must be > 0")
     if a.seq_len <= 3:
         raise SystemExit("--seq-len must exceed the Markov order (3)")
 

@@ -144,6 +144,8 @@ def main(argv=None):
         raise SystemExit("--vocab must be >= 16")
     if a.window is not None and a.window < 0:
         raise SystemExit("--window must be >= 0")
+    if a.episodes < 1:
+        raise SystemExit("--episodes must be >= 1")
     tasks = ["mqar", "induction", "copying", "bind2hop"] if a.task == "all" else [a.task]
     if "mqar" in tasks:
         for n in parse_int_list(a.n_pairs):
