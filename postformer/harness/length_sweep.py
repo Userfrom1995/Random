@@ -90,6 +90,11 @@ def main(argv=None):
     p.add_argument("--data-root", default=None)
     p.add_argument("--vocab", type=int, default=None)
     a = p.parse_args(argv)
+    if a.tokenizer == "bpe":
+        raise SystemExit("BPE is a secondary diagnostic deferred past M1; "
+                         "use --tokenizer byte (primary scoreboard)")
+    if a.split == "bytes" and a.tokenizer != "byte":
+        raise SystemExit(f"--split bytes needs --tokenizer byte, got {a.tokenizer!r}")
     lengths = parse_int_list(a.lengths) if a.lengths else [a.t_train * m for m in (1, 2, 4, 8)]
     stride = a.stride or max(1, a.t_train // 2)
     scale = a.model.rsplit("-", 1)[1]
@@ -131,7 +136,8 @@ def main(argv=None):
     info["dtype"] = a.dtype
     write_json(f"{a.out}/g2_summary_seed{a.seed}.json",
                {"lengths": lengths, "t_train": a.t_train,
-                "stride": stride, "split": a.split, "env": info})
+                "stride": stride, "split": a.split,
+                "tokenizer": a.tokenizer, "env": info})
     print(f"wrote {a.out}/g2_curve_seed{a.seed}.csv")
 
 
