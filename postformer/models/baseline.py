@@ -93,9 +93,6 @@ class TransformerBlock(nn.Module):
 class DecoderLM(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
-        if config.get("tie_embeddings", False):
-            raise ValueError("tie_embeddings is rejected: breaks param parity "
-                             "vs P1-P5 separate lm_head")
         self.cfg = dict(config)
         d = config["d_model"]
         self.tok_embed = nn.Embedding(config["vocab_size"], d)
@@ -104,13 +101,18 @@ class DecoderLM(nn.Module):
                               config.get("rope_base", 10000.0))
              for _ in range(config["layers"])])
         self.norm_f = RMSNorm(d)
-        self.lm_head = nn.Linear(d, config["vocab_size"], bias=False)
+        if config.get("tie_embeddings", False):
+            self.lm_head = None
+        else:
+            self.lm_head = nn.Linear(d, config["vocab_size"], bias=False)
 
     def forward(self, ids: torch.Tensor) -> torch.Tensor:
         x = self.tok_embed(ids)
         for blk in self.blocks:
             x = blk(x)
         x = self.norm_f(x)
+        if self.lm_head is None:
+            return x @ self.tok_embed.weight.T
         return self.lm_head(x)
 
     def init_state(self, batch: int, device, dtype):
@@ -121,6 +123,8 @@ class DecoderLM(nn.Module):
         for blk, st in zip(self.blocks, states):
             x, _ = blk.step(x, st)
         x = self.norm_f(x)
+        if self.lm_head is None:
+            return (x @ self.tok_embed.weight.T).unsqueeze(1), states
         return self.lm_head(x).unsqueeze(1), states
 
     def state_bytes(self, batch: int, length: int, bpe: int = 4) -> int:
