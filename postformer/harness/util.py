@@ -9,7 +9,7 @@ import torch
 import yaml
 
 from ..models.common import seed_all
-from ..models.factory import build_model
+from ..models.factory import build_model, parse_model_name
 
 
 DTYPES = {"fp32": torch.float32, "fp16": torch.float16, "bf16": torch.bfloat16}
@@ -32,10 +32,10 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
 
     Returns (model.eval(), config, random_init_flag).
     """
-    parts = name.rsplit("-", 1)
-    if len(parts) != 2:
-        raise SystemExit(f"--model must look like p1-tiny, got {name!r}")
-    family, scale = name.split("-", 1)[0], parts[1]
+    # Strict --model gate (M2 silent-invalidation class): only canonical
+    # family-scale names pass; middle tags (p2-G0-toy) or suffixes
+    # (p1-toy-V512) fail loudly instead of silently building the wrong arm.
+    family, scale = parse_model_name(name)
     overrides = dict(extra_overrides or {})
     file_cfg = {}
     if config_path:

@@ -97,7 +97,9 @@ def main(argv=None):
         raise SystemExit(f"--split bytes needs --tokenizer byte, got {a.tokenizer!r}")
     lengths = parse_int_list(a.lengths) if a.lengths else [a.t_train * m for m in (1, 2, 4, 8)]
     stride = a.stride or max(1, a.t_train // 2)
-    scale = a.model.rsplit("-", 1)[1]
+    from ..models.factory import parse_model_name
+    _family, scale = parse_model_name(a.model)
+    base_family, base_scale = parse_model_name(a.baseline_model) if a.baseline_model else ("transformer", scale)
     base_name = a.baseline_model or f"transformer-{scale}"
     vocab = a.vocab
     if vocab is None:

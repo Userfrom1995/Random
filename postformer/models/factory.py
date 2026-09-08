@@ -27,6 +27,8 @@ lm_head, so passing tie_embeddings for them is rejected to protect
 param parity.
 """
 
+import re
+
 from . import baseline as _b
 from .common import param_count_no_embed
 from .p1_delta_hybrid import P1LM
@@ -34,6 +36,24 @@ from .p2_slots import P2LM
 from .p3_decoupled import P3LM
 from .p4_maglite import P4LM
 from .p5_map import P5LM
+
+
+_MODEL_RE = re.compile(r"(p1|p2|p3|p4|p5|transformer)-(toy|tiny|small)")
+
+
+def parse_model_name(name: str) -> tuple[str, str]:
+    """Strict --model validator: only canonical family-scale names pass.
+
+    Rejects middle-inserted tags (p2-G0-toy) and trailing suffixes
+    (p1-toy-V512) loudly instead of silently building the wrong arm
+    (M2 silent-invalidation class). Curve/file tags such as
+    p2-G0-toy-s0 are filename labels, never --model values; replay via
+    the plain name plus --window/--slots/--no-accumulator flags.
+    """
+    m = _MODEL_RE.fullmatch(name)
+    if not m:
+        raise SystemExit(f"--model must look like p1-tiny, got {name!r}")
+    return m.group(1), m.group(2)
 
 
 def _trunk_cfg(scale: str) -> dict:
@@ -81,7 +101,15 @@ def _candidate_cfg(family: str, scale: str) -> dict:
 
 
 def build_model(name: str, scale: str, overrides: dict | None = None):
+    # Library-level guard (ValueError): family/scale validated against the
+    # canonical sets so suffixed or middle-tagged names fail loudly here
+    # too; CLI entry points validate the full --model string first via
+    # parse_model_name (SystemExit).
     family = name.split("-", 1)[0]
+    if family not in ("transformer", "p1", "p2", "p3", "p4", "p5"):
+        raise ValueError(f"unknown family {family!r} in {name!r}")
+    if scale not in ("toy", "tiny", "small"):
+        raise ValueError(f"unknown scale {scale!r} in {name!r}:{scale!r}")
     if family == "transformer":
         cfg = dict(_b.SCALES[scale])
     elif family in ("p1", "p2", "p3", "p4", "p5"):
