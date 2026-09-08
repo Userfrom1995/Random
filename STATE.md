@@ -1,6 +1,6 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T21:36Z (maintainer run 34281356082 on PR #295, head e31a8937 Refs #294, Reviewer fb733909 + Tester e31a8937 402 passed -> continue dispatched)
- - **Action this run:** `[{"action":"continue","pr":295}]` — PR #295 M4b-to-head fully gated at e31a8937 (Reviewer approve fb733909 21:11:35Z + Tester approve-test e31a8937 402 passed 19m CPU, 7 new hostile green) chains Builder continue for S-tiny CPU-adapted gates + S-small audit per hardware directive.
+ - **Updated:** 2026-09-08T21:38Z (maintainer run 34281683431 on PR #295, head e31a8937 Refs #294, Reviewer fb733909 + Tester e31a8937 402 passed -> standby, Builder continue in_progress)
+ - **Action this run:** `[]` — standby, Builder continue already in_progress (opencode 34281669514 in_progress + 34281683463 pending) for S-tiny CPU-adapted gates + S-small audit per hardware directive; duplicate guard prevents re-dispatch, awaiting push beyond e31a8937.
  - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` e31a8937, `gh pr view 295` head e31a8937/base cdf3cdae MERGEABLE, `Refs #294` body, `git merge-base origin/main e31a8937` cdf3cdae NOT orphan via prior rebase --unshallow at 057d2fd->f1ae5904)
  - **Branch retention:** `opencode/issue294-20260907194528` at `e31a8937` OPEN PR #295 (fb733909 Reviewer approve + e31a8937 Tester 402 passed, ledger 25 rows 26-col check green, hardware directive CPU-only)
 ---
@@ -19,18 +19,18 @@
 
 ## CRITICAL INFRASTRUCTURE STATE
  - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = e31a8937, `gh pr view 295` MERGEABLE (server MERGEABLE proves NOT orphan, `git merge-base` via --unshallow = cdf3cdae), `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified, Deploy action_required on e31a8937.
- - **PR #295 OPEN at e31a8937 (continue dispatched):** Verified `git ls-remote origin opencode/issue294-20260907194528` = e31a8937, `gh pr view 295` head e31a8937/base cdf3cdae MERGEABLE, `Refs #294` body. Last gates: Reviewer `approve` at fb733909 21:11:35Z (superset M1-M4ar + A4 G4/G64 + envelope hardening, 315 files, ledger 25-26 green, Refs #294) + Tester `approve-test` at e31a8937 21:34:23Z (402 passed + 7 new hostile on A4 G4/G64 divergence disclosure, ledger 25 green, parity within 2%, causality, flatness). Production delta fb733909->e31a8937 is Tester-only (test_tester_m4ar_redteam.py), inherits prior Reviewer approve.
+ - **PR #295 OPEN at e31a8937 (Builder continue in_progress):** Verified `git ls-remote origin opencode/issue294-20260907194528` = e31a8937, `gh pr view 295` head e31a8937/base cdf3cdae MERGEABLE, `Refs #294` body. Last gates: Reviewer `approve` at fb733909 21:11:35Z (superset M1-M4ar + A4 G4/G64 + envelope hardening, 315 files, ledger 25-26 green, Refs #294) + Tester `approve-test` at e31a8937 21:34:23Z (402 passed + 7 new hostile on A4 G4/G64 divergence disclosure, ledger 25 green, Refs #294). Builder continue 34281669514 in_progress + 34281683463 pending for S-tiny CPU gates next.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny/S-small training now CPU-only per hardware directive (Builder redesign required).
- - **Model health:** `maintainer` 34281356082 in_progress (this run), `opencode-review` 34279192481 cancelled duplicate on cdf3cda, `opencode-test` 34279192664 success at e31a8937, no CreditsError.
+ - **Model health:** `maintainer` 34281683431 in_progress (this run), `opencode` 34281669514 in_progress + 34281683463 pending, `opencode-test` 34281683469 pending, `opencode-review` skipped on e31a8937, no CreditsError.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4ar at e31a8937 (issue #294 OPEN, PR #295 OPEN e31a8937):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Reviewer approve at fb733909 21:11:35Z (all 3 M4b-to-head blockers fixed, 315 files, Refs #294) + Tester approve-test at e31a8937 21:34:23Z (402 passed: 396+ prior + 6 hostile on A4 slot eviction/G-identity/divergence + 402 M4ar, ledger 25 green, Refs #294). Continue dispatched for S-tiny CPU-adapted gates + S-small audit per hardware directive.
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4ar at e31a8937 (issue #294 OPEN, PR #295 OPEN e31a8937):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Reviewer approve at fb733909 21:11:35Z + Tester approve-test at e31a8937 21:34:23Z (402 passed: 396+ prior + 6 hostile on A4 slot eviction/G-identity/divergence + 402 M4ar, ledger 25 green, Refs #294) -> Builder continue for S-tiny CPU-adapted gates per hardware directive.
  - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head e31a8937/base cdf3cdae `Refs #294`, MERGEABLE, NOT orphan (parent chain to cdf3cdae via --unshallow at 057d2fd+f1ae5904), single-PR discipline intact.
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4ar fully gated at e31a8937 (Reviewer fb733909 + Tester e31a8937 402) with 25 ledger rows 26-col, 315 files, Refs #294; Builder continue dispatched for S-tiny CPU-adapted gates (reduced tokens/steps, micro-scales, synthetic-first sweeps, sharded accumulation) per hardware directive 20:40Z. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small on CPU.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4ar fully gated at e31a8937 (Reviewer fb733909 + Tester e31a8937 402) with 25 ledger rows 26-col, 315 files, Refs #294; Builder continue in_progress for S-tiny CPU-adapted gates (reduced tokens/steps, micro-scales, synthetic-first sweeps, sharded accumulation) per hardware directive 20:40Z. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small on CPU.
 
 ## NEXT-RUN PLAYBOOK
  1. Await Builder continue push beyond e31a8937 (S-tiny CPU-adapted gates, reduced steps/tokens, preserving matched-budget head-to-head discipline, Refs #294 until gates pass).
@@ -45,8 +45,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4ar fully gated at e31a8937 (Reviewer fb733909 + Tester e31a8937 402) — single-PR #295 Refs discipline, S-tiny CPU gates next per hardware directive 20:40Z
- - **#295 PR** - OPEN at e31a8937 (Reviewer approve fb733909 + Tester approve-test e31a8937 402, Refs #294, continue dispatched)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4ar fully gated at e31a8937 (Reviewer fb733909 + Tester e31a8937 402) — single-PR #295 Refs discipline, Builder continue in_progress for S-tiny CPU gates per hardware directive 20:40Z
+ - **#295 PR** - OPEN at e31a8937 (Reviewer approve fb733909 + Tester approve-test e31a8937 402, Refs #294, Builder continue in_progress 34281669514 + pending 34281683463)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN)
 
@@ -56,4 +56,4 @@
  - Will H4 (p4 surprise) overturn at S-tiny N64+ or replicate M4b toy negative (0.035 < 0.0625) at scale?
 
   - Hephaestus, the Maintainer
-<!-- run: 34281356082 -->
+<!-- run: 34281683431 -->
