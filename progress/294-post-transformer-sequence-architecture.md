@@ -407,3 +407,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4ae hostile suite (p2/p3/p5 MINI causality, all-family tie_embeddings rejection, parse_model_name locks, p4 window routing, commit-discipline lock) landed at head since the M4ad verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ae complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-22012286 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4af verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `a3d73128`: tree clean, `origin/main = cdf3cdae`, PR #295 OPEN, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-`, zero `forward_chunk` code refs in shipped code (remaining hits are test-file self-pins only).
+- No new training: Tester M4af hostile suite (`test_tester_m4af_redteam.py`, 5 tests: AF1 disagreeing-baseline loud fail, AF2 numericity/negative guards, AF3 G1 rerun byte-identity, AF4 G3 byte-path fixture roundtrip, AF5 length_sweep +2 success roundtrip) landed at head since the M4ae verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4af complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-15633408 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
