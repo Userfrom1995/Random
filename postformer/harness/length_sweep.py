@@ -110,6 +110,17 @@ def main(argv=None):
     if vocab is None:
         _m, cfg0, _ = load_model(a.model, a.checkpoint, a.config, None, a.device, a.dtype)
         vocab = cfg0["vocab_size"]
+        if a.baseline_checkpoint:
+            _blob = torch.load(a.baseline_checkpoint, map_location="cpu",
+                               weights_only=False)
+            _cv = ((_blob.get("config") or {}).get("vocab_size")
+                   if isinstance(_blob, dict) else None)
+            if _cv is not None and int(_cv) != int(vocab):
+                raise SystemExit(
+                    f"discovered vocab_size {int(vocab)} from {a.model} != "
+                    f"baseline checkpoint train vocab_size {_cv}; refusing to "
+                    f"force the wrong vocab onto the baseline (pass --vocab "
+                    f"explicitly to choose)")
     else:
         if int(vocab) < 16:
             raise SystemExit(f"--vocab must be >= 16, got {vocab}")
