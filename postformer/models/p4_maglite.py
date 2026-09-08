@@ -4,14 +4,15 @@ Per block: (i) a surprise-gated delta memory
 
   r_t   = M_{t-1}^T k_t                       (retrieve)
   e_t   = v_t - r_t                           (reconstruction error)
-  s_t   = sigmoid(w_s(x_t) + g * ||e_t||)     (surprise gate, per head)
+  s_t   = sigmoid(w_s(x_t) + 0.25 * g * ||e_t||)  (surprise gate, per head)
   eta_t = beta_t * s_t                        (one gradient-step size)
   M_t   = alpha_t * (M_{t-1} + eta_t * k_t e_t^T)
 
 with k RMSNormed to unit norm, beta = sigmoid clamped to [0.01, 0.99]
 (bias init -2.0, start retentive), alpha = exp(-exp(.)) init ~0.97,
 and a small learned error-gain g (init 0.5, per head) mapping the
-reconstruction-error norm into extra write strength. When the memory
+reconstruction-error norm into extra write strength (scaled by
+surprise_scale = 0.25, so the effective init gain is 0.125). When the memory
 already predicts v_t (small ||e_t||), s_t falls back to the input gate
 and the write is small; when the prediction fails (large ||e_t||),
 the write strengthens - a single associative-reconstruction gradient
