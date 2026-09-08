@@ -232,3 +232,23 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   (no torch/pytest on this runner). `Refs #294` kept.
 
 - the Fixer
+
+## Fixer log (the Fixer, 2026-09-08, 6f9653c review findings)
+
+- Finding 1: dropped phantom `+ H*bpe` from P1/P4/P5 `state_size`
+  (no backing tensor; FusionGate stateless, beta/alpha recomputed);
+  docstrings updated; proof-g4 inventory rows removed and S-tiny
+  footprints recomputed (P1/P4 524288/layer = 3145728 total;
+  P5 786432/layer = 4718592 total; small P1 655360/layer = 7864320).
+  Historical curves keep old reservation numbers with a proof footnote.
+- Finding 2: P3 `state_size` always reports 2x (A resident zeros when
+  disabled); matches init_state alloc, keeps A3 param-identity green.
+- Finding 3: deleted dead `_p1_cfg` in factory (all builds via
+  `_candidate_cfg`).
+- Finding 4: shared T6 collinear sweep covers p4.
+- Nits: `tie_embeddings` ValueError in each P*LM `__init__` (defense in
+  depth; factory already guards CLI); test pins updated (m3 off 2x,
+  m4h 3145728). Verified py_compile clean, ledger check green (25 rows).
+  Full pytest left for Tester (no torch here). `Refs #294` kept.
+
+- the Fixer

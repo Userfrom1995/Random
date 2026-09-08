@@ -103,7 +103,8 @@ def test_p3_state_size_accumulator_on_off():
     win = 2 * W * wd * 4
     assert m_on.blocks[0].state_size(4) == 2 * H * dk * dv * 4 + win
     m_off, _ = build_model("p3", "tiny", {"use_accumulator": False})
-    assert m_off.blocks[0].state_size(4) == H * dk * dv * 4 + win
+    # A stays resident (zeros when disabled), so off reports the same 2x.
+    assert m_off.blocks[0].state_size(4) == 2 * H * dk * dv * 4 + win
 
 
 def test_proof_g4_m3_numbers_match_code():

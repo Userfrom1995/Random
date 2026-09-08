@@ -91,7 +91,7 @@ def test_m4h_envelope_audit_pins_match_proof():
         audit = f.read()
     with open("postformer/docs/proof-g4.md") as f:
         proof = f.read()
-    for pin in ["3145824", "3538944", "4718592"]:
+    for pin in ["3145728", "3538944", "4718592"]:
         assert pin in proof, pin
     # audit deliberately delegates byte inventories to proof-g4 (single source
     # of truth) instead of duplicating pins; assert the delegation is explicit
