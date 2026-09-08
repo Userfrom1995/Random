@@ -471,3 +471,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4al hostile suite (`test_tester_m4al_redteam.py`, stride/extra-key/nonfinite/vocab guards) plus Fixer hardening (ledger append/check stride guard, key-col finite, extra-key fail; length_sweep discovered-vocab baseline-mismatch guard; A4 identity scoped to CUDA sweep; A2-re W32 note 0.05125) landed at head since the M4ak verification (`809542ad`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4al complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-809542ad delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4am verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `0db316a1`: tree clean, `--unshallow` re-run, `merge-base HEAD FETCH_HEAD = cdf3cdae` (NOT orphan; missing base is the known shallow-clone artifact), PR #295 OPEN MERGEABLE per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests (incl. new `test_tester_m4am_redteam.py`), zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (311 changed files, scope clean), zero `forward_chunk` refs in shipped `models/`+`harness/` (remaining hits are test-file self-pins only), zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4am hostile suite (`test_tester_m4am_redteam.py`, live parity toy+tiny, G4 flatness vs proof pins, cross-W causality, T=1, CLI guard live-fire, dedup key, viewer hardening, honesty, hygiene) landed at head since the M4al verification (`cf9dd1eb`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4am complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-cf9dd1eb delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
