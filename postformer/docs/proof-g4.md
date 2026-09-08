@@ -80,12 +80,13 @@ points at small T on reference configs; the full 1k-32k curve is M2 work.
 
 - S-tiny P2 (G=16): SSD 262144 + slots 16*4*256*4 = 65536 + window
   262144 = 589824 B/layer flat; x6 = 3538944 B (~3.37 MB, O(1)
-  in T, tier (a) by construction; timed curve is M3-gate work).
+  in T, byte-flat by construction, tier (a) PENDING timed ms/token curve).
 - S-tiny P3: 2*262144 (A+S) + window 262144 = 786432 B/layer;
-  x6 = 4718592 B (~4.5 MB) flat, tier (a) by construction.
+  x6 = 4718592 B (~4.5 MB) flat, byte-flat by construction,
+  tier (a) PENDING timed ms/token curve.
 - S-tiny P1/P5 reference: flat 3145728 / 4718592 B (see above).
 - S-tiny P4 (H=4, d_k=d_v=128, W=128, win 4x64, e=4): fast weights
   262144 + window 262144 = 524288 B/layer; x6 = 3145728 B
   (~3.0 MB) flat, identical inventory to P1 by construction (the
-  surprise proj and error gain are parameters, not state). Tier (a) by
-  construction; timed curve is M4-gate work.
+  surprise proj and error gain are parameters, not state).
+  Byte-flat by construction, tier (a) PENDING timed ms/token curve.
