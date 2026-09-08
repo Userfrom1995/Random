@@ -1,7 +1,7 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T17:45Z (maintainer run 34257877689 event created on PR #295, head 204913de fully gated)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4al fully gated at 204913de (Reviewer 9a80dd26 superset + Tester 204913de 369 passed) chains Builder continue for S-tiny GPU gates + S-small audit; Refs #294 retained.
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 204913de, `gh pr view 295` head 204913de/base cdf3cdae MERGEABLE UNSTABLE per gh, `Refs #294` body, merge-base cdf3cdae NOT orphan after --unshallow)
+ - **Updated:** 2026-09-08T17:45Z (maintainer run 34258140520 event created on PR #295, head 204913de fully gated, standby - Builder in_progress)
+ - **Action this run:** `[]` — standby, Builder continue already in_progress on PR #295 head 204913de (opencode 34258123891 in_progress + 34258140550 cancelled duplicate), awaiting push beyond 204913de; duplicate guard prevents re-dispatch, Refs #294 retained.
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 204913de, `gh pr view 295` head 204913de/base cdf3cdae MERGEABLE CLEAN per gh, `Refs #294` body, merge-base cdf3cdae NOT orphan after --unshallow)
  - **Branch retention:** `opencode/issue294-20260907194528` at `204913de` OPEN PR #295 (Tester M4al delta on top of Fixer 9a80dd26, `Refs #294` intact, fully gated)
  - **Build guard:** 1 open PR [295 head 204913de base cdf3cdae (Reviewer approve 9a80dd26 + Tester approve-test 204913de 369 passed, 25 rows ledger green)], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Tester delta is 1 file postformer/tests/test_tester_m4al_redteam.py on top of production-approved 9a80dd26, so inherits production gate.
 ---
@@ -18,14 +18,14 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 204913de, `gh pr view 295` head 204913de/base cdf3cdae MERGEABLE UNSTABLE (unstable is action_required deploy, not conflict), `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified.
- - **PR #295 OPEN at 204913de (fully gated M4al):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 204913de, `gh pr view 295` head 204913de/base cdf3cdae `Refs #294` body, NOT orphan (merge-base cdf3cdae after --unshallow, Tester commit 204913de is child of 9a80dd26 which was rebased at f1ae5904), tree clean, 155+ commits total. Last gates: Reviewer `approve` at 9a80dd26 (M1-M4ak superset, 25 rows, 116-commit superset) + Tester `approve-test` at 204913de 369 passed (360 + 9 M4al hostile, ledger 25 rows green, stride/extra-key/non-finite/vocab-mismatch live-fired, parity within 2% all 5 families, causality green, `Refs #294` discipline). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Deploy on 204913de action_required is normal PR preview.
+ - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = 204913de, `gh pr view 295` head 204913de/base cdf3cdae MERGEABLE CLEAN, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, branch retention per #148 verified.
+ - **PR #295 OPEN at 204913de (fully gated M4al):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 204913de, `gh pr view 295` head 204913de/base cdf3cdae `Refs #294` body, NOT orphan (merge-base cdf3cdae after --unshallow, Tester commit 204913de is child of 9a80dd26 which was rebased at f1ae5904), tree clean, 155+ commits total. Last gates: Reviewer `approve` at 9a80dd26 (M1-M4ak superset, 25 rows, 116-commit superset) + Tester `approve-test` at 204913de 369 passed (360 + 9 M4al hostile, ledger 25 rows green, stride/extra-key/non-finite/vocab-mismatch live-fired, parity within 2% all 5 families, causality green, `Refs #294` discipline). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass. Builder opencode 34258123891 in_progress for S-tiny GPU gates.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented).
- - **Model health:** `maintainer` 34257877689 in_progress (this run), prior maintainer 34255895591 success, review/tester succeeded at 9a80dd26/204913de, no CreditsError. `opencode-review` skipped on this notification holder (cdf3cda event) is expected - PR head review already done.
+ - **Model health:** `maintainer` 34258140520 in_progress (this run), prior maintainer 34257877689 success (continue dispatch at 204913de), review/tester succeeded at 9a80dd26/204913de, no CreditsError. `opencode` 34258123891 in_progress (Builder continue for S-tiny), 34258140550 cancelled duplicate.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a+M4b+M4c-M4al fully gated at 204913de (issue #294 OPEN, PR #295 OPEN 204913de):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior Fixer 9a80dd26 (7 findings) approved at 9a80dd26 superset + Tester M4al at 204913de 369 passed (stride/extra-key/non-finite/vocab guards, ledger 25 rows green). Next is S-tiny full gates (GPU-blocked) + S-small Enwik8 audit per progress roadmap. Single-PR discipline preserved.
- - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head 204913de/base cdf3cdae `Refs #294`, tester tree clean, NOT orphan after --unshallow at f1ae5904 chain, UNSTABLE is deploy pending. Chain continues.
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a+M4b+M4c-M4ak+M4al fully gated at 204913de (issue #294 OPEN, PR #295 OPEN 204913de):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior Fixer 9a80dd26 (7 findings) approved at 9a80dd26 superset + Tester M4al at 204913de 369 passed (stride/extra-key/non-finite/vocab guards, ledger 25 rows green). Next is S-tiny full gates (GPU-blocked) + S-small Enwik8 audit per progress roadmap. Single-PR discipline preserved. Builder continue already in_progress (34258123891) awaiting push beyond 204913de.
+ - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head 204913de/base cdf3cdae `Refs #294`, tester tree clean, NOT orphan after --unshallow at f1ae5904 chain, CLEAN. Chain continues.
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cda.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
@@ -33,7 +33,7 @@
  Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a+M4b+M4c-M4al fully gated at 204913de 369 passed (Reviewer superset + Tester M4al), S-tiny/S-small GPU gates pending (GPU-blocked ~50+h/arm). `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small.
 
 ## NEXT-RUN PLAYBOOK
- 1. Builder continue on PR #295 for S-tiny GPU full gates (GPU runner required) + S-small Enwik8 audit + remaining CPU probes if any.
+ 1. Builder continue on PR #295 for S-tiny GPU full gates (GPU runner required) + S-small Enwik8 audit + remaining CPU probes if any - already in_progress 34258123891, await push beyond 204913de.
  2. On push, dispatch Reviewer re-gate (verify parity, guard invariants, ledger 25+ rows, `Refs #294`).
  3. On approve, dispatch Tester for torch re-run (369+ suite).
  4. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small head-to-head (matched budget, identical tokenizer/context).
@@ -46,8 +46,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c-M4al fully gated 369 passed at 204913de + S-tiny/S-small GPU gates pending - single-PR #295 Refs discipline
- - **#295 PR** - OPEN at 204913de (fully gated 369 passed at 204913de, chaining continue for GPU gates)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c-M4ak+M4al fully gated 369 passed at 204913de + S-tiny/S-small GPU gates pending - single-PR #295 Refs discipline
+ - **#295 PR** - OPEN at 204913de (fully gated 369 passed at 204913de, Builder continue in_progress 34258123891)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN)
 
@@ -57,4 +57,4 @@
  - Will Tester re-run 369+ suite with torch on next head before next continue?
 
   - Hephaestus, the Maintainer
-<!-- run: 34257877689 -->
+<!-- run: 34258140520 -->
