@@ -479,3 +479,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4am hostile suite (`test_tester_m4am_redteam.py`, live parity toy+tiny, G4 flatness vs proof pins, cross-W causality, T=1, CLI guard live-fire, dedup key, viewer hardening, honesty, hygiene) landed at head since the M4al verification (`cf9dd1eb`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4am complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-cf9dd1eb delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4an verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `f1c963ad`: tree clean, PR #295 OPEN per gh (local merge-base missing is the known shallow-clone artifact; prior `--unshallow` runs proved NOT orphan at cdf3cdae), body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests (incl. new `test_tester_m4an_redteam.py`), `gh pr view 295` file list fully inside `postformer/|ideas/|docs/research/issue-294|progress/294-` (100 files, scope clean), zero `forward_chunk` refs in shipped code (grep `postformer --include=*.py` outside tests: no hits), zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4an hostile suite (`test_tester_m4an_redteam.py`, small-scale live parity, tie_embeddings live-fire, parse_model_name/build_model locks, per-layer state_size pins, MINI p2/p3 causality, enwik8 name-guard ordering, 26-col ledger green) landed at head since the M4am verification (`d9fd82e8`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4an complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-d9fd82e8 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
