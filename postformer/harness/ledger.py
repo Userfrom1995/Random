@@ -14,7 +14,11 @@ one vocab going forward). window is the p1/p2/p3/p4/p5 sliding-window W ("" for 
 transformer, which has none); A2 variants share (model, seed) and are
 disambiguated by window. slots is the P2 global-slot count G ("" for
 non-p2 arms; "0" is the pure-SSD control); use_accumulator is the P3
-accumulator flag ("True"/"False", "" for non-p3 arms). Ledger model names
+accumulator flag ("True"/"False", "" for non-p3 arms). slot_stride is
+deliberately NOT a ledger column: every ledgered P2 row uses the default
+stride 8, and cmd_append refuses non-default stride values loudly (stride
+changes slot math but would be invisible to the dedup key, so ledgering
+it would silently collide). Ledger model names
 are always valid --model values (p2-toy, never p2-G0-toy) so a row replays
 via train.py flags plus the slots/use_accumulator columns. g1_mqar_8 holds
 toy N=train-N recall; the 16/64/256 cells stay literal (toy N16 there is an
@@ -75,9 +79,12 @@ def _validate_row(i, r):
         if v in ("", None):
             continue
         try:
-            float(str(v).strip())
+            f = float(str(v).strip())
         except (ValueError, TypeError):
             errors.append(f"row {i} col {c}: not numeric: {v!r}")
+        else:
+            if math.isnan(f) or math.isinf(f):
+                errors.append(f"row {i} col {c}: non-finite value: {v!r}")
     w = r.get("window", "")
     if w not in ("", None) and str(w).strip() != "":
         try:
@@ -142,9 +149,18 @@ def read_ledger(path):
 def cmd_append(a):
     with open(a.run_json) as f:
         run = json.load(f)
-    extra = sorted(k for k in run if k not in SCHEMA)
+    stride = run.get("slot_stride", "")
+    if str(stride).strip() not in ("", "8"):
+        raise SystemExit(
+            f"run-json slot_stride={stride!r}: non-default P2 stride runs "
+            f"are not ledgered (every ledgered P2 row uses the default "
+            f"stride 8, and stride changes math invisibly to the ledger "
+            f"key); refusing to silently collide with the stride-8 row")
+    extra = sorted(k for k in run if k not in SCHEMA and k != "slot_stride")
     if extra:
-        print(f"note: ignoring extra run-json keys not in SCHEMA: {extra}")
+        raise SystemExit(
+            f"extra run-json keys not in SCHEMA: {extra}; "
+            f"refusing append (fix key name)")
     row = {c: run.get(c, "") for c in SCHEMA}
     rows = read_ledger(a.ledger)
     if rows and list(rows[0].keys()) != SCHEMA:
