@@ -94,7 +94,7 @@ def test_p4_state_flat_and_matches_p1_mini():
     seed_all(103, "tester-m4-flat")
     p4, _ = build_model("p4", "tiny", dict(MINI))
     p1, _ = build_model("p1", "tiny", dict(MINI))
-    assert p4.state_bytes(1) == p1.state_bytes(1)
+    assert p4.state_bytes(1, 1024) == p1.state_bytes(1, 1024)
     assert p4.state_bytes(1, length=1024) == p4.state_bytes(1, length=32768)
 
 
