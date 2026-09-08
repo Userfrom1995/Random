@@ -21,11 +21,11 @@ is kept and `Closes #294` waits on S-tiny/S-small G1+G2+G3+G4 head-to-head.
 | p1-W16-1000 ref, seed0 (curves/m3-toy, note only) | 0.0625 | - | - | 0.528M | M3 matched ref |
 | p2-toy G16, seed0 (row 14) | 0.0825 | - | 0.03 | 0.528M | M3 P2 above p1 ref |
 | p3-toy, seed0 (row 15) | 0.0600 | - | 0.01 | 0.528M | M3 P3 at p1 ref |
-| p3-noacc-toy, seed0 (row 16) | 0.06125 | - | 0.02 | 0.528M | M3 A3: unresolved |
+| p3-toy noacc, seed0 (row 16) | 0.06125 | - | 0.02 | 0.528M | M3 A3: unresolved |
 | p4-toy, seed0 (row 19) | 0.035 | 0.0156 | 0.01 | 0.528M | M4b H4 NEGATIVE at toy |
-| p2-G0-toy, seed0 (row 20) | 0.04625 | 0.0056 | 0.01 | 0.528M | A4 pure-SSD control |
-| p2-G4-toy, seed0 (row 21) | 0.0825 | 0.0013 | 0.03 | 0.528M | A4 slots help |
-| p2-G64-toy, seed0 (row 22) | 0.0825 | 0.0013 | 0.03 | 0.528M | A4 count untested |
+| p2-toy slots0, seed0 (row 20) | 0.04625 | 0.0056 | 0.01 | 0.528M | A4 pure-SSD control |
+| p2-toy slots4, seed0 (row 21) | 0.0825 | 0.0013 | 0.03 | 0.528M | A4 slots help |
+| p2-toy slots64, seed0 (row 22) | 0.0825 | 0.0013 | 0.03 | 0.528M | A4 count untested |
 | p1-toy V512, seed0 (row 23) | 0.0 | 0.0 | 0.0 | 0.528M | A6 floor (both arms) |
 | transformer-toy V512, seed0 (row 24) | 0.0 | 0.0 | 0.0 | 0.528M | A6 floor (both arms) |
 | transformer-small pin (row 25) | - | - | - | 0 | params-only drift baseline, gates empty |

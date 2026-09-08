@@ -19,7 +19,9 @@ differs from G4/G64 by slot count alone.
   --episodes 100 --gap 16 --copy-len 32 --seed 0` (eval loader inherits slots
   from the checkpoint config; no override flags needed).
 - Curves: `postformer/ledger/curves/a4-toy/` (8 files per arm x 3 arms).
-- Ledger rows 20-22: `p2-G0-toy`, `p2-G4-toy`, `p2-G64-toy`, `check` green.
+- Ledger rows 20-22: `p2-toy` slots 0/4/64 (seed0, 0.528M tokens each),
+  `check` green. Ledger model names are valid `--model` values; replay via
+  `train --model p2-toy --slots {0,4,64}` (slots column disambiguates).
 
 ## Results (G1 toy envelope, 100 eps)
 
@@ -37,8 +39,8 @@ differs from G4/G64 by slot count alone.
   0.04625) and 3x on 2-hop (0.03 vs 0.01) at identical params (336074,
   zero router params by construction) and identical data. G0 also sits below
   the matched P1 ref (0.0625).
-- Slot-count ceiling: G4, G16 (M3), and G64 collapse to bit-identical scores
-  (train loss equal to 16 digits, all G1 cells equal). Mechanism: toy MQAR
+- Slot-count ceiling: G4 and G64 collapse to bit-identical scores
+  (A4-internal train loss equal to 16 digits, all G1 cells equal). Mechanism: toy MQAR
   episodes are T=33 tokens with slot stride 8, so at most 5 slot writes ever
   occur; any G >= 5 holds the full write history and behaves identically.
   Slot COUNT therefore stays untested until S-tiny N64+ (T_train 512), where
