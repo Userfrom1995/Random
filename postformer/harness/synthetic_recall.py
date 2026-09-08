@@ -151,7 +151,8 @@ def main(argv=None):
         raise SystemExit("--window must be >= 0")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     overrides = {"vocab_size": a.vocab + 2}
-    family = a.model.split("-", 1)[0]
+    from ..models.factory import parse_model_name
+    family, _scale = parse_model_name(a.model)
     if a.window is not None and family not in ("p1", "p2", "p3", "p4", "p5"):
         raise SystemExit("--window applies to p1/p2/p3/p4/p5 arms only (transformer has no window)")
     if family in ("p1", "p2", "p3", "p4", "p5"):

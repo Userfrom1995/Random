@@ -32,6 +32,7 @@ import csv
 import json
 import math
 import os
+import re
 
 SCHEMA = ["model", "params", "train_tokens", "seed", "vocab", "window",
           "slots", "use_accumulator",
@@ -184,10 +185,14 @@ def cmd_check(a):
         # compared against each other; only same-vocab arms are matched.
         by_scale = {}
         for r in rows:
-            if "-" not in r["model"]:
-                errors.append(f"row model name malformed: {r['model']!r}")
+            m = re.fullmatch(r"(p1|p2|p3|p4|p5|transformer)-(toy|tiny|small)",
+                             str(r["model"]).strip())
+            if not m:
+                errors.append(f"row model name malformed: {r['model']!r} "
+                              f"(must look like p1-tiny; curve tags such as "
+                              f"p2-G0-toy are filename labels, never ledger names)")
                 continue
-            scale = r["model"].rsplit("-", 1)[1]
+            scale = m.group(2)
             by_scale.setdefault((scale, r.get("vocab", "")), []).append(r)
         for (scale, vocab), group in by_scale.items():
             base = [g for g in group if g["model"].startswith("transformer-")]
