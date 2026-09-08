@@ -169,6 +169,8 @@ class P3Block(nn.Module):
                  chunk: int, rope_base: float = 10000.0,
                  use_accumulator: bool = True):
         super().__init__()
+        if chunk < 1:
+            raise ValueError(f"chunk must be >= 1, got {chunk!r}")
         self.n1 = RMSNorm(d_model)
         self.n2 = RMSNorm(d_model)
         self.mem = DecoupledMemory(d_model, heads, d_k, d_v,

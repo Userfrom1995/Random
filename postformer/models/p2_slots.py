@@ -146,6 +146,12 @@ class P2Block(nn.Module):
                  chunk: int, rope_base: float = 10000.0,
                  slots: int = 16, slot_stride: int = 8):
         super().__init__()
+        if slots < 0:
+            raise ValueError(f"slots must be >= 0, got {slots!r}")
+        if slot_stride < 1:
+            raise ValueError(f"slot stride must be >= 1, got {slot_stride!r}")
+        if chunk < 1:
+            raise ValueError(f"chunk must be >= 1, got {chunk!r}")
         self.d_model = d_model
         self.n1 = RMSNorm(d_model)
         self.n2 = RMSNorm(d_model)
