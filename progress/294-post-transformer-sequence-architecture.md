@@ -24,13 +24,13 @@
 
 Single technique, single branch, single PR (#295) across continuous `continue` cycles. Never split scaffolding and measurements into separate PRs. All intermediate pushes use `Refs #294`; `Closes #294` only on G1+G2+G3+G4 passing head-to-head with reproducible numbers.
 
-- **Active Milestone:** M2 (in progress on PR #295; M1 complete)
+- **Active Milestone:** M3 (in progress on PR #295; M1 + M2-toy complete)
 - **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot (static green; Playwright deferred, no browser on runner); [x] first S-tiny smoke rows in ledger (4 rows, check passes, G4 plots).
-- **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [x] M2b toy matched-budget MQAR training (transformer vs P1 vs P5, 3 seeds, 1.584M tokens each) + G1 eval = A1; [x] M2c A2 window {0,16,32} toy sweep + G4 1k-32k flatness (toy timed + S-tiny analytic) + RoPE O(T)-per-step fix + ledger 15 rows check-green + plots; [ ] full S-tiny trained gates DEFERRED (CPU-bound, documented below).
-- **Milestone 3 (M3: decoupled + slots, Refs #294):** [ ] P3 accumulator branch + A3; [ ] P2 SSD + slots G {0,4,16,64} + A4; [ ] A5 state scaling curve; [ ] H2/H3 verdicts ledgered.
+- **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [x] M2b toy matched-budget MQAR training (transformer vs P1 vs P5, 3 seeds, 1.584M tokens each) + G1 eval = A1; [x] M2c A2 window {0,16,32} toy sweep + G4 1k-32k flatness (toy timed + S-tiny analytic) + RoPE O(T)-per-step fix + ledger 15 rows check-green + plots; [x] G4 Pareto-tier amendment re-lint (proof/viewer/README, no re-run, 2026-09-07 binding); [ ] full S-tiny trained gates DEFERRED (CPU-bound, measured 2026-09-08: p1-tiny ~1s/step at batch2/seq33 so the binding 3000x16xN64+ gate is ~50+h/arm on CPU - needs GPU runner).
+- **Milestone 3 (M3: decoupled + slots, Refs #294):** [x] P3 accumulator branch + factory pins (toy 274 / tiny 1532 / small 2468, +0.03% tiny) + `--no-accumulator` A3 flag; [x] P2 SSD + slots G {0,4,16,64} + `--slots` A4 flag + A4 G=0 control (shares P1 hid, -0.01% tiny); [x] M3 test suite (T1/T2/T3 auto-extended over p2/p3 + test_m3.py A3/A4/slot-contract/G4-flatness/loader-inheritance + T6 p2/p3 guards, 34 passed); [x] A2-re + M3 first falsification toy probes (6 arms seed0 1000 steps = 0.528M tokens, fixed --window loader, curves/m3-toy, ledger 18 rows check-green); [ ] A3/A4/A5 sweeps at S-tiny (needs GPU); [ ] H2/H3 verdicts ledgered (H3 unresolved at toy: p3-noacc 0.0612 vs p3 0.0600).
 - **Milestone 4 (M4: MAG-lite + envelope audit, Closes #294 only on full pass):** [ ] P4 gated behind P1/P2 ledger + H4 verdict; [ ] A6 vocab/distractor stress; [ ] A7 retrieval-vs-drift split; [ ] S-small Enwik8 + 8x audit + final scoreboard; [ ] `Closes #294` if G1+G2+G3+G4 pass else `Refs #294` with negative ledger.
-- **Current step:** M2 toy falsification complete and ledgered (15 rows). Next: S-tiny training (needs GPU runner) then M3 P3/P2.
-- **Next steps:** (1) full S-tiny trained gates on a GPU runner via `continue` (train.py supports tiny/small presets); (2) M3 P3/P2 implementation; (3) viewer Playwright snapshot; (4) envelope audit.
+- **Current step:** M3 code + toy falsification complete and ledgered (18 rows). Next: S-tiny training on a GPU runner, then M3 sweeps + M4.
+- **Next steps:** (1) full S-tiny trained gates on a GPU runner via `continue` (train.py supports tiny presets for all five families); (2) A3/A4/A5 at S-tiny; (3) viewer Playwright snapshot; (4) envelope audit.
 
 ## Builder log (the Builder, 2026-09-07, M2 toy falsification)
 
@@ -66,3 +66,16 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 
 - Dr. Mob, the Researcher
 - the Architect
+
+## Builder log (the Builder, 2026-09-08, M3 decoupled + slots + first falsification)
+
+- P3 (`models/p3_decoupled.py`): shared-QKV accumulator (alpha 1.0, F-norm rescale hook with counter) + selective (GLA-lite) + W-window, 3-way fusion, SwiGLU. `step_split` single-pass exact `r - s` split. A3 control `--no-accumulator` (same params).
+- P2 (`models/p2_slots.py`): SSD-lite (scalar decay, no erase) + G exact stride slots (oldest evict, zero router params) + W-window, 3-way fusion. A4 control `--slots 0`. Training forward uses prefix-stacked reads (a mutable-buffer first version broke autograd - caught by the new train test, fixed).
+- Parity (non-embed, all within 2%): toy p2 -0.21% / p3 -0.05%; tiny p2 -0.008% / p3 +0.034%; small p2 -0.039% / p3 +0.010%. P2 shares P1 hid; P3 hid toy 274 / tiny 1532 / small 2468.
+- Harness: `util.load_model` inherits (window, slots, use_accumulator, slot_stride) from checkpoint config, rejects --config mismatch loudly. This caught a REAL bug: the first p3-noacc eval silently ran with the accumulator ON (identical shapes); re-ran after the fix (mqar8 0.0612 vs p3 0.0600 - A3/H3 unresolved at toy).
+- Probes (seed0, 1000 steps x batch16 = 0.528M tokens/arm, vocab64/N8, 100 eps, curves/m3-toy/): A2-re W0 0.0875 / W16-ref 0.0625 / W32 0.0512 (no window advantage at toy N8); p2 (G16) 0.0825/0.03 (above matched p1 ref); p3 0.0600/0.01. Ledger 18 rows check-green (novel keys appended; M2 A2 rows extended by --force note upsert, cells intact; W16-1000 ref in curves+notes only - key collides with M2b row).
+- G4 amendment re-lint: proof tiers (a)/(b) + P2/P3 inventory (tiny P2 3932256 B / P3 4718784 B flat), viewer banner, README (tiers, A3/A4 commands, pins).
+- S-tiny smoke: all five families forward-finite at tiny/vocab8192; p1-tiny ~1s/step at batch2/seq33, so the binding gate is ~50+h/arm on CPU - GPU runner required. Gate-vocab eval path verified (random init, chance); vocab-mismatched checkpoints fail loudly.
+- Tests: 34 passed (T1/T2/T3 auto-extended over p2/p3 via conftest; test_m3.py A3/A4/slot-contract/G4-flatness/flags/loader-inheritance; T6 p2/p3 guards). Ideas entry: `ideas/2026-09-08-postformer-m3-decoupled-slots.md`.
+
+- the Builder
