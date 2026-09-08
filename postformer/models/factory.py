@@ -22,9 +22,9 @@ tiny 1532, small 2468 - measured, not estimated). P4 adds one
 surprise proj (d_model x H) plus a per-head error gain (H params) over
 P1, compensated by trimming 2 hid units (measured, see test_params.py).
 
-tie_embeddings is baseline-only: P1/P2/P3/P4/P5 always build a separate
-lm_head, so passing tie_embeddings for them is rejected to protect
-param parity.
+tie_embeddings is rejected for every family: candidates always build a
+separate lm_head and the baseline would silently drop its d*vocab head,
+so allowing it would break the pinned +-2% param parity.
 """
 
 import re
@@ -118,11 +118,9 @@ def build_model(name: str, scale: str, overrides: dict | None = None):
         cfg = _candidate_cfg(family, scale)
     else:
         raise ValueError(f"unknown family {family!r} in {name!r}")
-    if overrides:
-        if family in ("p1", "p2", "p3", "p4", "p5") and overrides.get("tie_embeddings"):
-            raise ValueError("tie_embeddings is baseline-only: P1/P2/P3/P4/P5 always "
-                             "build a separate lm_head; allowing the override "
-                             "would silently break param parity")
+    if overrides and overrides.get("tie_embeddings"):
+        raise ValueError("tie_embeddings is rejected: it silently breaks the pinned "
+                         "+-2% param parity (baseline would drop its d*vocab head)")
         cfg.update({k: v for k, v in overrides.items() if v is not None})
     if family == "transformer":
         model = _b.DecoderLM(cfg)
