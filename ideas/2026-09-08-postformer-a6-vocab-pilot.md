@@ -29,7 +29,7 @@ the distractor set grows 8x (chance 1/512). Same (seed, data) keying.
 | transformer-toy V512 | 6.3730 to 6.1780 | 0.0 | 0.0 | 0.0 | 0.0 |
 
 Chance at vocab512 is 1/512 = 0.00195; recall@3 is 0.00375 (p1) / 0.0025
-(transformer), i.e. at chance. Final loss sits at ln(512) = 6.24 within 0.06:
+(transformer), i.e. at chance. Final loss sits at ln(512) = 6.24 within 0.065:
 both arms are below the learning threshold at this budget, not discriminating
 architectures.
 

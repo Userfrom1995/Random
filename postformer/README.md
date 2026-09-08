@@ -1,4 +1,4 @@
-# PostFormer (M4e: toy envelope audited, 102 tests green; S-tiny trained gates deferred)
+# PostFormer (M4h: toy envelope audited, 118 tests green; S-tiny trained gates deferred)
 
 O(T)-train, O(1)-state sequence modeling vs a causal Transformer baseline
 under matched budgets. Issue #294. All intermediate results use `Refs #294`;
@@ -89,10 +89,10 @@ next to it.
 
 ## M2 toy results (matched budget, 3 seeds, `ledger/ledger.csv` rows 5-15)
 
-- MQAR N8 (train N): P5 0.300 / P1 0.287 / Transformer 0.146 (chance 0.016).
+- MQAR N8 (train N): P5 0.300 / P1 0.2875 / Transformer 0.146 (chance 0.016).
   A1: delta shows no advantage over the additive map at toy N8 (H1/H5
   unresolved - N=256 untested). N16 extrapolation collapses for all arms
-  (P1 0.039, P5 0.000, T 0.091). 2-hop: P5 0.53 / P1 0.46 / T 0.12.
+  (P1 0.039, P5 0.000, T 0.091). 2-hop: P5 0.532 / P1 0.46 / T 0.118.
 - A2 W{0,16,32}: N8 0.275/0.287/0.251 - HOWEVER the pre-fix G1 harness had
   no `--window` passthrough, so all three evals ran window 16 (see the
   `config.window=16` in `g1_summary_p1-toy-W0/W32-s0.json`); the A2
@@ -110,13 +110,14 @@ next to it.
 ## M3/M4b/A4/A6 toy probes (matched 0.528M-token protocol, 100 eps)
 
 - M3: p2-G16 0.0825 / p3 0.0600 vs matched p1-W16-1000 ref 0.0625; A3
-  p3-noacc 0.0612 vs p3 0.0600 (H3 unresolved at toy).
+  p3-noacc 0.06125 vs p3 0.0600 (H3 unresolved at toy).
 - M4b: p4 0.035, BELOW the matched p1 ref (H4 NEGATIVE at toy, open at scale).
 - A4: G0 0.04625 < G4 0.0825 = G16 = G64 behaviorally identical at score
   level (slot count untested:
   toy T=33/stride 8 admits at most 5 writes; H2 open).
 - A6: p1 + transformer both at the 0.0 floor at vocab512 (budget below
-  threshold; H1/H5 open). N16 collapses to chance for every toy arm.
+  threshold; H1/H5 open). N16 sits at chance for every 0.528M-token toy probe
+  (M2b 1.584M-budget arms retain 0.039-0.091, still far below train-N accuracy).
 - Consolidated scoreboard: `docs/envelope-audit.md` (M4e).
 
 ## Layout
@@ -130,11 +131,12 @@ next to it.
   (`build_model`).
 - `harness/`: the five CLI scripts + `train.py` (matched-budget trainer,
   `--window`/`--slots`/`--no-accumulator` ablation flags) + `ledger.py` + `util.py`.
-- `ledger/`: `ledger.csv` (append-only empirical ledger, 24 rows) + `curves/` (raw CSVs/JSON).
+- `ledger/`: `ledger.csv` (append-only empirical ledger, 25 rows: 4 smoke +
+  20 trained toy + 1 params-only drift-baseline pin) + `curves/` (raw CSVs/JSON).
 - `viewer/index.html`: static scoreboard (no CDN, file:// + fetch).
  - `docs/proof-g4.md`: G4 proof appendix (Pareto tiers (a)/(b) + P2/P3/P4
    inventory). `docs/envelope-audit.md`: consolidated toy scoreboard (M4e).
    `tests/`: T1-T6 over all six families + `test_m3.py`
    (A3/A4 controls, slot contract, G4 flatness) + `test_p4.py`
    (surprise grads, P4 causality, P4/P1 state equality) + A4/A6 probe pins
-    + tester red-team suites - 108 passed.
+    + tester red-team suites - 118 passed.
