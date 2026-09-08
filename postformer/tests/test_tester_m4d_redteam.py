@@ -34,7 +34,7 @@ def test_m4d_str_typed_dupe_rejected(tmp_path):
               open(dupe, "w"))
     with pytest.raises(SystemExit):
         ledger_main(["append", "--run-json", dupe, "--ledger", copy])
-    assert len(_rows(copy)) == 22
+    assert len(_rows(copy)) == 24
 
 
 def test_m4d_nan_gate_value_rejected(tmp_path):
