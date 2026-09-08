@@ -271,3 +271,28 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   (no torch here). Refs #294 kept.
 
 - the Fixer
+
+## Fixer log (the Fixer, 2026-09-08, 10890bbc review findings)
+
+- Finding 1: test_m4d NaN test rewritten to hand-craft the corrupt row
+  (bypassing append validation) on canonical p1-toy so only the
+  check-time NaN branch fires.
+- Findings 2+3: m4f/m4i p9-probe-toy rows renamed to canonical p1-toy
+  (same-vocab drift at vocab64, cross-vocab skip at vocab999) with
+  explicit "param drift" message asserts so the drift gate cannot be
+  hollowly satisfied by the malformed-name error.
+- Finding 4: --vocab vs checkpoint vocab_size SystemExit guard copied
+  into synthetic_recall (vocab+2) and enwik8_bpb (256), matching the
+  length_sweep/latency_state discipline.
+- Findings 5+6: smoke G1 cells verified already literal
+  (g1_mqar_16=N16, g1_mqar_64=N64); notes annotated with N16/N64
+  provenance plus the G4 post-fix migration pointer (archived smoke
+  g4_proof JSONs hold pre-fix +96B reservation values, proof-g4.md:29-32).
+- Finding 7: README G4 toy pins 24592/40976 corrected to 24576/40960.
+- Nits: length_sweep dead bpb_1x dict deleted; latency_state prompt
+  tensor placed on device (CPU-only latent path until --device cuda).
+  Verified py_compile clean, ledger check green (25 rows), no em dashes,
+  zero p9-probe-toy refs in the repaired suites. No torch/pytest here;
+  full suite (incl. 3 repaired redteam tests) left for Tester. Refs #294 kept.
+
+- the Fixer

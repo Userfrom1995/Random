@@ -23,7 +23,8 @@ from .util import add_common_args, env_info, load_model, parse_int_list, reseed,
 @torch.no_grad()
 def bench_T(model, vocab, length, decode_steps, warmup, batch, seed, device):
     rng = np.random.default_rng(reseed(seed, f"g4-prompt-T{length}"))
-    prompt = torch.tensor(rng.integers(0, vocab, size=(batch, length)), dtype=torch.long)
+    prompt = torch.tensor(rng.integers(0, vocab, size=(batch, length)),
+                          dtype=torch.long, device=device)
     states = model.init_state(batch, device, next(model.parameters()).dtype)
     # Prefill through the recurrent step API so every arm pays the same path.
     for i in range(length):

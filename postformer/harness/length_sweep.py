@@ -118,7 +118,6 @@ def main(argv=None):
                         f"--vocab {vocab} != checkpoint train vocab {_cv} "
                         f"for {_name}; refusing to partial-load or OOB the embedding")
     rows = []
-    bpb_1x = {}
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
         reseed(a.seed, f"init-{name}")  # deterministic init before any torch draws
         ckpt = a.checkpoint if name == a.model else a.baseline_checkpoint
