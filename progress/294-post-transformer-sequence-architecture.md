@@ -511,3 +511,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4aq hostile suite (`test_tester_m4aq_redteam.py`, Markov training path) landed at head since the M4ap verification (`d0e53354`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4aq complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-d0e53354 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ar verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `e31a8937`: tree clean, PR #295 OPEN per gh, body `Refs #294`.
+- Verified without torch (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean via merge-base diff), zero `forward_chunk` refs in shipped code (grep `postformer --include=*.py` outside tests: no hits).
+- No new training: Tester M4ar hostile suite (`test_tester_m4ar_redteam.py`, A4 G4/G64 divergence disclosure) plus Fixer A4 wording/divergence pins landed at head since the M4aq verification (`057d2fd4`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ar complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-057d2fd4 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
