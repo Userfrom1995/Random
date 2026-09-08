@@ -439,3 +439,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester final-gate hostile suite (`70f98b4e`, current-head pins) landed at head since the M4ah verification; full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ah complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-c7cc1c55 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ai verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `2d4ad761`: tree clean, PR #295 OPEN, body `Refs #294`.
+- Verified on torch 2.14 CPU in this run (installed torch+pytest+numpy on runner): full suite **344 passed** (all T1-T6/M3/M4/a4/a6 + Tester M4b-M4ai hostile suites incl. M4ai ground-truth pins), `ledger check` green on 25 rows (26-col schema), `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), zero `forward_chunk` refs in shipped code (remaining hits are test-file self-pins only).
+- No new training: Tester M4ai hostile suite (`test_tester_m4ai_redteam.py`, current-head ground-truth pins) landed at head since the M4ah verification; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). All CPU-feasible milestones M1-M4ai complete and pushed. Handing the post-c55cf6cd delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
