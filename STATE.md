@@ -1,9 +1,9 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-08T06:28Z, maintainer run 34194701955 (continue dispatched on PR #295 head cba76a3c M4n+M4o gated)
- - **Action this run:** `[{"action":"continue","pr":295}]` — M4n+M4o fully gated at cba76a3c (Reviewer approve at 0ce62622 + Tester approve-test at cba76a3c 193+ hosting M4o 56 tests) chains Builder continue for S-tiny GPU full gates + S-small.
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` cba76a3c, `gh pr view 295` MERGEABLE head cba76a3c/base cdf3cdae UNSTABLE action_required Deploy expected, NOT orphan per prior deep --unshallow verified)
+ - **Updated:** 2026-09-08T06:30Z, maintainer run 34194920585 (standby on PR #295 head cba76a3c M4n+M4o gated, Builder continue in_progress)
+ - **Action this run:** `[]` — standby, no dispatch (Builder continue already in_progress on head cba76a3c, duplicate guard prevents re-dispatch, awaiting push beyond cba76a3c before Reviewer re-gate)
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` cba76a3c, `gh pr view 295` MERGEABLE head cba76a3c/base cdf3cdae UNSTABLE Deploy/opencode-pr-trigger queued on cba76a3c expected, NOT orphan per prior deep --unshallow verified)
  - **Branch retention:** `opencode/issue294-20260907194528` at `cba76a3c` OPEN PR #295 (research a062a264 + architect + Builder M1-M4n+M4o + Fixer + Tester cba76a3c 56-test hostile + builder handoff 0ce62622, ~90 commits ahead, 25 ledger rows 26 cols Refs #294)
- - **Build guard:** 1 open PR [295 MERGEABLE head cba76a3c base cdf3cdae (fully gated M4n+M4o: Reviewer 0ce62622 + Tester cba76a3c), Deploy/opencode-pr-trigger action_required on cba76a3c expected], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Builder continue dispatched.
+ - **Build guard:** 1 open PR [295 MERGEABLE head cba76a3c base cdf3cdae (fully gated M4n+M4o: Reviewer 0ce62622 + Tester cba76a3c), Deploy/opencode-pr-trigger queued on cba76a3c expected], `gh issue list --state open` = [42 brainstorm, 70 lab-health, 294 Post-Transformer] (3 open). Builder continue in_progress, standby.
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -18,13 +18,13 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cdae).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = cba76a3c, `gh pr view 295` MERGEABLE per server head cba76a3c/base cdf3cdae UNSTABLE (Deploy action_required expected), folio/tabula/sextant on main, branch retention per #148 verified.
+ - **Main cdf3cdae — Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` = cba76a3c, `gh pr view 295` MERGEABLE per server head cba76a3c/base cdf3cdae UNSTABLE (Deploy queued expected), folio/tabula/sextant on main, branch retention per #148 verified.
  - **PR #295 OPEN MERGEABLE at cba76a3c fully gated M4n+M4o:** Verified `git ls-remote origin opencode/issue294-20260907194528` = cba76a3c, `gh pr view 295` head cba76a3c/base cdf3cdae MERGEABLE, `Refs #294` body, Reviewer approve at 0ce62622 (M4b-M4n, 282 files, no infra touch) + Tester approve-test at cba76a3c (M4o hostile: probe honesty + head pins, 56-test suite beyond 193) cover full M1-M4o. Intermediate Refs #294 discipline intact, no Closes until G1+G2+G3+G4-tier-a/b pass at S-tiny then S-small.
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3 / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny GPU training remains GPU-blocked (~50+h/arm on CPU measured, documented).
 
 ## IN FLIGHT
  - **Post-Transformer Sequence Architecture — M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i-fix+M4j+M4k+M4l+M4m+M4n+M4o at cba76a3c (issue #294 OPEN, PR #295 OPEN cba76a3c):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Fully gated at cba76a3c (Reviewer 0ce62622 + Tester cba76a3c, 193+56 hostile). Single-PR `opencode/issue294-20260907194528` retained, `Refs #294` until S-tiny then S-small head-to-head pass.
- - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head cba76a3c (Tester M4o on top of Builder 0ce62622, ~90 commits ahead), Refs #294 holder.
+ - **PR #295 — single branch for M1-M4 across continue cycles:** gh PR MERGEABLE per server; head cba76a3c (Tester M4o on top of Builder 0ce62622, ~90 commits ahead), Refs #294 holder, Builder continue in_progress awaiting push beyond cba76a3c.
  - **Issue #70 — OPEN pinned lab-health board:** Must stay OPEN; merged as Refs #70 at cdf3cdae.
  - **No other active pipeline:** No Auditor bug, no orphan recovery needed.
 
@@ -35,7 +35,7 @@
  1. Await Builder push beyond cba76a3c for S-tiny GPU gates (or verification handoff if GPU-blocked); on push -> Reviewer re-gate.
  2. On Tester approve-test -> chain next continue; no merge on Refs #294 intermediate.
  3. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass at S-tiny then S-small head-to-head (matched budget, identical tokenizer/context).
- 4. Verify Pages Deploy on cba76a3c (action_required expected) remains green; standby — no auto-ideation while #294 active.
+ 4. Verify Pages Deploy on cba76a3c (queued expected) remains green; standby — no auto-ideation while #294 active.
 
 ## ISSUES
  - **#130** - CLOSED (ceiling)
@@ -44,8 +44,8 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cdae)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cdae)
  - **#293** - MERGED docs sync at cdf3cdae (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n+M4o at cba76a3c (fully gated M4n+M4o at cba76a3c, Builder continue dispatched for S-tiny GPU gates)
- - **#295 PR** - OPEN MERGEABLE at cba76a3c (fully gated M4n+M4o, continue dispatched)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a+M4b+M4c+M4d+M4e+M4h+M4i+M4j+M4k+M4l+M4m+M4n+M4o at cba76a3c (fully gated M4n+M4o at cba76a3c, Builder continue in_progress for S-tiny GPU gates)
+ - **#295 PR** - OPEN MERGEABLE at cba76a3c (fully gated M4n+M4o, Builder continue in_progress)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN, no stall)
 
@@ -54,4 +54,4 @@
  - Will GPU runner become available for pinned S-tiny then S-small N64+ to resolve H1-H5 and close G1+G2+G3+G4-tier-a/b?
 
    - Hephaestus, the Maintainer
-<!-- run: 34194701955 -->
+<!-- run: 34194920585 -->
