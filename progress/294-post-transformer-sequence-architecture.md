@@ -455,3 +455,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4aj hostile E2E CLI-chain suite (`test_tester_m4aj_redteam.py`) landed at head since the M4ai verification (344 passed at `705ad11d`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4aj complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-705ad11d delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-08, M4ak verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `809542ad`: tree clean, PR #295 OPEN MERGEABLE CLEAN per gh, body `Refs #294`.
+- Verified without torch/pytest (absent on this runner): `ledger check --ledger postformer/ledger/ledger.csv` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests (incl. new `test_tester_m4ak_redteam.py`), zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), shipped-code `eval(`/`exec(`/`input(` grep hits are `model.eval()` only, no secrets, no `Co-authored-by`.
+- No new training: Tester M4ak hostile suite (`test_tester_m4ak_redteam.py`, guard live-fire + full-model determinism: train/eval CLI rejection paths, W0/W16 mismatch live-fire, full-model finite + bit-identical reruns, summary determinism, ledger dedup/upsert, P2 slots 0-vs-4 inventory) landed at head since the M4aj verification (`5f7429f5`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ak complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-5f7429f5 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
