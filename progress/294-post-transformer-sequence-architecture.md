@@ -304,3 +304,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
   full suite (incl. 3 repaired redteam tests) left for Tester. Refs #294 kept.
 
 - the Fixer
+
+## Builder log (the Builder, 2026-09-08, M4j-M4l hardening + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `cf108ecf`: tree clean, `merge-base HEAD origin/main = cdf3cdae` (NOT orphan after `--unshallow`), PR #295 OPEN MERGEABLE, body `Refs #294`.
+- Post-M4i delta verified without torch: `ledger check` green on 25 rows, `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-`, zero `forward_chunk` refs. Full pytest (144 test functions across 24 files, incl. Tester M4j/M4k/M4l hostile suites for N>vocab refusal, n-guard edges, off-by-one boundaries, live parity, ledger green, viewer hardening) rests on the torch-env Tester pass; no re-run here (no torch on runner).
+- M4j pinned the `gen_mqar` N>vocab numpy crash as a loud up-front `SystemExit` with zero partial g1_* outputs; Fixer extended the guard to bare-defaults (`64772a97`); M4k pins bare-defaults plus n=0/negative edges and MQAR-only scoping; M4l pins n==vocab success vs vocab+1 refusal, non-MQAR task exemption, `--window -1` / `--vocab 8` refusal, live +-2% parity all scales, committed-ledger green, viewer splitCSV+esc hardening. All CPU-feasible milestones M1-M4l complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-M4i delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
