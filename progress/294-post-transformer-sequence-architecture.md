@@ -136,6 +136,12 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 
 - the Builder
 
+## Builder log (the Builder, 2026-09-08, M4c/d/e verification + review handoff)
+
+- Re-ran the full envelope on CPU (torch 2.14, numpy/pytest installed on runner): **108 passed** (M4e audit claimed 102; +6 from the Tester M4f/M4g hostile suites landed after), `ledger check` green on 24 rows, tree clean, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (no infra touch). M4c A4 sweep + M4d A6 pilot + M4e audit + M4f/M4g suites are complete and unreviewed; all remaining work (S-tiny/S-small full gates, A3/A4/A5 at scale, H-verdicts at scale) is GPU-blocked and documented. Handing the full M4b-M4e delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
+
 ## Tester log (the Tester, 2026-09-08, M4b red-team)
 
 - `postformer/tests/test_tester_m4b_redteam.py` (hostile regression for the M4b P4-vs-P1 probe); suite re-run left for the torch-env test pass. `Refs #294`.
