@@ -133,5 +133,5 @@ class P5LM(nn.Module):
             x, _ = blk.step(x, st)
         return self.lm_head(self.norm_f(x)).unsqueeze(1), states
 
-    def state_bytes(self, batch: int, length: int = 0, bpe: int = 4) -> int:
+    def state_bytes(self, batch: int, length: int, bpe: int = 4) -> int:
         return batch * sum(b.state_size(bpe) for b in self.blocks)

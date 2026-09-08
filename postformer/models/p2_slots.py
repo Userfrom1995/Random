@@ -286,6 +286,6 @@ class P2LM(nn.Module):
             x, _ = blk.step(x, st)
         return self.lm_head(self.norm_f(x)).unsqueeze(1), states
 
-    def state_bytes(self, batch: int, length: int = 0, bpe: int = 4) -> int:
+    def state_bytes(self, batch: int, length: int, bpe: int = 4) -> int:
         # O(1) in length by construction; length accepted for API parity.
         return batch * sum(b.state_size(bpe) for b in self.blocks)
