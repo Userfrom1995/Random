@@ -190,6 +190,8 @@ def cmd_check(a):
         # compared against each other; only same-vocab arms are matched.
         by_scale = {}
         for r in rows:
+            if list(r.keys()) != SCHEMA:
+                continue
             m = re.fullmatch(r"(p1|p2|p3|p4|p5|transformer)-(toy|tiny|small)",
                              str(r["model"]).strip())
             if not m:
