@@ -3,9 +3,10 @@
 Refs #294 (toy proxies only, never gate results). Durable regression for the
 A4 Builder delta: ledger rows p2-toy slots 0/4/64 (seed0, 0.528M tokens each)
 plus the 24 curves under postformer/ledger/curves/a4-toy/ and the A4 ideas
-entry. Findings pinned here: slots beat pure-SSD at toy N8, but G4/G16/G64
-collapse to identical scores because toy episodes (T=33, stride 8) admit at
-most 5 slot writes, so slot COUNT stays untested until S-tiny N64+.
+entry. Findings pinned here: slots beat pure-SSD at toy N8; G4/G64
+summary cells are equal but per-episode N16 CSVs differ (7 pred flips),
+and G4 (capacity 4/5 writes at T=33) evicts position 0, so slot COUNT
+stays untested until S-tiny N64+.
 """
 
 import csv
@@ -73,7 +74,7 @@ def test_a4_expected_scores():
 
 
 def test_a4_slot_count_ceiling_identity():
-    """G4 and G64 summaries must agree exactly (<=5 writes at toy length)."""
+    """G4 and G64 summary cells agree; per-episode N16 CSVs differ (known)."""
     s4 = json.load(open(os.path.join(A4, "g1_summary_p2-G4-toy-s0.json")))
     s64 = json.load(open(os.path.join(A4, "g1_summary_p2-G64-toy-s0.json")))
     for task in ("mqar", "bind2hop", "induction", "copying"):
@@ -81,6 +82,29 @@ def test_a4_slot_count_ceiling_identity():
     t4 = json.load(open(os.path.join(A4, "train_summary_p2-G4-toy-s0.json")))
     t64 = json.load(open(os.path.join(A4, "train_summary_p2-G64-toy-s0.json")))
     assert t4["final_loss"] == t64["final_loss"]
+    # Per-episode scope: N16 CSVs are NOT identical. G4 (capacity 4/5
+    # writes at T=33, stride 8) evicts position 0 at i=32, so the
+    # G>=5 full-history argument does not cover G4. Pin the known
+    # divergence so summary equality cannot be misread as behavioral
+    # identity (see ideas/2026-09-08-postformer-a4-slots-sweep.md).
+    with open(os.path.join(A4, "g1_mqar_N16_seed0_p2-G4-toy-s0.csv")) as f:
+        r4 = list(csv.DictReader(f))
+    with open(os.path.join(A4, "g1_mqar_N16_seed0_p2-G64-toy-s0.csv")) as f:
+        r64 = list(csv.DictReader(f))
+    assert len(r4) == len(r64) == 1600
+    pred_flips = sum(1 for a, b in zip(r4, r64) if a["pred"] != b["pred"])
+    assert pred_flips == 7, pred_flips
+    acc4 = sum(int(r["correct"]) for r in r4) / len(r4)
+    acc64 = sum(int(r["correct"]) for r in r64) / len(r64)
+    assert acc4 == acc64 == pytest.approx(s4["mqar"]["16"]["acc"])
+    # All other per-episode G1 CSVs are identical across G4/G64.
+    for name in ("g1_mqar_N8_seed0", "g1_bind2hop_seed0",
+                 "g1_copy_L32_seed0", "g1_induction_gap16_seed0"):
+        with open(os.path.join(A4, f"{name}_p2-G4-toy-s0.csv")) as f:
+            c4 = list(csv.DictReader(f))
+        with open(os.path.join(A4, f"{name}_p2-G64-toy-s0.csv")) as f:
+            c64 = list(csv.DictReader(f))
+        assert c4 == c64, name
 
 
 def test_a4_params_identical_across_slots():
