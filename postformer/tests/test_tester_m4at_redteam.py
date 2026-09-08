@@ -170,6 +170,9 @@ def test_at6_scale_garbage_missing_checkpoints_stay_loud(tmp_path):
                    "cpu", "fp32")
     # Other cross-family pairs already fail loudly via key/shape mismatch
     # (SystemExit for missing/unexpected keys, RuntimeError for shape
-    # mismatch): any loud exception is acceptable, silence is not.
-    with pytest.raises(Exception):
+    # mismatch) or via the provenance trust-boundary guard (SystemExit
+    # when blob['args']['model'] disagrees on family): any loud exception
+    # is acceptable, silence is not. NOTE: SystemExit derives from
+    # BaseException, not Exception, so the pin must accept both.
+    with pytest.raises(BaseException):
         load_model("p2-toy", ckpt, None, {"vocab": 66}, "cpu", "fp32")
