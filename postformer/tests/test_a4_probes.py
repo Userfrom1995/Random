@@ -1,7 +1,7 @@
 """Builder A4 regression: P2 slot-count sweep honesty + ledger/curve integrity.
 
 Refs #294 (toy proxies only, never gate results). Durable regression for the
-A4 Builder delta: ledger rows p2-G0/G4/G64-toy (seed0, 0.528M tokens each)
+A4 Builder delta: ledger rows p2-toy slots 0/4/64 (seed0, 0.528M tokens each)
 plus the 24 curves under postformer/ledger/curves/a4-toy/ and the A4 ideas
 entry. Findings pinned here: slots beat pure-SSD at toy N8, but G4/G16/G64
 collapse to identical scores because toy episodes (T=33, stride 8) admit at
@@ -32,8 +32,10 @@ def _ledger_rows():
 
 
 def _row(g):
-    rows = [r for r in _ledger_rows() if r["model"] == f"p2-G{g}-toy"]
-    assert len(rows) == 1, f"expected exactly one p2-G{g}-toy row, got {len(rows)}"
+    rows = [r for r in _ledger_rows()
+            if r["model"] == "p2-toy" and r["slots"] == str(g)
+            and r["vocab"] == "64" and r["train_tokens"] == "528000"]
+    assert len(rows) == 1, f"expected exactly one p2-toy slots={g} row, got {len(rows)}"
     return rows[0]
 
 
@@ -52,6 +54,8 @@ def test_a4_ledger_rows_match_curve_json():
         assert r["vocab"] == "64" and r["window"] == "16" and r["seed"] == "0"
         assert int(r["train_tokens"]) == 528000
         assert summ["config"]["slots"] == g
+        assert r["slots"] == str(g), (r["slots"], g)
+        assert r["model"] == summ["model"] == "p2-toy"
         assert summ["random_init"] is False
 
 

@@ -116,20 +116,21 @@ def test_m4h_a4_ledger_g4_g64_cells_match_curves():
     import json
     with open("postformer/ledger/ledger.csv") as f:
         rows = list(csv.DictReader(f))
-    by_model = {r["model"]: r for r in rows
-                if r["model"] in ("p2-G4-toy", "p2-G64-toy")}
-    assert set(by_model) == {"p2-G4-toy", "p2-G64-toy"}
-    for name, row in by_model.items():
-        tag = name.split("-")[1]  # G4 / G64
+    by_slot = {(r["model"], r["slots"]): r for r in rows
+               if r["model"] == "p2-toy" and r["slots"] in ("4", "64")}
+    assert set(by_slot) == {("p2-toy", "4"), ("p2-toy", "64")}
+    for (model, slots), row in by_slot.items():
+        tag = f"G{slots}"
         path = (f"postformer/ledger/curves/a4-toy/"
                 f"g1_summary_p2-{tag}-toy-s0.json")
         with open(path) as f:
             summary = json.load(f)
         mqar8 = summary["mqar"]["8"]["acc"]
-        assert abs(float(row["g1_mqar_8"]) - float(mqar8)) < 1e-9, (name, row)
+        assert abs(float(row["g1_mqar_8"]) - float(mqar8)) < 1e-9, (model, slots, row)
+        assert row["model"] == summary["model"] == "p2-toy"
     # trained-score coincidence that the ledger discloses
-    assert (by_model["p2-G4-toy"]["g1_mqar_8"]
-            == by_model["p2-G64-toy"]["g1_mqar_8"])
+    assert (by_slot[("p2-toy", "4")]["g1_mqar_8"]
+            == by_slot[("p2-toy", "64")]["g1_mqar_8"])
 
 
 def test_m4h_no_emdashes_in_audit_chain():

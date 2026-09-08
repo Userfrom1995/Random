@@ -28,8 +28,8 @@ def test_m4d_str_typed_dupe_rejected(tmp_path):
     copy = str(tmp_path / "ledger.csv")
     shutil.copy(LEDGER, copy)
     dupe = str(tmp_path / "dupe.json")
-    json.dump({"model": "p2-G4-toy", "params": 336074, "train_tokens": 528000,
-               "seed": "0", "vocab": "64", "window": "16",
+    json.dump({"model": "p2-toy", "params": 336074, "train_tokens": 528000,
+               "seed": "0", "vocab": "64", "window": "16", "slots": "4",
                "g1_mqar_8": 0.0825, "notes": "str-type dupe probe Refs #294"},
               open(dupe, "w"))
     with pytest.raises(SystemExit):
