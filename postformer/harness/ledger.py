@@ -1,7 +1,8 @@
 """Empirical ledger: append / check / plot over ledger/ledger.csv.
 
-Schema (one row per model per seed per (vocab, window); empty = not yet measured):
-model,params,train_tokens,seed,vocab,window,
+Schema (one row per model per seed per (vocab, window, slots, use_accumulator);
+empty = not yet measured):
+model,params,train_tokens,seed,vocab,window,slots,use_accumulator,
 g1_mqar_8,g1_mqar_16,g1_mqar_64,g1_mqar_256,
 g1_induction,g1_copy,g1_2hop,g2_bpb_1x,g2_bpb_4x,g2_bpb_8x,
 g2_delta_4x,g2_delta_8x,g3_valid_bpb,g3_test_bpb,
@@ -11,14 +12,18 @@ vocab is the eval/train vocab both arms shared (migrated M1 smoke rows use
 the G1 vocab 256; G2/G4 smoke cells used 8192 - conflated there, pinned to
 one vocab going forward). window is the p1/p2/p3/p4/p5 sliding-window W ("" for the
 transformer, which has none); A2 variants share (model, seed) and are
-disambiguated by window. g1_mqar_8 holds toy N=train-N recall; the
-16/64/256 cells stay literal (toy N16 there is an extrapolation point, and
-notes must say so).
+disambiguated by window. slots is the P2 global-slot count G ("" for
+non-p2 arms; "0" is the pure-SSD control); use_accumulator is the P3
+accumulator flag ("True"/"False", "" for non-p3 arms). Ledger model names
+are always valid --model values (p2-toy, never p2-G0-toy) so a row replays
+via train.py flags plus the slots/use_accumulator columns. g1_mqar_8 holds
+toy N=train-N recall; the 16/64/256 cells stay literal (toy N16 there is an
+extrapolation point, and notes must say so).
 
-check: schema lint (every row's keys against SCHEMA, no NaN in filled gate
-cells, every row carries at least one gate cell or an explicit
-deferred/probe/fixture notes tag) plus the binding +-2% param-drift rule
-(candidate vs transformer arm, same scale).
+check: schema lint (every row's keys against SCHEMA, no NaN/inf in filled
+gate cells or params, every row carries at least one gate cell or an
+explicit deferred/probe/fixture notes tag) plus the binding +-2%
+param-drift rule (candidate vs transformer arm, same scale and vocab).
 plot: regenerate g2 degradation + g4 latency curves from CSV only (SVG, no deps).
 """
 
@@ -29,6 +34,7 @@ import math
 import os
 
 SCHEMA = ["model", "params", "train_tokens", "seed", "vocab", "window",
+          "slots", "use_accumulator",
           "g1_mqar_8", "g1_mqar_16", "g1_mqar_64", "g1_mqar_256",
           "g1_induction", "g1_copy", "g1_2hop",
           "g2_bpb_1x", "g2_bpb_4x", "g2_bpb_8x", "g2_delta_4x", "g2_delta_8x",
@@ -43,13 +49,84 @@ EMPTY_ROW_TAGS = ("defer", "pend", "todo", "probe", "fixture",
                   "not measured", "empty by design")
 
 
+def _norm(v):
+    return str(v if v is not None else "").strip()
+
+
 def _key(r):
-    # A2 window variants and vocab pins share (model, seed); the full key
-    # keeps those legitimate variants distinct while catching silent dupes.
-    # Normalized to str: CSV rows are always strings but run-json values
-    # are JSON numbers, so raw comparison leaves dedup dead for real inputs.
-    return (str(r.get("model", "")), str(r.get("seed", "")),
-            str(r.get("vocab", "")), str(r.get("window", "")))
+    # A2 window variants, A4 slot variants, and A3 accumulator variants
+    # share (model, seed); the full key keeps those legitimate variants
+    # distinct while catching silent dupes. Normalized: CSV rows are
+    # strings but run-json values may be ints/None with whitespace, so
+    # bare str() comparison leaves dedup dead for real inputs.
+    return (_norm(r.get("model", "")), _norm(r.get("seed", "")),
+            _norm(r.get("vocab", "")), _norm(r.get("window", "")),
+            _norm(r.get("slots", "")), _norm(r.get("use_accumulator", "")))
+
+
+def _validate_row(i, r):
+    """Per-row lint shared by check and append. Returns list of errors."""
+    errors = []
+    if list(r.keys()) != SCHEMA:
+        return [f"row {i} schema mismatch: {list(r.keys())} != SCHEMA"]
+    for c in ("seed", "vocab", "train_tokens", "gpu_hours"):
+        v = r.get(c, "")
+        if v in ("", None):
+            continue
+        try:
+            float(str(v).strip())
+        except (ValueError, TypeError):
+            errors.append(f"row {i} col {c}: not numeric: {v!r}")
+    w = r.get("window", "")
+    if w not in ("", None) and str(w).strip() != "":
+        try:
+            wi = int(str(w).strip())
+        except (ValueError, TypeError):
+            errors.append(f"row {i} col window: not an integer: {w!r}")
+        else:
+            if wi < 0:
+                errors.append(f"row {i} col window: must be >= 0: {w!r}")
+    s = r.get("slots", "")
+    if s not in ("", None) and str(s).strip() != "":
+        try:
+            si = int(str(s).strip())
+        except (ValueError, TypeError):
+            errors.append(f"row {i} col slots: not an integer: {s!r}")
+        else:
+            if si < 0:
+                errors.append(f"row {i} col slots: must be >= 0: {s!r}")
+    ua = r.get("use_accumulator", "")
+    if ua not in ("", None) and str(ua).strip() != "":
+        if str(ua).strip().lower() not in ("true", "false", "1", "0"):
+            errors.append(
+                f"row {i} col use_accumulator: must be True/False or empty: {ua!r}")
+    for c in GATE_COLS:
+        v = r.get(c, "")
+        if v in ("", None):
+            continue
+        try:
+            x = float(str(v).strip())
+        except ValueError:
+            errors.append(f"row {i} col {c}: not a number: {v!r}")
+            continue
+        if math.isnan(x) or math.isinf(x):
+            errors.append(f"row {i} col {c}: non-finite gate value: {v!r}")
+    pv = r.get("params", "")
+    if pv not in ("", None) and str(pv).strip() != "":
+        try:
+            px = float(str(pv).strip())
+        except ValueError:
+            errors.append(f"row {i} col params: not numeric: {pv!r}")
+        else:
+            if math.isnan(px) or math.isinf(px):
+                errors.append(f"row {i} col params: non-finite value: {pv!r}")
+    if all(r.get(c, "") in ("", None) for c in GATE_COLS):
+        notes = (r.get("notes") or "").lower()
+        if not any(tag in notes for tag in EMPTY_ROW_TAGS):
+            errors.append(
+                f"row {i} ({r.get('model')}) has no gate cells and no "
+                f"explicit empty-row tag in notes {EMPTY_ROW_TAGS}")
+    return errors
 
 
 def read_ledger(path):
@@ -66,6 +143,9 @@ def cmd_append(a):
     rows = read_ledger(a.ledger)
     if rows and list(rows[0].keys()) != SCHEMA:
         raise SystemExit(f"schema mismatch: {list(rows[0].keys())} != SCHEMA")
+    errs = _validate_row(len(rows), row)
+    if errs:
+        raise SystemExit("refusing to append invalid row:\n - " + "\n - ".join(errs))
     dupes = [r for r in rows if _key(r) == _key(row)]
     if dupes and not a.force:
         raise SystemExit(
@@ -80,7 +160,8 @@ def cmd_append(a):
         w.writeheader()
         w.writerows(rows)
     print(f"{'upserted' if dupes else 'appended'} {row['model']} seed={row['seed']} "
-          f"vocab={row['vocab']} window={row['window']} to {a.ledger}")
+          f"vocab={row['vocab']} window={row['window']} slots={row['slots']} "
+          f"use_accumulator={row['use_accumulator']} to {a.ledger}")
 
 
 def cmd_check(a):
@@ -91,46 +172,12 @@ def cmd_check(a):
     else:
         seen = set()
         for i, r in enumerate(rows):
+            errors.extend(_validate_row(i, r))
             if list(r.keys()) != SCHEMA:
-                errors.append(f"row {i} schema mismatch: {list(r.keys())} != SCHEMA")
                 continue
             if _key(r) in seen:
                 errors.append(f"row {i} duplicate key {_key(r)} (append without --force)")
             seen.add(_key(r))
-            for c in ("seed", "vocab", "train_tokens", "gpu_hours"):
-                v = r.get(c, "")
-                if v in ("", None):
-                    continue
-                try:
-                    float(v)
-                except (ValueError, TypeError):
-                    errors.append(f"row {i} col {c}: not numeric: {v!r}")
-            w = r.get("window", "")
-            if w not in ("", None):
-                try:
-                    wi = int(w)
-                except (ValueError, TypeError):
-                    errors.append(f"row {i} col window: not an integer: {w!r}")
-                else:
-                    if wi < 0:
-                        errors.append(f"row {i} col window: must be >= 0: {w!r}")
-            for c in GATE_COLS:
-                v = r.get(c, "")
-                if v in ("", None):
-                    continue
-                try:
-                    x = float(v)
-                except ValueError:
-                    errors.append(f"row {i} col {c}: not a number: {v!r}")
-                    continue
-                if math.isnan(x) or math.isinf(x):
-                    errors.append(f"row {i} col {c}: non-finite gate value: {v!r}")
-            if all(r.get(c, "") in ("", None) for c in GATE_COLS):
-                notes = (r.get("notes") or "").lower()
-                if not any(tag in notes for tag in EMPTY_ROW_TAGS):
-                    errors.append(
-                        f"row {i} ({r.get('model')}) has no gate cells and no "
-                        f"explicit empty-row tag in notes {EMPTY_ROW_TAGS}")
         # Binding +-2% param drift: candidate vs transformer arm per
         # (scale, vocab). The lm_head scales with vocab, so cross-vocab
         # rows (e.g. A6 vocab512 pilot vs vocab64 toy) must not be
@@ -152,9 +199,13 @@ def cmd_check(a):
                         f"cannot verify +-2% param parity")
                 continue
             try:
-                bps = {float(g["params"]) for g in base}
+                bps = {float(str(g["params"]).strip()) for g in base}
             except ValueError:
                 errors.append(f"scale {scale} vocab {vocab}: baseline params not numeric")
+                continue
+            if any(math.isnan(b) or math.isinf(b) for b in bps):
+                errors.append(
+                    f"scale {scale} vocab {vocab}: baseline params non-finite")
                 continue
             if len(bps) > 1:
                 errors.append(
@@ -166,9 +217,20 @@ def cmd_check(a):
                 if g["model"].startswith("transformer-"):
                     continue
                 try:
-                    drift = abs(float(g["params"]) - bp) / bp
+                    pv = float(str(g["params"]).strip())
                 except ValueError:
                     errors.append(f"{g['model']}: params not numeric")
+                    continue
+                if math.isnan(pv) or math.isinf(pv):
+                    errors.append(f"{g['model']}: params non-finite: {g['params']!r}")
+                    continue
+                try:
+                    drift = abs(pv - bp) / bp
+                except ValueError:
+                    errors.append(f"{g['model']}: params not numeric")
+                    continue
+                if math.isnan(drift) or math.isinf(drift):
+                    errors.append(f"{g['model']}: param drift non-finite")
                     continue
                 if drift > 0.02:
                     errors.append(f"{g['model']}: param drift {drift * 100:.2f}% > 2%")
@@ -284,7 +346,8 @@ def main(argv=None):
     q.add_argument("--ledger", required=True)
     q.add_argument("--force", action="store_true",
                    help="upsert: replace the existing row with the same "
-                        "(model, seed, vocab, window) key instead of failing")
+                        "(model, seed, vocab, window, slots, use_accumulator) "
+                        "key instead of failing")
     q.set_defaults(fn=cmd_append)
     q = sub.add_parser("check")
     q.add_argument("--ledger", required=True)
