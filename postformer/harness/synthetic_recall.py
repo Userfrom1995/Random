@@ -135,16 +135,11 @@ def main(argv=None):
     p.add_argument("--episodes", type=int, default=1000)
     p.add_argument("--gap", default="16,64,256")
     p.add_argument("--copy-len", default="32,128,512")
-    p.add_argument("--batch", type=int, default=1,
-                   help="episodes per progress flush; decode is greedy batch-1 "
-                        "(batched greedy decode is M2 work)")
     p.add_argument("--window", type=int, default=None,
                    help="eval sliding-window W for p1/p2/p3/p4/p5 arms; default inherits "
                         "the checkpoint's train window (fails if --config "
                         "disagrees with the checkpoint and no override is given)")
     a = p.parse_args(argv)
-    if a.batch < 1:
-        raise SystemExit("--batch must be >= 1")
     if a.vocab < 16:
         raise SystemExit("--vocab must be >= 16")
     if a.window is not None and a.window < 0:
