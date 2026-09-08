@@ -33,7 +33,7 @@ G4 passes in Pareto tiers: (a) full O(1) flat within 5%
 <script>
 function splitCSV(line) {
   // RFC-4180 quote-aware splitter: the notes column holds quoted commas
-  // (a naive l.split(",") shreds it into 23 cells against a 21-col header).
+  // (a naive l.split(",") shreds it into 29+ cells against the 24-col header).
   const out = []; let cur = "", q = false;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];

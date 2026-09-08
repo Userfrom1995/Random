@@ -112,7 +112,8 @@ next to it.
 - M3: p2-G16 0.0825 / p3 0.0600 vs matched p1-W16-1000 ref 0.0625; A3
   p3-noacc 0.0612 vs p3 0.0600 (H3 unresolved at toy).
 - M4b: p4 0.035, BELOW the matched p1 ref (H4 NEGATIVE at toy, open at scale).
-- A4: G0 0.04625 < G4 0.0825 = G16 = G64 bit-identical (slot count untested:
+- A4: G0 0.04625 < G4 0.0825 = G16 = G64 behaviorally identical at score
+  level (slot count untested:
   toy T=33/stride 8 admits at most 5 writes; H2 open).
 - A6: p1 + transformer both at the 0.0 floor at vocab512 (budget below
   threshold; H1/H5 open). N16 collapses to chance for every toy arm.
@@ -136,4 +137,4 @@ next to it.
    `tests/`: T1-T6 over all six families + `test_m3.py`
    (A3/A4 controls, slot contract, G4 flatness) + `test_p4.py`
    (surprise grads, P4 causality, P4/P1 state equality) + A4/A6 probe pins
-   + tester red-team suites - 102 passed.
+    + tester red-team suites - 108 passed.
