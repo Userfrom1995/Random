@@ -160,7 +160,7 @@ def test_m4b_p4_parity_and_state_still_exact():
     assert abs((cand - base) / base) <= 0.02, (base, cand)
     p4, _ = build_model("p4", "tiny", dict(MINI))
     p1, _ = build_model("p1", "tiny", dict(MINI))
-    assert p4.state_bytes(1) == p1.state_bytes(1)
+    assert p4.state_bytes(1, 1024) == p1.state_bytes(1, 1024)
     assert p4.state_bytes(1, length=1024) == p4.state_bytes(1, length=32768)
 
 
