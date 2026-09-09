@@ -12,7 +12,7 @@ jobs:
   test:
     if: github.event.issue.pull_request != null && (startsWith(github.event.comment.body, '/oc test') || startsWith(github.event.comment.body, '/opencode test'))
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     permissions:
       contents: write
       pull-requests: write
@@ -44,8 +44,9 @@ jobs:
         run: rm -f /tmp/random-lab-decision.json
 
       - name: Run opencode tester
+        id: test
         continue-on-error: true
-        timeout-minutes: 60
+        timeout-minutes: 90
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -63,6 +64,25 @@ jobs:
             Before ending the run, you MUST write the machine handoff decision to `/tmp/random-lab-decision.json`: `{"action":"maintainer"}` for approval/escalation, `{"action":"fix"}` when app fixes are required, or `{"action":"lab"}` when infrastructure fixes are required. The hardcoded workflow step reads this file; it never parses your prose comment.
             You post ONE plain text decision comment per run containing your findings. End every decision comment with your sign-off: `- the Tester`.
 
+      - name: Verify test decided, else fail closed
+        id: verify-test
+        if: always()
+        run: |
+          outcome="${{ steps.test.outcome }}"
+
+          # Fail-closed silent-stall guard (issue #297): the agent step above
+          # runs with continue-on-error, so a step timeout ("The action has
+          # timed out.", e.g. run 34386818174 on PR #295) would otherwise
+          # finish the job green with no decision file and silently stall the
+          # pipeline. Any missing decision file is a hard failure.
+          if [ -f /tmp/random-lab-decision.json ]; then
+            echo "Tester decision file present; gate produced a verdict (step outcome: $outcome)."
+            exit 0
+          fi
+
+          echo "::error::Tester step finished with outcome '$outcome' and no decision file (timed out or crashed mid-run). Failing closed instead of exiting green."
+          exit 1
+
       - name: Forward tester decision
         if: always()
         env:
@@ -70,8 +90,8 @@ jobs:
         run: |
           pr="${{ github.event.issue.number }}"
           if [ ! -f /tmp/random-lab-decision.json ]; then
-            echo "No decision file found."
-            exit 0
+            echo "::error::No decision file found; verify step above already failed the job closed."
+            exit 1
           fi
           
           action=$(jq -r '.action' /tmp/random-lab-decision.json 2>/dev/null || echo "")
