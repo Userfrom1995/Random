@@ -612,3 +612,14 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - Verified: py_compile clean on touched files, ledger check green (25 rows), no em dashes, no shipped-code forward_chunk refs. Full pytest re-run left for Tester (no torch here). Refs #294 kept.
 
 - the Fixer
+
+## Fixer log (the Fixer, 2026-09-09, Tester d5581ff2 dynamic gate findings)
+
+- 1: test_determinism MINI fixture now passes a p1-family-appropriate subset via --config (drops p2-only slots/slot_stride and p3-only use_accumulator); harness guard in util.load_model stays strict by design (M2-A2 class), library build_model still ignores inert keys.
+- 2: enwik8_bpb stride guard corrected from >= to > at both sites (explicit --stride and defaulted stride), matching length_sweep.py stride > t_train; stride==context is valid non-overlapping eval.
+- 3: test_at6 scale-mismatch block widened from pytest.raises(Exception) to pytest.raises(BaseException) so the by-design SystemExit is caught.
+- 4: test_parse_int_list garbage pin updated from ValueError to SystemExit (harness convention since d4f3fbb2 hardening).
+- 5: commit d4f3fbb2 discipline (missing Refs #294 plus leaked Co-authored-by trailer): history/process issue, not code-fixable without rewriting pushed history; flagged for Maintainer awareness, no code change.
+- Verified: py_compile clean on touched files, no em dashes. No torch/pytest on this runner so the full 469+5 suite re-run is left for the Tester. Refs #294 kept.
+
+- the Fixer
