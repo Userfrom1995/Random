@@ -68,6 +68,10 @@ def main(argv=None):
     if a.tokenizer == "bpe":
         raise SystemExit("BPE is a secondary diagnostic deferred past M1; "
                          "use --tokenizer byte (primary scoreboard)")
+    if a.stride is not None and a.stride < 1:
+        raise SystemExit("--stride must be >= 1")
+    if a.stride is not None and a.stride >= a.context:
+        raise SystemExit(f"--stride {a.stride} >= context {a.context}; strided eval would skip tokens")
     path = os.path.join(a.data_root, "enwik8")
     if not os.path.exists(path):
         raise SystemExit(f"missing Enwik8 data file: {path} "
@@ -106,8 +110,8 @@ def main(argv=None):
     if a.stride is not None and a.stride < 1:
         raise SystemExit("--stride must be >= 1")
     stride = a.stride if a.stride is not None else max(1, a.context // 2)
-    if stride > a.context:
-        raise SystemExit(f"--stride {stride} > context {a.context}; strided eval would skip tokens")
+    if stride >= a.context:
+        raise SystemExit(f"--stride {stride} >= context {a.context}; strided eval would skip tokens")
     reseed(a.seed, f"g3-{a.split}")
     loss_nats, n_tok = score_stream(model, ids, a.context, stride, a.device, a.max_windows)
     bpb = loss_nats / math.log(2)
