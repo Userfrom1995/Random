@@ -115,6 +115,20 @@ def _validate_row(i, r):
         if str(ua).strip().lower() not in ("true", "false", "1", "0"):
             errors.append(
                 f"row {i} col use_accumulator: must be True/False or empty: {ua!r}")
+    m = re.fullmatch(r"(p1|p2|p3|p4|p5|transformer)-(toy|tiny|small)",
+                     str(r.get("model", "")).strip())
+    if m:
+        family = m.group(1)
+        if family == "transformer" and _norm(r.get("window", "")) != "":
+            errors.append(
+                f"row {i} col window: must be empty for transformer: {r.get('window')!r}")
+        if family != "p2" and _norm(r.get("slots", "")) != "":
+            errors.append(
+                f"row {i} col slots: must be empty for {family}: {r.get('slots')!r}")
+        if family != "p3" and _norm(r.get("use_accumulator", "")) != "":
+            errors.append(
+                f"row {i} col use_accumulator: must be empty for {family}: "
+                f"{r.get('use_accumulator')!r}")
     for c in GATE_COLS:
         v = r.get(c, "")
         if v in ("", None):

@@ -156,6 +156,20 @@ def main(argv=None):
                     f"--n-pairs {n} > --vocab {a.vocab}; MQAR needs "
                     f"n_pairs <= vocab (distinct keys sampled without "
                     f"replacement); reduce --n-pairs or raise --vocab")
+    if "induction" in tasks:
+        gaps = parse_int_list(a.gap)
+        if not gaps:
+            raise SystemExit("--gap must list at least one entry for induction")
+        for g in gaps:
+            if g < 0:
+                raise SystemExit(f"--gap {g} must be >= 0")
+    if "copying" in tasks:
+        copy_lens = parse_int_list(a.copy_len)
+        if not copy_lens:
+            raise SystemExit("--copy-len must list at least one entry for copying")
+        for ln in copy_lens:
+            if ln < 1:
+                raise SystemExit(f"--copy-len {ln} must be >= 1")
     reseed(a.seed, f"init-{a.model}")  # deterministic init before any torch draws
     _blob = None
     if a.checkpoint:
