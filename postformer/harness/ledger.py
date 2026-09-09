@@ -74,6 +74,11 @@ def _validate_row(i, r):
     errors = []
     if list(r.keys()) != SCHEMA:
         return [f"row {i} schema mismatch: {list(r.keys())} != SCHEMA"]
+    if not re.fullmatch(r"(p1|p2|p3|p4|p5|transformer)-(toy|tiny|small)",
+                        str(r.get("model", "")).strip()):
+        errors.append(f"row {i} model name malformed: {r.get('model')!r} "
+                      f"(must look like p1-tiny; curve tags such as "
+                      f"p2-G0-toy are filename labels, never ledger names)")
     for c in ("seed", "vocab", "train_tokens", "gpu_hours"):
         v = r.get(c, "")
         if v in ("", None):
