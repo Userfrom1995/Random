@@ -72,8 +72,11 @@ def main(argv=None):
     if a.checksum and digest != a.checksum:
         raise SystemExit(f"checksum mismatch: got {digest}, want {a.checksum}")
     size = os.path.getsize(path)
-    lo = TRAIN_END if size > VALID_END else 0
-    hi = (VALID_END if a.split == "valid" else size) if size > VALID_END else size
+    if size > VALID_END:
+        lo = TRAIN_END if a.split == "valid" else VALID_END
+        hi = VALID_END if a.split == "valid" else size
+    else:
+        lo, hi = 0, size
     if a.split == "test" and size <= VALID_END:
         raise SystemExit("test split needs the full 100M file; fixture too small")
     with open(path, "rb") as f:
