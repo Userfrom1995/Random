@@ -77,6 +77,35 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
             f"checkpoint scale={ckpt_scale!r} != requested "
             f"scale={scale!r}; refusing to silently score the wrong "
             f"scale arm")
+    # Family-ablation guard for the --config / provenance-less-blob path
+    # (M2-A2 silent-invalidation class): build_model blindly ignores
+    # family-inappropriate keys via cfg.update, so a --config with
+    # window/slots/use_accumulator for the wrong family would exit 0 on
+    # the wrong arm. Refuse loudly here, for both explicit --config keys
+    # and keys that would be inherited from ckpt_cfg below.
+    if family == "transformer" and overrides.get("window") is not None:
+        raise SystemExit(
+            f"--config window={overrides['window']!r} for transformer "
+            f"(no window); refusing")
+    if family != "p2" and overrides.get("slots") is not None:
+        raise SystemExit(
+            f"--config slots for {family} (p2-only); refusing")
+    if family != "p3" and overrides.get("use_accumulator") is not None:
+        raise SystemExit(
+            f"--config use_accumulator for {family} (p3-only); refusing")
+    if family == "transformer" and ckpt_cfg.get("window") is not None \
+            and "window" not in overrides:
+        raise SystemExit(
+            f"checkpoint window={ckpt_cfg['window']!r} for transformer "
+            f"(no window); refusing")
+    if family != "p2" and ckpt_cfg.get("slots") is not None \
+            and "slots" not in overrides:
+        raise SystemExit(
+            f"checkpoint slots for {family} (p2-only); refusing")
+    if family != "p3" and ckpt_cfg.get("use_accumulator") is not None \
+            and "use_accumulator" not in overrides:
+        raise SystemExit(
+            f"checkpoint use_accumulator for {family} (p3-only); refusing")
     for k in ("window", "slots", "use_accumulator", "slot_stride"):
         if k in ckpt_cfg and k not in overrides:
             overrides[k] = ckpt_cfg[k]
