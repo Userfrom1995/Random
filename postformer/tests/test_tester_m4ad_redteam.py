@@ -60,7 +60,9 @@ def test_ad3_h4_negative_honestly_ledgered():
     rows = _rows()
     p4 = next(r for r in rows if r["model"] == "p4-toy")
     assert float(p4["g1_mqar_8"]) == 0.035
-    assert "BELOW matched p1-W16-1000 ref 0.0625" in p4["notes"]
+    assert "BELOW eval-matched p1-W16-1000 ref 0.0625" in p4["notes"]
+    assert "eval-matched only" in p4["notes"]
+    assert "BELOW matched p1-W16" not in p4["notes"]  # unqualified claim banned
     assert "H4 NEGATIVE at toy" in p4["notes"]
     audit = _AUDIT.read_text()
     assert "H4 NEGATIVE at toy" in audit or "0.035" in audit
