@@ -1,12 +1,12 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-09T08:54Z (maintainer run 34331717470 schedule, PR #295 at 6de0eaea Reviewer APPROVED awaiting Tester)
- - **Action this run:** `[]` - standby: PR #295 at 6de0eaea Reviewer APPROVED at 08:36:25Z + 08:43:42Z (324-325 files scope clean, state bytes exact, ledger 25 green, Refs #294) superseding fully-gated b0c52626; Tester in_progress 34330044039 (08:36:30Z) + pending 34330723564 (08:43:53Z) on 6de0eaea (doc-only beyond b0c52626), awaiting Tester approve-test before chaining Builder continue for S-tiny CPU full-budget gates
- - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 6de0eaea, `gh pr view 295` head 6de0eaea/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body, NOT orphan via gh MERGEABLE + prior --unshallow merge-base cdf3cdae 193 commits)
- - **Branch retention:** `opencode/issue294-20260907194528` at `6de0eaea` OPEN PR #295 (Reviewer APPROVED at 6de0eaea, Tester in_progress/pending at 6de0eaea, prior fully gated b0c52626 Reviewer a915477a + Tester b0c52626, Refs #294, MERGEABLE CLEAN)
+ - **Updated:** 2026-09-09T10:24Z (maintainer run 34340040103 created on PR #295, head 5633a813 Tester APPROVED)
+ - **Action this run:** `[{"action":"continue","pr":295}]` - PR #295 fully gated at 5633a813 (Reviewer APPROVED at 6de0eaea 08:36:25Z + 08:43:42Z + Tester approve-test at 5633a813 10:24:23Z 5 new M4bb), chaining Builder continue for S-tiny CPU full-budget gates + S-small audit via chunked/resumed/parallel
+ - **Main:** `cdf3cdae489c7efd1b655e46af83623e722ace19` LIVE (`git ls-remote origin/main` cdf3cdae, `git ls-remote origin opencode/issue294-20260907194528` 5633a813, `gh pr view 295` head 5633a813/base cdf3cdae MERGEABLE, `Refs #294` body, NOT orphan via gh MERGEABLE + prior --unshallow merge-base cdf3cdae)
+ - **Branch retention:** `opencode/issue294-20260907194528` at `5633a813` OPEN PR #295 (Reviewer APPROVED at 6de0eaea, Tester APPROVED at 5633a813 test-only delta, prior fully gated b0c52626/a915477a superseded, Refs #294, MERGEABLE)
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
- - **POST-TRANSFORMER CHALLENGE (2026-09-07T16:35:36Z, supreme, via #42) - AMENDED 2026-09-07T21:23:19Z via #294:** O(T^2)-free architecture must beat/match Causal Transformer under matched param budget on 4 gates: (1) associative recall & tracking, (2) length generalization 4x-8x, (3) BPB on Enwik8, (4) **Inference Footprint - Pareto dominance**: asymptotic proof (no hidden T) + state-bytes and ms/token vs T 1k..32k. Tiers: (a) full O(1) flat within 5% 1k->32k; (b) conditional sublinear/subquadratic dominating baseline at every T with G1+G2+G3 green counts as `G4-tier-b` keep-worthy. Research track single-PR #295 Refs #294 until all gates pass; issue #294 OPEN; M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba at 6de0eaea Reviewer APPROVED awaiting Tester
+ - **POST-TRANSFORMER CHALLENGE (2026-09-07T16:35:36Z, supreme, via #42) - AMENDED 2026-09-07T21:23:19Z via #294:** O(T^2)-free architecture must beat/match Causal Transformer under matched param budget on 4 gates: (1) associative recall & tracking, (2) length generalization 4x-8x, (3) BPB on Enwik8, (4) **Inference Footprint - Pareto dominance**: asymptotic proof (no hidden T) + state-bytes and ms/token vs T 1k..32k. Tiers: (a) full O(1) flat within 5% 1k->32k; (b) conditional sublinear/subquadratic dominating baseline at every T with G1+G2+G3 green counts as `G4-tier-b` keep-worthy. Research track single-PR #295 Refs #294 until all gates pass; issue #294 OPEN; M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba-M4bb at 5633a813 Tester APPROVED
  - **HARDWARE DIRECTIVE (2026-09-08T20:40:31Z, supreme, via #294) - CLARIFIED 2026-09-09T06:30:17Z via #294 (supreme):** No GPU runner is coming. All S-tiny/S-small training must run on standard GitHub CPU runners. Training scope is **not** reduced: same S-tiny/S-small budgets, same matched-budget discipline (params, training FLOPs/tokens, optimizer, tokenizer/context). Change the execution method (chunked, resumed, parallel), not the experiment size. Prior "reduced steps/tokens, micro-scales" interpretation is superseded - Builder must redesign for CPU feasibility via chunked/resumed/parallel execution while preserving full-budget head-to-head rigor and Refs #294 until all four gates pass. `Closes #294` only on G1+G2+G3+G4-tier-a/b green at full budget.
  - **DOCS SYNC DIRECTIVE (2026-09-07T16:06:36Z, supreme, via #70):** Update README.md + index.html to reflect live shipped state - COMPLETE at cdf3cda (PR #293 MERGED as Refs #70, verified README 48-54 + index.html cards Shipped).
  - **LAB RIGOR GATES (2026-09-07T15:47Z, via e9656dd8):** Brutal rigor, binding performance gates, subagent orchestration charter merged to main.
@@ -18,24 +18,24 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Sextant at /sextant/ SHIPPED at 1e06b5b (live at cdf3cda).
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `gh pr view 295` MERGEABLE CLEAN, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, Auditor GREEN active.
- - **PR #295 OPEN at 6de0eaea (Reviewer APPROVED awaiting Tester):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 6de0eaea, `git ls-remote origin/main` = cdf3cdae, `gh pr view 295` head 6de0eaea/base cdf3cdae MERGEABLE CLEAN, `Refs #294` body, `git show --stat 6de0eaea` = progress/294-post-transformer-sequence-architecture.md only (doc-only verification handoff, 5 insertions), `git diff --name-only b0c52626..6de0eaea` = progress only, scope clean `postformer/|ideas/|docs/research/issue-294|progress/294-`, zero forward_chunk in shipped code. Reviewer APPROVED at 6de0eaea 08:36:25Z + 08:43:42Z (both scope clean, 324-325 files, state inventories exact p1/p4 3145728/p2 3538944/p3/p5 4718592, ledger 25 green, Refs #294) superseding prior fully-gated b0c52626 Reviewer a915477a + Tester b0c52626. Tester in_progress 34330044039 (18m at survey) + pending 34330723564 (11m) on 6de0eaea doc-only.
+ - **Main cdf3cdae - Docs sync SHIPPED:** Verified via `git ls-remote origin/main` = cdf3cdae, `gh pr view 295` MERGEABLE, `gh api pulls/295 --jq body` contains `Refs #294` (single-PR discipline intact), folio/tabula/sextant on main, Auditor GREEN active.
+ - **PR #295 OPEN at 5633a813 (Reviewer APPROVED + Tester APPROVED, chaining continue):** Verified `git ls-remote origin opencode/issue294-20260907194528` = 5633a813, `git ls-remote origin/main` = cdf3cdae, `gh pr view 295` head 5633a813/base cdf3cdae MERGEABLE, `Refs #294` body, `git show --stat 5633a813` = postformer/tests/test_tester_m4bb_redteam.py only (test-only, 81 insertions), `git diff --name-only 6de0eaea..5633a813` = test only. Reviewer APPROVED at 6de0eaea 08:36:25Z + 08:43:42Z (324-325 files scope clean, state inventories exact p1/p4 3145728/p2 3538944/p3/p5 4718592, ledger 25 green, zero forward_chunk, Refs #294) superseding prior fully-gated b0c52626. Tester approve-test at 5633a813 10:24:23Z (5 new M4bb hostile covering envelope audit, P4 beyond-toy flatness, p4 curve ground truth; prior batches 51 core/M3/P4/batches green; parity six-family within 2%, causality flatness ledger 25 green, H4 NEGATIVE disclosed).
  - **No infra anomaly requiring Lab Engineer:** `opencode.json` both knobs free (muse-spark-1.3-free / muse-spark-1.2-contributor-free), no `workflows permission` rejection, no orphan recovery needed; S-tiny training CPU-only at full budget via chunked/resumed/parallel per 06:30:17Z; Tester healthy.
- - **Model health:** Reviewer success at 6de0eaea, Tester in_progress at 6de0eaea, no CreditsError, prior pending reviews on cdf3cdae were main-sha artifacts resolved.
+ - **Model health:** Reviewer success at 6de0eaea, Tester approve-test at 5633a813, no CreditsError, pending reviews on cdf3cdae were main-sha artifacts resolved.
 
 ## IN FLIGHT
- - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba at 6de0eaea Reviewer APPROVED awaiting Tester (issue #294 OPEN, PR #295 OPEN 6de0eaea):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior gated at b0c52626 (Reviewer a915477a + Tester b0c52626). New doc-only head 6de0eaea (M4ba verification handoff) Reviewer APPROVED 08:36:25Z + 08:43:42Z; Tester in_progress/pending at 6de0eaea; next Builder continue for S-tiny/S-small CPU full-budget gates via chunked/resumed/parallel.
- - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head 6de0eaea/base cdf3cdae `Refs #294`, MERGEABLE CLEAN, NOT orphan, single-PR discipline intact; 6de0eaea is doc-only on gated b0c52626, Reviewer APPROVED, awaiting Tester; subsequent continue will carry S-tiny CPU gates.
+ - **Post-Transformer Sequence Architecture - M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba-M4bb at 5633a813 fully gated (issue #294 OPEN, PR #295 OPEN 5633a813):** Owner challenge via #42 with binding 4 gates (G4 Pareto tiers a/b). Researcher + Architect complete. Prior gated at 6de0eaea (Reviewer) + 5633a813 (Tester); next Builder continue for S-tiny/S-small CPU full-budget gates via chunked/resumed/parallel.
+ - **PR #295 - single branch for M1-M4 across continue cycles:** gh PR head 5633a813/base cdf3cdae `Refs #294`, MERGEABLE, NOT orphan, single-PR discipline intact; 5633a813 is test-only on gated 6de0eaea, fully gated; subsequent continue will carry S-tiny CPU gates.
  - **Issue #70 - OPEN pinned lab-health board:** Must stay OPEN; docs sync merged as Refs #70 at cdf3cda.
- - **No other active pipeline:** No Auditor bug, no orphan recovery needed; Tester in_progress on correct head.
+ - **No other active pipeline:** No Auditor bug, no orphan recovery needed; Builder continue queued next.
 
 ## PIPELINE POSITION
- Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba at 6de0eaea Reviewer APPROVED awaiting Tester (prior gated at b0c52626). Hardware directive clarified full budget via chunked/resumed/parallel CPU. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass head-to-head at full S-tiny then S-small.
+ Prism ceiling accepted, Tabula + Sextant + Folio M4 SHIPPED live at cdf3cdae, lab rigor gates shipped, docs sync MERGED at cdf3cda. Post-Transformer M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba-M4bb at 5633a813 fully gated (Reviewer 6de0eaea + Tester 5633a813). Hardware directive clarified full budget via chunked/resumed/parallel CPU. `Closes #294` only on G1+G2+G3+G4-tier-a/b all pass head-to-head at full S-tiny then S-small.
 
 ## NEXT-RUN PLAYBOOK
- 1. Await Tester verdict on 6de0eaea (scope clean, state inventories exact, ledger 25 green, Refs discipline).
- 2. On Tester approve-test, chain Builder continue for S-tiny CPU full-budget gates chunked/resumed/parallel (same params/tokens/FLOPs/tokenizer, Refs #294).
- 3. On Tester fix/findings, dispatch Fixer then re-gate Reviewer.
+ 1. Builder continue on 5633a813 pushes S-tiny CPU full-budget gates (chunked/resumed/parallel, same params/tokens/FLOPs/tokenizer, matched-budget head-to-head, Refs #294).
+ 2. Await Reviewer re-gate on new CPU-gate head before Tester.
+ 3. On Tester approve-test, chain next continue or final scoreboard; on fix, dispatch Fixer.
  4. Standby - no auto-ideation while #294 active.
 
 ## ISSUES
@@ -45,14 +45,14 @@
  - **#282 Tabula** - CLOSED SHIPPED at 23aeb5ce (live at cdf3cda)
  - **#286 Sextant** - CLOSED SHIPPED at 1e06b5b (live at cdf3cda)
  - **#293** - MERGED docs sync at cdf3cda (Refs #70)
- - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba at 6de0eaea Reviewer APPROVED awaiting Tester (prior gated b0c52626, next S-tiny CPU)
- - **#295 PR** - OPEN at 6de0eaea (Reviewer APPROVED, Tester in_progress/pending, MERGEABLE CLEAN, Refs #294)
+ - **#294 Post-Transformer** - OPEN research+architect+M1+M2-toy+M3+M4a-M4b-M4as-M4av-M4aw-M4ax-M4ay-M4az-M4ba-M4bb at 5633a813 fully gated (next S-tiny CPU full-budget)
+ - **#295 PR** - OPEN at 5633a813 (Reviewer APPROVED + Tester APPROVED, MERGEABLE, Refs #294, chaining continue)
  - **#42 - OPEN** brainstorm (challenge recorded, amended gate 4 via 294)
  - **#70 - OPEN** lab-health (GREEN pending)
 
 ## OPEN QUESTIONS
- - Will Tester approve-test at 6de0eaea (451+ suite, ledger 25 green, parity within 2%, causality flat) or block with findings requiring Fixer?
  - Will Builder CPU continue succeed with chunked/resumed/parallel full-budget S-tiny within GitHub runner time limits while preserving matched-budget head-to-head rigor?
- - Will S-tiny/S-small G1+G2+G3+G4-tier-a/b gates pass under full CPU constraints vs toy negatives?
+ - Will S-tiny/S-small G1+G2+G3+G4-tier-a/b gates pass under full CPU constraints vs toy negatives (p4 0.035 < p1 0.0625, p3 0.0600)?
+ - Will Tester approve new CPU-gate head or block with findings requiring Fixer?
 
   - Hephaestus, the Maintainer
