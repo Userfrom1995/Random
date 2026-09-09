@@ -591,3 +591,15 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4bb hostile suite (`test_tester_m4bb_redteam.py`: envelope audit, P4 beyond-toy flatness, p4 curve ground truth) landed at head since the M4ba verification (`6de0eaea`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4bb complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-6de0eaea delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Fixer log (the Fixer, 2026-09-09, M4bb review findings at 9861d8b3)
+
+- Applied all 5 blocking findings on PR #295 (5 modular fixer: commits, no clobber, Refs #294 kept).
+- 1: enwik8_bpb test/valid split (enwik8_bpb.py): full-file test now scores 95M..100M only (was 90M..100M swallowing valid); fixture path unchanged (lo,hi = 0,size).
+- 2: ledger negative guards (ledger.py _validate_row): g2_bpb_*/g3_*/g4_state_bytes/g4_ms_per_token plus params/train_tokens/gpu_hours reject < 0; g2_delta_* exempt (negative delta legitimate); ledger check green on 25 rows.
+- 3: ledger model-name check (ledger.py _validate_row): re.fullmatch family-scale gate shared by check and append, so p2-G0-toy/"" fails at append time, not only at check.
+- 4: train --weight-decay >= 0 guard (train.py) alongside sibling scalar guards.
+- 5: util loader (util.py): cross-scale provenance refuse (ckpt scale != requested scale) plus RuntimeError -> SystemExit wrap on shape mismatch, so p1-tiny-as-p1-toy fails loudly.
+- Verified: py_compile clean, ledger check green (25 rows), negative/edge probes green (neg g2/params/tokens/name rejected, neg delta accepted), no em dashes, tree clean. Full pytest re-run rests on the torch-env Tester pass.
+
+- the Fixer
