@@ -136,7 +136,7 @@ def test_af4_enwik8_byte_path_scores_seeded_fixture(tmp_path):
     out = str(tmp_path / "g3")
     os.makedirs(out, exist_ok=True)
     bpb_main(["--model", "p1-toy", "--out", out, "--split", "valid",
-              "--context", "32", "--stride", "32", "--tokenizer", "byte",
+              "--context", "32", "--stride", "16", "--tokenizer", "byte",
               "--data-root", data_root, "--max-windows", "2", "--seed", "0"])
     with open(os.path.join(out, "g3_summary_seed0.json")) as f:
         blob = json.load(f)
@@ -144,8 +144,8 @@ def test_af4_enwik8_byte_path_scores_seeded_fixture(tmp_path):
     assert row["sha256_data"] == digest
     assert row["tokenizer"] == "byte" and row["random_init"] is True
     assert 0.0 < row["bpb"] < 16.0, row["bpb"]
-    # At most max_windows x stride new tokens can be scored; the harness
-    # counts only stride-new tokens per window after warmup (32 observed).
+    # Each window scores at most context bytes (first window the full
+    # context, later windows stride-new tokens); 2 windows x 32 max.
     assert 0 < row["n_bytes"] <= 64, row["n_bytes"]
 
 
