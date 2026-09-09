@@ -108,8 +108,8 @@ def main(argv=None):
     if a.stride is not None and a.stride < 1:
         raise SystemExit("--stride must be >= 1")
     stride = a.stride if a.stride is not None else max(1, a.t_train // 2)
-    if stride > a.t_train:
-        raise SystemExit(f"--stride {stride} > context {a.t_train}; strided eval would skip tokens")
+    if stride >= a.t_train:
+        raise SystemExit(f"--stride {stride} >= context {a.t_train}; strided eval would skip tokens")
     from ..models.factory import parse_model_name
     _family, scale = parse_model_name(a.model)
     if a.baseline_model:
