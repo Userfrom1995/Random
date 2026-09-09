@@ -101,7 +101,8 @@ def test_parse_int_list_k_suffix_and_rejects_garbage():
     assert parse_int_list("1k,2K,32k") == [1024, 2048, 32768]
     assert parse_int_list("512, 1024") == [512, 1024]
     assert parse_int_list("") == []
-    with pytest.raises(ValueError):
+    # Bad CLI entries fail loudly via SystemExit (harness convention).
+    with pytest.raises(SystemExit):
         parse_int_list("1k,abc")
 
 
