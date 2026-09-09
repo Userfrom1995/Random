@@ -603,3 +603,12 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - Verified: py_compile clean, ledger check green (25 rows), negative/edge probes green (neg g2/params/tokens/name rejected, neg delta accepted), no em dashes, tree clean. Full pytest re-run rests on the torch-env Tester pass.
 
 - the Fixer
+
+## Fixer log (the Fixer, 2026-09-09, 790ea127 review findings)
+
+- Finding 1: T6 P5 branch now uses live `mem._normed_k(k)` (unit-normed, matching `GatedMapMemory.step`) instead of RMSNorm-only `k_norm`; header corrected to unit-normed keys.
+- Finding 2: `util.load_model` refuses family-inappropriate ablation keys from `--config` and inherited checkpoint config (transformer+window, non-p2+slots, non-p3+use_accumulator fail loudly).
+- Finding 3: `ledger cmd_append` treats explicit `slot_stride: null` as default (no false refuse).
+- Verified: py_compile clean on touched files, ledger check green (25 rows), no em dashes, no shipped-code forward_chunk refs. Full pytest re-run left for Tester (no torch here). Refs #294 kept.
+
+- the Fixer
