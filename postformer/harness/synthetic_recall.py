@@ -148,7 +148,10 @@ def main(argv=None):
         raise SystemExit("--episodes must be >= 1")
     tasks = ["mqar", "induction", "copying", "bind2hop"] if a.task == "all" else [a.task]
     if "mqar" in tasks:
-        for n in parse_int_list(a.n_pairs):
+        mqar_ns = parse_int_list(a.n_pairs)
+        if not mqar_ns:
+            raise SystemExit("--n-pairs must list at least one entry for mqar")
+        for n in mqar_ns:
             if n < 1:
                 raise SystemExit(f"--n-pairs {n} must be >= 1 (--vocab {a.vocab})")
             if n > a.vocab:

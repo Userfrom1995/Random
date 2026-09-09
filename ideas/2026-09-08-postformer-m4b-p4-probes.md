@@ -29,7 +29,7 @@
   Recorded honestly; H4 stays open pending S-tiny N64+ (GPU).
 - A6 (vocab/distractor stress at toy): N16 extrapolation collapses to chance
   for p4 (0.0156), same as every other toy arm (P1 0.039/P5 0.000/T 0.091 at
-  M2b 3000-step; M3 refs similar). No arm generalizes N8-trained recall to N16
+  M2b 3000-step; M3 refs unmeasured at N16). No arm generalizes N8-trained recall to N16
   distractors at toy scale.
 - A7 (retrieval-vs-drift split): trained retrieval (mqar8 0.035) >
   compositional retrieval (2hop 0.01) > untrained transfer (induction/copy 0.0).
