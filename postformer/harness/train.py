@@ -150,6 +150,8 @@ def main(argv=None):
         raise SystemExit("--warmup must be >= 0")
     if a.grad_clip <= 0:
         raise SystemExit("--grad-clip must be > 0")
+    if a.weight_decay < 0:
+        raise SystemExit("--weight-decay must be >= 0")
     if a.seq_len <= 3:
         raise SystemExit("--seq-len must exceed the Markov order (3)")
 
