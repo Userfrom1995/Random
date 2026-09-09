@@ -10,6 +10,8 @@ Per block: (i) a surprise-gated delta memory
 
 with k RMSNormed to unit norm, beta = sigmoid clamped to [0.01, 0.99]
 (bias init -2.0, start retentive), alpha = exp(-exp(.)) init ~0.97,
+surprise = sigmoid clamped to [0.01, 0.99], eta = beta * surprise
+in [0.0001, 0.9801],
 and a small learned error-gain g (init 0.5, per head) mapping the
 reconstruction-error norm into extra write strength (scaled by
 surprise_scale = 0.25, so the effective init gain is 0.125). When the memory
