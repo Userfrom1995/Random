@@ -583,3 +583,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4ba hostile suite (`test_tester_m4ba_redteam.py`: six-family parity, G4 flatness, p4 causality, strict names, guards) landed at head since the M4az verification (`a915477a`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ba complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-a915477a delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-09, M4bb verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `5633a813`: tree clean, PR #295 OPEN MERGEABLE CLEAN per gh, body `Refs #294`.
+- Verified without torch/pytest (absent on this runner): `ledger check` green on 25 rows (26-col schema), `py_compile` clean on harness/models, zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), zero `forward_chunk` refs in shipped `models/`+`harness/`, zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4bb hostile suite (`test_tester_m4bb_redteam.py`: envelope audit, P4 beyond-toy flatness, p4 curve ground truth) landed at head since the M4ba verification (`6de0eaea`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4bb complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-6de0eaea delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
