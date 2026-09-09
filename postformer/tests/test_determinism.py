@@ -12,8 +12,13 @@ from .conftest import MINI
 
 def run_once(tmp, seed):
     cfg_path = os.path.join(tmp, "mini.yaml")
+    # p1-family-appropriate subset only: slots/slot_stride are p2-only and
+    # use_accumulator is p3-only, so the shared MINI fixture must not pass
+    # them via --config to a p1 arm (util.load_model refuses
+    # family-inappropriate --config keys loudly by design, M2-A2 class).
+    drop = {"vocab_size", "slots", "slot_stride", "use_accumulator"}
     with open(cfg_path, "w") as f:
-        yaml.safe_dump({k: v for k, v in MINI.items() if k != "vocab_size"}, f)
+        yaml.safe_dump({k: v for k, v in MINI.items() if k not in drop}, f)
     out = os.path.join(tmp, f"out{seed}")
     recall_main(["--model", "p1-tiny", "--config", cfg_path, "--task", "mqar",
                  "--vocab", "32", "--n-pairs", "4", "--episodes", "4",
