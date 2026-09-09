@@ -47,9 +47,13 @@ def test_v1_m4b_ledger_matches_curve():
 
 
 def _run(*args):
+    # Full-envelope eval (task=all incl. copy-L512 greedy decode) costs
+    # ~6 min contended / up to ~14 min unloaded on CPU (measured 2026-09-09:
+    # 6m05s wall contended for this exact command); 300s flakes. The ao4
+    # window-zero chain in test_tester_m4ao_redteam.py already uses 1500.
     return subprocess.run(
         [sys.executable, "-m"] + list(args),
-        capture_output=True, text=True, timeout=300,
+        capture_output=True, text=True, timeout=1500,
     )
 
 
