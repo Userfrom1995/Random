@@ -24,7 +24,7 @@
 
 Single technique, single branch, single PR (#295) across continuous `continue` cycles. Never split scaffolding and measurements into separate PRs. All intermediate pushes use `Refs #294`; `Closes #294` only on G1+G2+G3+G4 passing head-to-head with reproducible numbers.
 
-- **Active Milestone:** M4aj Tester hostile E2E CLI-chain suite complete on PR #295 (M1 + M2-toy + M3 + M4a/M4b toy falsification + A4 sweep + A6 pilot + M4e audit + M4ac-M4aj hostile suites gated-ready, ledger 25 rows green); next is S-tiny full gates (GPU-blocked).
+- **Active Milestone:** M4bc Tester hostile ground-truth suite complete on PR #295 (M1 + M2-toy + M3 + M4a/M4b toy falsification + A4 sweep + A6 pilot + M4e audit + M4ac-M4bc hostile suites gated-ready, ledger 25 rows green); next is S-tiny full gates (GPU-blocked).
 - **Milestone 1 (M1: scaffold + first falsification, PR 1 target, Refs #294):** [x] `postformer/` scaffold with `requirements.txt` + README + proof appendix skeleton; [x] baseline Transformer S-tiny/S-small + param counter within 2 percent (tiny +0.024%, small +0.002%, committed `ledger/params/`); [x] harness five scripts with exact CLI contracts + seeding + ledger schema; [x] P5 map control + P1-minimal (delta + W=128 + fusion); [x] unit tests T1-T5 green (9 passed) + viewer fixture snapshot (static green; Playwright deferred, no browser on runner); [x] first S-tiny smoke rows in ledger (4 rows, check passes, G4 plots).
 - **Milestone 2 (M2: S-tiny gates + erase proof, Refs #294):** [x] M2a trainer + toy scale + W=0 A2 switch + T6 (11 passed); [x] M2b toy matched-budget MQAR training (transformer vs P1 vs P5, 3 seeds, 1.584M tokens each) + G1 eval = A1; [x] M2c A2 window {0,16,32} toy sweep + G4 1k-32k flatness (toy timed + S-tiny analytic) + RoPE O(T)-per-step fix + ledger 15 rows check-green + plots; [x] G4 Pareto-tier amendment re-lint (proof/viewer/README, no re-run, 2026-09-07 binding); [ ] full S-tiny trained gates DEFERRED (CPU-bound, measured 2026-09-08: p1-tiny ~1s/step at batch2/seq33 so the binding 3000x16xN64+ gate is ~50+h/arm on CPU - needs GPU runner).
 - **Milestone 3 (M3: decoupled + slots, Refs #294):** [x] P3 accumulator branch + factory pins (toy 274 / tiny 1532 / small 2468, +0.03% tiny) + `--no-accumulator` A3 flag; [x] P2 SSD + slots G {0,4,16,64} + `--slots` A4 flag + A4 G=0 control (shares P1 hid, -0.01% tiny); [x] M3 test suite (T1/T2/T3 auto-extended over p2/p3 + test_m3.py A3/A4/slot-contract/G4-flatness/loader-inheritance + T6 p2/p3 guards, 34 passed); [x] A2-re + M3 first falsification toy probes (6 arms seed0 1000 steps = 0.528M tokens, fixed --window loader, curves/m3-toy, ledger 18 rows check-green); [ ] A3/A4/A5 sweeps at S-tiny (needs GPU); [ ] H2/H3 verdicts ledgered (H3 unresolved at toy: p3-noacc 0.0612 vs p3 0.0600).
@@ -621,5 +621,15 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - 4: test_parse_int_list garbage pin updated from ValueError to SystemExit (harness convention since d4f3fbb2 hardening).
 - 5: commit d4f3fbb2 discipline (missing Refs #294 plus leaked Co-authored-by trailer): history/process issue, not code-fixable without rewriting pushed history; flagged for Maintainer awareness, no code change.
 - Verified: py_compile clean on touched files, no em dashes. No torch/pytest on this runner so the full 469+5 suite re-run is left for the Tester. Refs #294 kept.
+
+- the Fixer
+
+## Fixer log (the Fixer, 2026-09-09, Reviewer ceb445e1 3 findings restored on 4c66fd9d)
+
+- 1: enwik8_bpb.py stride guard restored from > to >= at both sites (explicit and defaulted stride); stride==context skips scored tokens (keep_from -1) so it must refuse, restoring agreement with test_fixer_enwik8_stride_eq_context_refused.
+- 2: length_sweep.py stride guard restored from > to >= at the G2 boundary; extended test_tester_m4bc_redteam boundary pin to cover stride 64 vs t-train 64.
+- 3: m3-toy matched-budget premise downgraded per option (b): p2/p3/p4/A4 notes citing the p1-W16-1000 ref are now eval-matched only with explicit train-summary-absent qualifier (m3-toy holds g1_summary JSONs, zero train_summary artifacts); cells untouched.
+- Nits: proof-g4.md M2 PASS lines qualified as toy-only NOT gate results; Active Milestone pointer updated to M4bc.
+- Verified: py_compile clean, ledger check green (25 rows), no em dashes. No torch on this runner so full suite re-run rests on Tester. Refs #294 kept.
 
 - the Fixer
