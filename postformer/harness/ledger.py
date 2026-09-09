@@ -176,6 +176,8 @@ def cmd_append(a):
     with open(a.run_json) as f:
         run = json.load(f)
     stride = run.get("slot_stride", "")
+    if stride is None:
+        stride = ""
     if str(stride).strip() not in ("", "8"):
         raise SystemExit(
             f"run-json slot_stride={stride!r}: non-default P2 stride runs "
