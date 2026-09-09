@@ -93,6 +93,9 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     if family != "p3" and overrides.get("use_accumulator") is not None:
         raise SystemExit(
             f"--config use_accumulator for {family} (p3-only); refusing")
+    if family != "p2" and overrides.get("slot_stride") is not None:
+        raise SystemExit(
+            f"--config slot_stride for {family} (p2-only); refusing")
     if family == "transformer" and ckpt_cfg.get("window") is not None \
             and "window" not in overrides:
         raise SystemExit(
@@ -106,6 +109,10 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
             and "use_accumulator" not in overrides:
         raise SystemExit(
             f"checkpoint use_accumulator for {family} (p3-only); refusing")
+    if family != "p2" and ckpt_cfg.get("slot_stride") is not None \
+            and "slot_stride" not in overrides:
+        raise SystemExit(
+            f"checkpoint slot_stride for {family} (p2-only); refusing")
     for k in ("window", "slots", "use_accumulator", "slot_stride"):
         if k in ckpt_cfg and k not in overrides:
             overrides[k] = ckpt_cfg[k]
