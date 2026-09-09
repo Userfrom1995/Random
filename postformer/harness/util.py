@@ -47,6 +47,7 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     overrides.update({k: v for k, v in (extra_overrides or {}).items() if v is not None})
     ckpt_cfg, blob = {}, None
     ckpt_provenance = None
+    ckpt_scale = None
     if checkpoint:
         blob = torch.load(checkpoint, map_location="cpu", weights_only=False)
         if isinstance(blob, dict):
@@ -55,9 +56,10 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
             prov = args.get("model") if isinstance(args, dict) else None
             if isinstance(prov, str) and prov:
                 try:
-                    ckpt_provenance = parse_model_name(prov)[0]
+                    ckpt_provenance, ckpt_scale = parse_model_name(prov)
                 except SystemExit:
                     ckpt_provenance = None
+                    ckpt_scale = None
     # Checkpoint trust boundary (M4at lesson): p1<->p5 share identical
     # state_dict key sets by design, so strict=False passes vacuously and
     # a p1 blob scored as p5 (or reverse) exits 0 with the wrong family
@@ -70,6 +72,11 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
             f"checkpoint family={ckpt_provenance!r} != requested "
             f"family={family!r}; refusing to silently score the wrong "
             f"family arm")
+    if ckpt_scale is not None and ckpt_scale != scale:
+        raise SystemExit(
+            f"checkpoint scale={ckpt_scale!r} != requested "
+            f"scale={scale!r}; refusing to silently score the wrong "
+            f"scale arm")
     for k in ("window", "slots", "use_accumulator", "slot_stride"):
         if k in ckpt_cfg and k not in overrides:
             overrides[k] = ckpt_cfg[k]
@@ -92,7 +99,10 @@ def load_model(name, checkpoint, config_path, extra_overrides, device, dtype_s):
     random_init = False
     if blob is not None:
         sd = blob["state_dict"] if isinstance(blob, dict) and "state_dict" in blob else blob
-        missing = model.load_state_dict(sd, strict=False)
+        try:
+            missing = model.load_state_dict(sd, strict=False)
+        except RuntimeError as e:
+            raise SystemExit(f"checkpoint mismatch (shape): {e}")
         if missing.missing_keys or missing.unexpected_keys:
             raise SystemExit(f"checkpoint mismatch: missing={missing.missing_keys} "
                              f"unexpected={missing.unexpected_keys}")
