@@ -3,7 +3,8 @@
 P1 keys are RMSNormed + unit-renormalized, beta is sigmoid-clamped to
 [0.01, 0.99], alpha = exp(-exp(.)) in (0, 1) by construction, so the P1
 2.0 contraction bound applies. P5 uses a degree-2 map
-phi(k) = [k; 0.5 k^2] on RMSNormed (not unit) keys with a scaled ADDITIVE
+phi(k) = [k; 0.5 k^2] on unit-normed keys (RMSNorm + /norm, both q/k)
+with a scaled ADDITIVE
 write - no 2.0 contraction theory applies there, so P5 gets its own
 separately-reported smoke bound (finite + generous cap), never the P1 claim.
 This test asserts the invariants on live forward draws plus finite outputs
@@ -43,7 +44,7 @@ def test_gate_invariants_p1_p5():
                     worst_p1 = max(worst_p1, float(prod.max()))
                     assert bool((prod < 2.0).all()), (fam, float(prod.max()))
                 else:
-                    pk = poly_map(mem.k_norm(k))  # (B, T, H, 2*d_k)
+                    pk = poly_map(mem._normed_k(k))  # must match GatedMapMemory.step: unit-normed k
                     sq = pk.pow(2).sum(dim=-1)
                     prod = beta * sq
                     worst_p5 = max(worst_p5, float(prod.max()))
