@@ -1,0 +1,49 @@
+{
+  "_comment": "PostFormer full-budget CPU gate matrix (Refs #294). Binding rule: every arm in one preset shares identical steps/batch/data stream per seed; only --model (and Builder-approved ablation flags) differ. Chunked execution via train_chunk.py preserves the exact stream. Scope is NOT reduced per the 2026-09-09 clarification: same params, tokens, optimizer, tokenizer per comparison; only the execution method is chunked/resumed/parallel.",
+  "driver": "python -m postformer.harness.train_chunk",
+  "chunk_steps_default": 250,
+  "presets": {
+    "toy-smoke": {
+      "description": "CPU-minutes validation of the resume machinery (NOT a gate result). Mirrors the M2 toy protocol at 1/10 steps.",
+      "steps": 300,
+      "batch": 16,
+      "data": "mqar",
+      "vocab": 64,
+      "n_pairs": 8,
+      "lr": 0.0003,
+      "warmup": 100,
+      "models": ["transformer-toy", "p1-toy"],
+      "seeds": [0]
+    },
+    "gate-tiny-mqar": {
+      "description": "S-tiny G1 gate training: full 3000-step matched budget at N64 (episode T=257, ~12.34M tokens/arm). G1 evals N16/64/256 + 2-hop + induction/copy follow on these checkpoints.",
+      "steps": 3000,
+      "batch": 16,
+      "data": "mqar",
+      "vocab": 256,
+      "n_pairs": 64,
+      "lr": 0.0003,
+      "warmup": 100,
+      "models": ["transformer-tiny", "p1-tiny", "p2-tiny", "p3-tiny", "p4-tiny", "p5-tiny"],
+      "seeds": [0, 1, 2]
+    },
+    "gate-tiny-markov": {
+      "description": "S-tiny LM-flavoured control: order-3 Markov streams at T512 feed the G2 length-degradation sweep (1x/2x/4x/8x). Same step/batch/optimizer budget as gate-tiny-mqar.",
+      "steps": 3000,
+      "batch": 16,
+      "data": "markov",
+      "vocab": 256,
+      "seq_len": 512,
+      "n_pairs": 64,
+      "lr": 0.0003,
+      "warmup": 100,
+      "models": ["transformer-tiny", "p1-tiny", "p2-tiny", "p3-tiny", "p4-tiny", "p5-tiny"],
+      "seeds": [0, 1, 2]
+    }
+  },
+  "notes": [
+    "S-small Enwik8 LM training needs a text trainer (train.py covers mqar/markov only); the Builder ships that before any S-small gate claim. No S-small preset is pinned here to avoid blessing a budget the harness cannot execute.",
+    "Ablation flags (--window/--slots/--no-accumulator) are per-arm additions owned by the Builder's ablation plan; the driver rejects them on families that ignore them.",
+    "Each arm dir postformer/ledger/checkpoints/<model>-s<seed>/ holds checkpoint.pt (eval-compatible), resume.pt (optimizer + RNG sidecar), train_curve.csv, train_summary.json, CHUNK_DONE on completion. Checkpoints are artifacts, never committed."
+  ]
+}
