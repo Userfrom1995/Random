@@ -551,3 +551,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4aw hostile suite (`test_tester_m4aw_redteam.py`: code-vs-proof S-tiny state pins p1/p4 3145728, p2 3538944, p3/p5 4718592; p4 --window 0 train-side liveness; unknown-family ValueError plus all-five tie_embeddings rejection; ledger honesty sweep; --steps 1 degenerate; p2/p3 T=1) landed at head since the M4av verification (`8a01c6fb`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4aw complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-8a01c6fb delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-09, M4ax verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `96e389ef`: tree clean, `origin/main = cdf3cdae`, PR #295 OPEN per gh, body `Refs #294`.
+- Verified without torch/pytest (absent on this runner): `ledger check` green on 25 rows (26-col schema), `py_compile` clean on harness/models/tests (incl. new `test_tester_m4ax_redteam.py`), zero files outside `postformer/|ideas/|docs/research/issue-294|progress/294-` (322 changed files, scope clean), zero `forward_chunk` refs in shipped `models/`+`harness/`, zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4ax hostile suite (`test_tester_m4ax_redteam.py`: small state pins, window-train liveness, slot eviction, P5/eval liveness, G4 bench and ledger locks) landed at head since the M4aw verification (`d4611fb2`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ax complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-d4611fb2 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
