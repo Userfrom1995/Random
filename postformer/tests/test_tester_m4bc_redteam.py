@@ -144,6 +144,8 @@ def test_m4bc_length_sweep_rejects_bad_gate_args(tmp_path):
     with pytest.raises(SystemExit):
         length_sweep.main(base + ["--t-train", "64", "--stride", "65"])
     with pytest.raises(SystemExit):
+        length_sweep.main(base + ["--t-train", "64", "--stride", "64"])
+    with pytest.raises(SystemExit):
         length_sweep.main(base + ["--t-train", "64", "--lengths", "-3"])
 
 
