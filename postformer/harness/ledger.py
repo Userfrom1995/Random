@@ -92,6 +92,9 @@ def _validate_row(i, r):
                 errors.append(f"row {i} col {c}: non-finite value: {v!r}")
             elif c in ("train_tokens", "gpu_hours") and f < 0:
                 errors.append(f"row {i} col {c}: must be >= 0: {v!r}")
+            elif c in ("seed", "vocab"):
+                if f < 0 or not float(str(v).strip()).is_integer():
+                    errors.append(f"row {i} col {c}: must be a non-negative integer: {v!r}")
     w = r.get("window", "")
     if w not in ("", None) and str(w).strip() != "":
         try:
