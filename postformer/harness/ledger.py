@@ -85,6 +85,8 @@ def _validate_row(i, r):
         else:
             if math.isnan(f) or math.isinf(f):
                 errors.append(f"row {i} col {c}: non-finite value: {v!r}")
+            elif c in ("train_tokens", "gpu_hours") and f < 0:
+                errors.append(f"row {i} col {c}: must be >= 0: {v!r}")
     w = r.get("window", "")
     if w not in ("", None) and str(w).strip() != "":
         try:
@@ -119,6 +121,9 @@ def _validate_row(i, r):
             continue
         if math.isnan(x) or math.isinf(x):
             errors.append(f"row {i} col {c}: non-finite gate value: {v!r}")
+        elif c in ("g2_bpb_1x", "g2_bpb_4x", "g2_bpb_8x", "g3_valid_bpb",
+                   "g3_test_bpb", "g4_state_bytes", "g4_ms_per_token") and x < 0:
+            errors.append(f"row {i} col {c}: must be >= 0: {v!r}")
         elif c.startswith("g1_") and not (0.0 <= x <= 1.0):
             errors.append(f"row {i} col {c}: accuracy {v!r} outside [0, 1]")
     pv = r.get("params", "")
@@ -130,6 +135,8 @@ def _validate_row(i, r):
         else:
             if math.isnan(px) or math.isinf(px):
                 errors.append(f"row {i} col params: non-finite value: {pv!r}")
+            elif px < 0:
+                errors.append(f"row {i} col params: must be >= 0: {pv!r}")
     if all(r.get(c, "") in ("", None) for c in GATE_COLS):
         notes = (r.get("notes") or "").lower()
         if not any(tag in notes for tag in EMPTY_ROW_TAGS):
