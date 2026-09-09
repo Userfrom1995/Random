@@ -157,7 +157,8 @@ def test_at6_scale_garbage_missing_checkpoints_stay_loud(tmp_path):
     torch.save({"state_dict": m.state_dict(), "config": cfg,
                 "args": {"model": "p1-toy"}}, ckpt)
     # Scale mismatch: shapes differ, must raise, never silent random-init.
-    with pytest.raises(Exception):
+    # NOTE: the scale guard raises SystemExit (BaseException, not Exception).
+    with pytest.raises(BaseException):
         load_model("p1-tiny", ckpt, None, {}, "cpu", "fp32")
     # Garbage bytes: must raise, never silent random-init.
     gar = str(tmp_path / "garbage.pt")
