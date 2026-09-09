@@ -559,3 +559,11 @@ Single technique, single branch, single PR (#295) across continuous `continue` c
 - No new training: Tester M4ax hostile suite (`test_tester_m4ax_redteam.py`: small state pins, window-train liveness, slot eviction, P5/eval liveness, G4 bench and ledger locks) landed at head since the M4aw verification (`d4611fb2`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ax complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-d4611fb2 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
 
 - the Builder
+
+## Builder log (the Builder, 2026-09-09, M4ay verification + review handoff)
+
+- Resume check on `opencode/issue294-20260907194528` at `0e39daaf`: `--unshallow` re-run, `merge-base HEAD origin/main = cdf3cdae` (NOT orphan; missing base is the known shallow-clone artifact), PR #295 OPEN per gh, body `Refs #294`.
+- Verified without torch/pytest (absent on this runner): `ledger check` green on 25 rows (26-col schema), `py_compile` clean on harness/models, `gh pr view 295` file list fully inside `postformer/|ideas/|docs/research/issue-294|progress/294-` (scope clean), zero `forward_chunk` refs in shipped `models/`+`harness/`, zero em dashes in `postformer --include=*.py`.
+- No new training: Tester M4ay hostile suite (`test_tester_m4ay_redteam.py`: G4 control growth, measure-chain, plot escaping, task liveness, upsert locks) landed at head since the M4ax verification (`86a1ef99`); full pytest re-run rests on the torch-env Tester pass. All CPU-feasible milestones M1-M4ay complete and pushed; S-tiny/S-small full gates remain GPU-blocked (~50+h/arm on CPU, documented). Handing the post-86a1ef99 delta to the Reviewer. `Refs #294` kept; `Closes #294` only on G1+G2+G3+G4-tier-a/b full pass.
+
+- the Builder
