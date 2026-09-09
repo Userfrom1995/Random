@@ -179,7 +179,7 @@ def test_u9_enwik8_missing_data_fails_loudly(tmp_path):
                   "--split", "valid", "--context", "256", "--stride", "256",
                   "--tokenizer", "byte", "--data-root", str(tmp_path / "nodata"),
                   "--max-windows", "1", "--seed", "0"])
-    assert not os.path.isfile(os.path.join(str(tmp_path), "g3_summary.json")) or True
+    assert not os.path.isfile(os.path.join(str(tmp_path), "g3_summary.json"))
 
 
 def test_u10_ledger_schema_canonical_live():
