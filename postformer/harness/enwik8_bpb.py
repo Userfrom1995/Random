@@ -61,6 +61,10 @@ def main(argv=None):
     p.add_argument("--max-windows", type=int, default=None,
                    help="cap windows scored (smoke fixtures); full eval when absent")
     a = p.parse_args(argv)
+    if a.context < 1:
+        raise SystemExit(f"--context must be >= 1, got {a.context}")
+    if a.max_windows is not None and a.max_windows < 1:
+        raise SystemExit(f"--max-windows must be >= 1, got {a.max_windows}")
     if a.tokenizer == "bpe":
         raise SystemExit("BPE is a secondary diagnostic deferred past M1; "
                          "use --tokenizer byte (primary scoreboard)")
@@ -102,6 +106,8 @@ def main(argv=None):
     if a.stride is not None and a.stride < 1:
         raise SystemExit("--stride must be >= 1")
     stride = a.stride if a.stride is not None else max(1, a.context // 2)
+    if stride > a.context:
+        raise SystemExit(f"--stride {stride} > context {a.context}; strided eval would skip tokens")
     reseed(a.seed, f"g3-{a.split}")
     loss_nats, n_tok = score_stream(model, ids, a.context, stride, a.device, a.max_windows)
     bpb = loss_nats / math.log(2)

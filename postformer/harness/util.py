@@ -166,5 +166,8 @@ def parse_int_list(s):
             mult, t = 1024, t[:-1]
         elif t[-1] in ("m", "M"):
             mult, t = 1024 ** 2, t[:-1]
-        out.append(int(t.strip()) * mult)
+        try:
+            out.append(int(t.strip()) * mult)
+        except ValueError:
+            raise SystemExit(f"bad integer list entry {tok!r} in {s!r}")
     return out

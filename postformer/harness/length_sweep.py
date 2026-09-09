@@ -108,6 +108,8 @@ def main(argv=None):
     if a.stride is not None and a.stride < 1:
         raise SystemExit("--stride must be >= 1")
     stride = a.stride if a.stride is not None else max(1, a.t_train // 2)
+    if stride > a.t_train:
+        raise SystemExit(f"--stride {stride} > context {a.t_train}; strided eval would skip tokens")
     from ..models.factory import parse_model_name
     _family, scale = parse_model_name(a.model)
     if a.baseline_model:
@@ -147,6 +149,9 @@ def main(argv=None):
     # prompts sampled from 0..vocab-1); the discovered path keeps vocab_size
     # identity for backward compatibility with existing G2 curves.
     _vocab_size_ov = int(vocab) + 2 if a.vocab is not None else int(vocab)
+    if a.split == "bytes" and int(_vocab_size_ov) != 256:
+        raise SystemExit(
+            f"--split bytes needs byte vocab_size 256, got {_vocab_size_ov}")
     for name in ([a.model] if a.model == base_name else [base_name, a.model]):
         if name == a.model and a.model == base_name and a.baseline_checkpoint:
             raise SystemExit("--baseline-checkpoint ignored: --model is the baseline; "
