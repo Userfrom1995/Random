@@ -66,7 +66,7 @@ def _check_resume_compat(saved_args, a):
     run with a different stream shape would silently break the matched
     budget, so any mismatch is a hard error, never a quiet continue.
     """
-    keys = ("model", "data", "vocab", "n_pairs", "seq_len", "steps",
+    keys = ("model", "seed", "data", "vocab", "n_pairs", "seq_len", "steps",
             "batch", "lr", "warmup", "weight_decay", "grad_clip",
             "window", "slots", "no_accumulator")
     for k in keys:

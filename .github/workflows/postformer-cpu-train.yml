@@ -36,6 +36,10 @@ on:
         description: "Space-separated seed filter (empty = full preset)"
         required: false
         default: ""
+      ref:
+        description: "Git ref to train (default main; pin the Tester-green SHA to freeze gated code)"
+        required: false
+        default: "main"
 
 permissions:
   contents: read
@@ -64,6 +68,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+          ref: ${{ inputs.ref }}
 
       - name: Expand preset to arm matrix
         id: expand
@@ -115,6 +120,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+          ref: ${{ inputs.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -131,6 +137,11 @@ jobs:
           fi
           python3 -c "import torch; print(torch.__version__)"
 
+      # Resume is fail-closed across presets: the latest successful run may
+      # belong to a different preset/ref whose arm artifact carries different
+      # hparams. train_chunk refuses that resume loudly (never silently forks
+      # the matched stream); on such a failure re-dispatch after the history
+      # advances past the foreign run, or seed a fresh arm dir.
       - name: Resume from latest successful run
         env:
           GH_TOKEN: ${{ github.token }}
