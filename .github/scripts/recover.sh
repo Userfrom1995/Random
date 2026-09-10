@@ -87,30 +87,54 @@ open_continuation() {
 # ---------------------------------------------------------------------------
 relink_orphan() {
   local pr="$1" branch="$2" title="$3"
-  git fetch origin "refs/heads/$branch" --quiet 2>/dev/null || true
+  git fetch origin "+refs/heads/$branch:refs/remotes/origin/$branch" --quiet 2>/dev/null || true
   # Commits on the branch that are not in main, authored by the bot, in order.
+  # NOTE: use origin/$branch (remote-tracking ref). A plain fetch of
+  # refs/heads/$branch only writes FETCH_HEAD and leaves refs/heads/$branch
+  # absent, so origin/main..refs/heads/$branch is empty and orphans falsely
+  # report "no cherry-pickable commits" (PR #295: 225 commits missed).
   local commits
-  commits=$(git log "origin/main..refs/heads/$branch" --author="github-actions\[bot\]" \
+  commits=$(git log "origin/main..origin/$branch" --author="github-actions\[bot\]" \
     --format='%H' --reverse 2>/dev/null)
   if [ -z "$commits" ]; then
     # Fallback: any commit not in main (author filter can miss some builds).
-    commits=$(git log "origin/main..refs/heads/$branch" --format='%H' --reverse 2>/dev/null)
+    commits=$(git log "origin/main..origin/$branch" --format='%H' --reverse 2>/dev/null)
   fi
   if [ -z "$commits" ]; then
     log "orphan $branch has no cherry-pickable commits; nothing to re-link"
     return 4
   fi
   git checkout -B "$branch" "origin/main" 2>/dev/null || return 4
-  local ok=1
+  local ok=1 unmerged non_workflow
   while read -r c; do
     [ -z "$c" ] && continue
     if git cherry-pick "$c" >/dev/null 2>&1; then
       :
-    elif git diff --cached --quiet && git diff --quiet; then
-      git cherry-pick --skip >/dev/null 2>&1 || { git cherry-pick --abort >/dev/null 2>&1; ok=0; break; }
-    else
-      git cherry-pick --abort >/dev/null 2>&1; ok=0; break
+      continue
     fi
+    if git diff --cached --quiet && git diff --quiet; then
+      git cherry-pick --skip >/dev/null 2>&1 || { git cherry-pick --abort >/dev/null 2>&1; ok=0; break; }
+      continue
+    fi
+    # Both-added workflow auto-resolve: when every unmerged path lives under
+    # .github/workflows/, keep the origin/main version so the live timeout
+    # guard survives, then continue. Workflow-only commits that become empty
+    # are skipped. Any conflict outside workflows still aborts (fail closed),
+    # preserving project files (e.g. PR #295 postformer set).
+    unmerged=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "")
+    non_workflow=$(echo "$unmerged" | grep -v '^\.github/workflows/' || true)
+    if [ -n "$unmerged" ] && [ -z "$non_workflow" ]; then
+      git checkout --ours -- .github/workflows/ >/dev/null 2>&1 || true
+      git add -- .github/workflows/ >/dev/null 2>&1 || true
+      if git cherry-pick --continue >/dev/null 2>&1; then
+        continue
+      fi
+      if git diff --cached --quiet && git diff --quiet; then
+        git cherry-pick --skip >/dev/null 2>&1 || { git cherry-pick --abort >/dev/null 2>&1; ok=0; break; }
+        continue
+      fi
+    fi
+    git cherry-pick --abort >/dev/null 2>&1; ok=0; break
   done <<< "$commits"
   if [ "$ok" != "1" ]; then
     log "orphan re-link of $branch failed"
