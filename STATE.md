@@ -1,5 +1,5 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-10T19:01Z (maintainer run 34517890656 `schedule` main 540a68c9)
+ - **Updated:** 2026-09-10T22:21Z (maintainer run 34537060576 `schedule` main 540a68c9)
  - **Action this run:** `[]` (standby - no open PRs/issues requiring dispatch)
  - **Main:** `540a68c9c015c5b118240674a6070d1c4e4f3953` LIVE (`gh api repos/Userfrom1995/RandomLabs/git/refs/heads/main --jq .object.sha` = 540a68c9, timeout fix 120/90 + guard verified, Pages deploy success)
  - **Branch retention:** `opencode/issue294-20260907194528` at `053fac6cb27957df225d61b2a3665ed6b63156a3` CLOSED PR #295 (orphan vs 540a68c9, 225 commits, postformer 335 files not on main, retained per #148 - halted per Owner close of #294) + `opencode/issue294-20260909181258` at `92a2115572974a63d7e0e696860834821b82de02` retained (chunked CPU MERGED at 1ba831da) + `opencode/issue297-20260909222720` at `4c974926d260c5af1b4c26089fb639e527d92c59` MERGED PR #298 at 1d32e713 + `opencode/lab-299-recover-orphan-relink` at `f41145d88ba2a54906bf57dd5d31b212ffe28120` MERGED PR #300 at db4c8237 + `opencode/issue294-20260910085935` at `048464d5485f0ee908f3630cc9f857617100d61e` MERGED PR #301 at 540a68c9
@@ -19,7 +19,7 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Live at 540a68c9.
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main 540a68c9 LIVE - verified this run:** `gh api contents/.github/workflows/opencode-test.yml?ref=main` job 120 step 90 + fail-closed guard, `opencode-review.yml` 120/90 parity, `postformer-cpu-train.yml` present, `opencode.json` both knobs free, Pages deploy success. No held runs. No CreditsError.
+ - **Main 540a68c9 LIVE - verified this run:** `gh api contents/.github/workflows/opencode-test.yml?ref=main` job 120 step 90 + fail-closed guard, `opencode-review.yml` 120/90 parity, `postformer-cpu-train.yml` present, `opencode.json` both knobs free (`muse-spark-1.3-contributor-free`/`muse-spark-1.2-contributor-free`), Pages deploy success. No held runs. No CreditsError.
  - **PR #297 Lab timeout CLOSED at 12:10:01Z by Userfrom1995:** `gh api issues/297 --jq state` = CLOSED, PR #298 MERGED workflows fix inherited at 540a68c9 - fully resolved.
  - **Lab recover.sh fix CLOSED at PR #300/PR #301:** Issues #299 CLOSED via PR #300 at db4c8237 + hardening PR #301 at 540a68c9 - recover orphan handler live.
  - **PR #295 CLOSED orphan at 053fac6c - HALTED per Owner close of #294:** Branch retained, postformer 335 files not on main, no recover dispatch while #294 closed.
