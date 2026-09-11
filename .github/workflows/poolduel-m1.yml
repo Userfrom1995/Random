@@ -104,3 +104,80 @@ jobs:
           path: poolduel/results/m1-${{ matrix.chunk }}
           retention-days: 30
           overwrite: true
+
+  aggregate:
+    name: Aggregate M1 medians
+    needs: sweep
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download chunk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: poolduel-m1-*
+          path: /tmp/poolduel-m1-artifacts
+          merge-multiple: false
+
+      - name: Merge raw records and rebuild medians
+        env:
+          PYTHONPATH: "."
+        run: |
+          set -eux
+          mkdir -p poolduel/results/m1/raw
+          if [ -d /tmp/poolduel-m1-artifacts ]; then
+            for rawdir in $(find /tmp/poolduel-m1-artifacts -type d -name raw 2>/dev/null); do
+              for f in "$rawdir"/*.json; do
+                [ -f "$f" ] || continue
+                case "$(basename "$f")" in
+                  manifest.json|summary.json|medians.json|report.json|comparisons.json)
+                    continue ;;
+                esac
+                cp "$f" poolduel/results/m1/raw/
+              done
+            done
+          fi
+          if ! ls poolduel/results/m1/raw/*.json >/dev/null 2>&1; then
+            echo "poolduel-m1 aggregate: no raw cell records, nothing to commit" >&2
+            exit 1
+          fi
+          sh poolduel/repro.sh --report
+
+      - name: Commit and push results
+        env:
+          TARGET_REF: ${{ inputs.ref }}
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add poolduel/results
+          if git diff --cached --quiet; then
+            echo "poolduel-m1 aggregate: no changes to commit"
+            exit 0
+          fi
+          git commit -m "poolduel M1 sweep results (Refs #302)"
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            if git pull --rebase origin "$TARGET_REF" && git push origin "HEAD:$TARGET_REF"; then
+              exit 0
+            fi
+            attempt=$((attempt + 1))
+            sleep 10
+          done
+          echo "poolduel-m1 aggregate: push failed after 3 attempts" >&2
+          exit 1
