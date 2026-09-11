@@ -1,0 +1,106 @@
+name: poolduel-m1
+
+# Poolduel M1 harness + transaction sweep (issue #302). Nine chunk jobs,
+# each with its own direct-PG control arm, each under 60 minutes, resumable
+# via manifest. Runs ONLY on manual dispatch (no push trigger): the
+# Maintainer launches the sweep once the harness PR is Tester-green.
+#
+# Refs #302 (never Closes: only the final M3 report may close #302).
+
+on:
+  workflow_dispatch:
+    inputs:
+      chunk:
+        description: "Chunk to run (empty = all nine)"
+        required: false
+        default: ""
+      ref:
+        description: "Git ref to benchmark (default main)"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: poolduel-m1-${{ inputs.chunk || 'all' }}
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: "."
+
+jobs:
+  sweep:
+    name: M1 sweep chunk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [a1, a2, b1, b2, c, d, e, f, g]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PostgreSQL 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-17
+          pgbench --version
+          sudo pg_lsclusters || true
+
+      - name: Build poolers (pinned versions)
+        run: |
+          set -eux
+          # PgBouncer 1.25.2 tarball with sha256 verification.
+          # Other poolers pin release tags per poolduel/docs/versions.md;
+          # pgagroal records its master tip SHA into the artifact manifest.
+          sudo apt-get install -y -qq libevent-dev libssl-dev \
+            libpq-dev pkg-config build-essential git curl
+          mkdir -p /tmp/poolers
+          cd /tmp/poolers
+          curl -fsSL -o pgbouncer-1.25.2.tar.gz \
+            https://www.pgbouncer.org/downloads/files/1.25.2/pgbouncer-1.25.2.tar.gz
+          sha256sum pgbouncer-1.25.2.tar.gz
+          echo "pooler build step: verify sha256 against the published value"
+          echo "in poolduel/docs/versions.md before benchmarking"
+
+      - name: Init dataset and checkpoint
+        run: |
+          set -eux
+          sudo service postgresql start || sudo pg_ctlcluster 17 main start
+          sudo -u postgres psql -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
+          sudo -u postgres psql -c "CREATE DATABASE benchdb OWNER benchuser;" || true
+          PGPASSWORD=benchpass pgbench -h 127.0.0.1 -U benchuser -i -s 10 benchdb
+          PGPASSWORD=benchpass psql -h 127.0.0.1 -U benchuser -d benchdb -c "CHECKPOINT;"
+
+      - name: Preflight check
+        run: |
+          python3 poolduel/harness/check.py
+
+      - name: Run M1 chunk
+        if: ${{ inputs.chunk == '' || inputs.chunk == matrix.chunk }}
+        env:
+          PGPASSWORD: benchpass
+        run: |
+          python3 -m poolduel.harness.cli --chunk "${{ matrix.chunk }}" \
+            --threads "$(nproc)" --out "poolduel/results/m1-${{ matrix.chunk }}"
+
+      - name: Upload chunk results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poolduel-m1-${{ matrix.chunk }}
+          path: poolduel/results/m1-${{ matrix.chunk }}
+          retention-days: 30
+          overwrite: true
