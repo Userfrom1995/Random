@@ -4,7 +4,7 @@ Status: in-progress
 Date: 2026-09-11. Owner directive via #42 (supreme priority).
 Blueprint: `ideas/2026-09-11-poolduel.md`. Researcher spec: `poolduel/docs/`.
 
-Active Milestone: M2 (Complete, ready for review)
+Active Milestone: M3 (in progress on `opencode/issue302-poolduel-m3`)
 
 ## Milestone roadmap
 
@@ -98,5 +98,18 @@ plans 312 arm-runs, N/A emission schema-valid. No numbers claimed:
 CI has not run either matrix yet. `index.html` untouched (M3 owns it).
 
 Refs #302. No Closes: M2 report and M3 binding gates remain.
+
+## M3 build log (branch `opencode/issue302-poolduel-m3`)
+
+- M3-1 (2026-09-11): `harness/report.py` publication engine (stdlib
+  only): `load_raw` with schema validation, `aggregate` medians with
+  bands/CV plus measurement context (runner-compatible shape),
+  `per_cell_best` best-vs-best with binding-gate verdicts,
+  `pairwise` full verdict matrix, `iso_regions` shared-axes slices,
+  `flatness` flat/peaky/single-point, `matrix_csv` full export,
+  `build_bundle`/`write_outputs` (`m1/medians.json`,
+  `m1/matrix.csv`, `m2/...`, `report.json` for the page live hooks).
+  CLI fails loudly on missing/empty results (no invented numbers).
+  `tests/test_report.py`: 17 new tests; 100/100 green total.
 
 - the Builder
