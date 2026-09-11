@@ -2,12 +2,8 @@ name: poolduel-m2
 
 # Poolduel M2 modes + I/O + workload twins (issue #302). Sixteen chunk jobs,
 # each with its own direct-PG control arm, each under 60 minutes, resumable
-# via manifest. Runs ONLY on manual dispatch (no push trigger).
-#
-# STAGED (not live): the build token cannot push .github/workflows, so this
-# file lands at poolduel/ci/ and is promoted to .github/workflows/ via the
-# PAT-backed /oc lab route or an owner push, exactly like poolduel-m1.yml.
-# The M2 sweep cannot be dispatched until that promotion lands.
+# via manifest. Runs ONLY on manual dispatch (no push trigger): the
+# Maintainer launches the sweep once the harness PR is Tester-green.
 #
 # Refs #302 (never Closes: only the final M3 report may close #302).
 
