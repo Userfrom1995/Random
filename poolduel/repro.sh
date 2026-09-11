@@ -17,7 +17,7 @@ if ! command -v pgbench >/dev/null 2>&1; then
   exit 2
 fi
 
-python3 poolduel/harness/check.py
+PYTHONPATH=. python3 poolduel/harness/check.py
 
 case "$MODE" in
   --full)
