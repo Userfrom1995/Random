@@ -14,12 +14,16 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "poolduel repro: python3 is required" >&2
   exit 2
 fi
-if ! command -v pgbench >/dev/null 2>&1; then
-  echo "poolduel repro: pgbench is required (install PostgreSQL 17)" >&2
-  exit 2
-fi
-
-PYTHONPATH=. python3 poolduel/harness/check.py
+case "$MODE" in
+  --report|--dry-run|--m2-dry-run) ;;
+  *)
+    if ! command -v pgbench >/dev/null 2>&1; then
+      echo "poolduel repro: pgbench is required (install PostgreSQL 17)" >&2
+      exit 2
+    fi
+    PYTHONPATH=. python3 poolduel/harness/check.py
+    ;;
+esac
 
 case "$MODE" in
   --full)
