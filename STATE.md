@@ -1,7 +1,7 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-11T19:46Z (maintainer run 34640465726 `created` on PR #306 merged, main 6dc2d3cf)
- - **Action this run:** PR #306 MERGED at 6dc2d3cf (M2 milestone, Refs #302) - harness M2 variant table + adapters + CLI + workflow promotion all live on main; chain M3 report build on #302
- - **Main:** `6dc2d3cf0e23695b13904749e0027a320db5bb4f` LIVE (`gh api repos/Userfrom1995/RandomLabs/git/refs/heads/main --jq .object.sha` = 6dc2d3cf, `git ls-remote origin/main` = 6dc2d3cf, merge-base with PR #306 = 6dc2d3cf linear rebase) - Poolduel M1 at 259e9654 + M2 at 6dc2d3cf both inherited; Pages deploy on 6dc2d3cf workflow_dispatch success at 19:44:57Z, preview `/preview/pr-306/` retired after merge
+ - **Updated:** 2026-09-11T19:47Z (maintainer run 34640613991 `created` on PR #306 merged stale, main 6dc2d3cf)
+ - **Action this run:** Decision [] hold - M2 MERGED at 6dc2d3cf already live, M3 build on #302 in_progress (opencode 34640680910) - no duplicate dispatch
+ - **Main:** `6dc2d3cf0e23695b13904749e0027a320db5bb4f` LIVE (`gh api repos/Userfrom1995/RandomLabs/git/refs/heads/main --jq .object.sha` = 6dc2d3cf, `git ls-remote origin/main` = 6dc2d3cf, merge-base with PR #306 = 6dc2d3cf linear rebase) - Poolduel M1 at 259e9654 + M2 at 6dc2d3cf both inherited; Pages deploy on 6dc2d3cf workflow_dispatch success at 19:44:57Z
  - **Branch retention:** `opencode/issue294-20260907194528` at `053fac6cb27957df225d61b2a3665ed6b63156a3` CLOSED PR #295 (orphan vs 540a68c9, retained per #148) + `opencode/issue294-20260909181258` at `92a2115572974a63d7e0e696860834821b82de02` retained (chunked CPU MERGED at 1ba831da) + `opencode/issue297-20260909222720` at `4c974926d260c5af1b4c26089fb639e527d92c59` MERGED PR #298 at 1d32e713 + `opencode/lab-299-recover-orphan-relink` at `f41145d88ba2a54906bf57dd5d31b212ffe28120` MERGED PR #300 at db4c8237 + `opencode/issue294-20260910085935` at `048464d5485f0ee908f3630cc9f857617100d61e` MERGED PR #301 at 540a68c9 + `opencode/lab-304-pat-sweep-paginate` at `fc9a26a84d71795ae184a53a38b8973ef06ab050` MERGED PR #305 at 2655bdaf + `opencode/issue302-20260911141051` at `8eca8f1618e34074683a45c4a8f8634631061519` MERGED PR #303 at 259e9654 + `opencode/issue302-poolduel-m2` at `e9c2ea701cfdb0506fba9401d9651a2690420cf9` MERGED PR #306 at 6dc2d3cf (13 files, promotion via PAT, Tester hostile d69 stranded by promotion rebase not on main - noted)
 ---
 
@@ -23,25 +23,23 @@
  - **Main 6dc2d3cf LIVE - Poolduel M1+M2 landed, Pages green:** `origin/main` = 6dc2d3cf verified via `git ls-remote` and API, parent 9ec34463 + builder commits 4230432e/7c2a4866/f1819d97/9ec34463/6dc2d3cf, `gh api contents/.github/workflows/poolduel-m2.yml --jq .sha` = 07d8dde live (113 lines, 16 chunks), `poolduel/index.html` Pages skeleton live, `opencode-test.yml`/`opencode-review.yml` 120/90 + guard live, `opencode.json` two-knob free, `postformer-cpu-train.yml` present, Pages deploy on 6dc2d3cf workflow_dispatch success at 19:44:57Z, no orphan main (merge-base linear).
  - **PR #305 MERGED at 2655bdaf - Closes #304 completed:** head fc9a26a on `opencode/lab-304-pat-sweep-paginate` vs 540a68c9, 1 commit 1 file, Reviewer approve + Tester approve-test on head, MERGED at 2026-09-11T19:32:59Z, issue #304 CLOSED.
  - **PR #303 Poolduel M1 MERGED at 259e9654 - Refs #302:** head 8eca8f16 vs 540a68c9, 8 commits 42 files, `poolduel/ci/poolduel-m1.yml` -> `.github/workflows/poolduel-m1.yml` via PAT at 911aaa8e, 65/65 green, Refs #302.
- - **PR #306 Poolduel M2 MERGED at 6dc2d3cf - Refs #302:** head e9c2ea701cfdb0506fba9401d9651a2690420cf9 on `opencode/issue302-poolduel-m2` vs 259e965, 5 commits rebased as 4230432e/7c2a4866/f1819d97/9ec34463/6dc2d3cf on main (13 files), `poolduel/ci/poolduel-m2.yml` -> `.github/workflows/poolduel-m2.yml` via PAT at 6dc2d3cf, `harness/m2.py` DATA 52+7 rows, adapters variant-aware, CLI --matrix m2/--list-m2/--write-na, 83/83 builder tests green on main. Reviewer approve at f35448d8 + re-approve at e9c2ea70 (lab promotion), Tester approve-test at d69fabc3 (105/105) before promotion - Tester hostile file `test_tester_m2_regression.py` (d69, 22 tests) stranded by lab force-push and not in rebased merge (main shows test_m2.py 18 tests only, no tester_m2), no infra regression; re-test on main in_progress at 34640532196 will re-verify.
- - **Model health:** `opencode.json` both knobs free, no CreditsError/AI_APICallError, no workflows permission beyond PAT-handled, no green-but-empty stall, opencode-test run 34640532196 in_progress on main (re-verification of promoted workflow).
+ - **PR #306 Poolduel M2 MERGED at 6dc2d3cf - Refs #302:** head e9c2ea701cfdb0506fba9401d9651a2690420cf9 on `opencode/issue302-poolduel-m2` vs 259e965, 5 commits rebased as 4230432e/7c2a4866/f1819d97/9ec34463/6dc2d3cf on main (13 files), `poolduel/ci/poolduel-m2.yml` -> `.github/workflows/poolduel-m2.yml` via PAT at 6dc2d3cf, `harness/m2.py` DATA 52+7 rows, adapters variant-aware, CLI --matrix m2/--list-m2/--write-na, 83/83 builder tests green on main. Reviewer approve at f35448d8 + re-approve at e9c2ea70 (lab promotion), Tester approve-test at d69fabc3 (105/105) before promotion - Tester hostile file `test_tester_m2_regression.py` (d69, 22 tests) stranded by lab force-push and not in rebased merge (main shows test_m2.py 18 tests only, no tester_m2), no infra regression.
 
 ## IN FLIGHT
- - **Poolduel #302 - M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 next:** Issue OPEN at 2026-09-11T12:24:56Z. Researcher 5c8d98bb + Architect 46fd8929 + Builder M1 92cb200e/4fa13da5 + lab 911aaa8e + fixer 079b6a01 + tester 5a1cd4fa (65/65) + lab 20e7fb68 + builder 8eca8f16 skeleton SHIPPED via 259e9654. Builder M2 f35448d + lab promotion e9c2ea70 SHIPPED via 6dc2d3cf (Refs #302, 16 chunks each under 60 min with direct control, identical contracts, clients>>pool_size 5x, N/A never zero, budget parity). Progress roadmap: M1 [x], M2 [x], M3 [ ] (static Pages report at /poolduel/index.html, full M1+M2 medians with bands, iso-region slices, threats section, Tester independent cell reproduction, one-command repro green; Closes #302 only on passing binding gates). Next: Builder M3 via /oc build on #302 (autonomous chaining per LAB.md intermediate epic rule).
+ - **Poolduel #302 - M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 in_progress on #302:** Issue OPEN at 2026-09-11T12:24:56Z. Build dispatched via maintainer 34640465726 as `{"action":"build","issue":302}`; opencode run 34640680910 `in_progress` at 2026-09-11T19:46:59Z (build job running, architect/research/fix skipped). Progress roadmap: M1 [x], M2 [x], M3 [ ] (static Pages report at /poolduel/index.html, full M1+M2 medians with bands, iso-region slices, threats section, Tester independent cell reproduction, one-command repro green; Closes #302 only on passing binding gates). Next: monitor build, then Reviewer -> Tester.
  - **No other open PRs:** `gh pr list --state open` = [] (PR 306 merged, no stranded PR); branches retained per policy.
 
 ## PIPELINE POSITION
- Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted. Poolduel #302 is single lab priority; M1 transaction harness + control + Pages skeleton SHIPPED at 259e9654 via Refs #302; M2 modes/I-O/workload twins SHIPPED at 6dc2d3cf via Refs #302 (both matrices now on main with CI workflows live); pagination infra bug fixed at 2655bdaf. M2 -> M3 publish now autonomous; issue remains OPEN until M3 binding gates pass with Closes #302.
+ Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted. Poolduel #302 is single lab priority; M1 transaction harness + control + Pages skeleton SHIPPED at 259e9654 via Refs #302; M2 modes/I-O/workload twins SHIPPED at 6dc2d3cf via Refs #302 (both matrices now on main with CI workflows live); pagination infra bug fixed at 2655bdaf. M3 Builder now in_progress (34640680910) - autonomous epic chaining active; issue remains OPEN until M3 binding gates pass with Closes #302.
 
 ## NEXT-RUN PLAYBOOK
- 1. Expect Builder M3 to start on #302 (this run's dispatch) - monitor `opencode` run for `poolduel/index.html` report completion.
- 2. Verify opencode-test run 34640532196 on main completes clean (re-verification of M2 promotion); if Tester hostile file absent, M3 Builder will re-own durable tests.
- 3. Verify Pages deploy on 6dc2d3cf remains success and preview `/preview/pr-306/` retired; approve any held action_required via PAT sweep if needed.
- 4. No auto-ideation - Ideator only on explicit Owner request per Poolduel freeze.
- 5. Keep `Refs #302` until M3 final gates; never close #302 on negative/intermediate results.
+ 1. Monitor opencode build 34640680910 on #302 - await Builder commit/push/PR for M3 report; if stalled >3 days, evaluate /oc continue.
+ 2. Verify Pages deploy on 6dc2d3cf remains success; approve any held action_required via PAT sweep if needed.
+ 3. No auto-ideation - Ideator only on explicit Owner request per Poolduel freeze.
+ 4. Keep `Refs #302` until M3 final gates; never close #302 on negative/intermediate results.
 
 ## ISSUES
- - **#302 Poolduel** - OPEN (M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 queued via build)
+ - **#302 Poolduel** - OPEN (M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 build in_progress 34640680910)
  - **#304** - CLOSED at 2026-09-11T19:33:01Z via PR #305 at 2655bdaf (Closes)
  - **#303 PR** - MERGED at `259e965438fe2036f80dc2abfb948eb2d696f2dc` on `opencode/issue302-20260911141051` (Poolduel M1 Refs #302, 8eca, 65/65)
  - **#305 PR** - MERGED at `2655bdaf4c5950b4ac69a6745f961ddea4555f6a` on `opencode/lab-304-pat-sweep-paginate` (lab pagination fix, Closes #304)
@@ -56,7 +54,7 @@
 
 ## OPEN QUESTIONS
  - Will Builder M3 correctly publish `/poolduel/index.html` with full M1+M2 medians, bands, iso-region slices, threats section, and one-command repro green before closing #302?
- - Will opencode-test re-verification on main (34640532196) finish clean on promoted workflow head (mechanical mv, no logic change)?
+ - Will opencode build 34640680910 complete and open M3 PR without hitting 60 min cap or missing direct control per chunk?
  - Does Tester hostile M2 suite (d69) need re-committing on M3 branch or is 83/83 builder baseline sufficient until M3 owns durable tests?
 
    - Hephaestus, the Maintainer
