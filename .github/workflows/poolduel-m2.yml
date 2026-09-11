@@ -111,3 +111,91 @@ jobs:
           path: poolduel/results/m2-${{ matrix.chunk }}
           retention-days: 30
           overwrite: true
+
+      - name: Upload N/A records
+        if: ${{ inputs.chunk == '' || inputs.chunk == 'm2c' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: poolduel-m2-na
+          path: poolduel/results/m2-na
+          retention-days: 30
+          overwrite: true
+
+  aggregate:
+    name: Aggregate M2 medians
+    needs: sweep
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download chunk artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: poolduel-m2-*
+          path: /tmp/poolduel-m2-artifacts
+          merge-multiple: false
+
+      - name: Merge raw records and rebuild medians
+        env:
+          PYTHONPATH: "."
+        run: |
+          set -eux
+          mkdir -p poolduel/results/m2/raw
+          if [ -d /tmp/poolduel-m2-artifacts ]; then
+            for rawdir in $(find /tmp/poolduel-m2-artifacts -type d -name raw 2>/dev/null); do
+              for f in "$rawdir"/*.json; do
+                [ -f "$f" ] || continue
+                case "$(basename "$f")" in
+                  manifest.json|summary.json|medians.json|report.json|comparisons.json)
+                    continue ;;
+                esac
+                cp "$f" poolduel/results/m2/raw/
+              done
+            done
+          fi
+          python3 -m poolduel.harness.cli --matrix m2 --write-na \
+            --out poolduel/results/m2
+          if ! ls poolduel/results/m2/raw/*.json >/dev/null 2>&1; then
+            echo "poolduel-m2 aggregate: no raw cell records, nothing to commit" >&2
+            exit 1
+          fi
+          sh poolduel/repro.sh --report
+
+      - name: Commit and push results
+        env:
+          TARGET_REF: ${{ inputs.ref }}
+        run: |
+          set -eux
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add poolduel/results
+          if git diff --cached --quiet; then
+            echo "poolduel-m2 aggregate: no changes to commit"
+            exit 0
+          fi
+          git commit -m "poolduel M2 sweep results (Refs #302)"
+          attempt=1
+          while [ "$attempt" -le 3 ]; do
+            if git pull --rebase origin "$TARGET_REF" && git push origin "HEAD:$TARGET_REF"; then
+              exit 0
+            fi
+            attempt=$((attempt + 1))
+            sleep 10
+          done
+          echo "poolduel-m2 aggregate: push failed after 3 attempts" >&2
+          exit 1
