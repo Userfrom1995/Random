@@ -28,6 +28,18 @@ No interactive prompts; everything via flags or env.
 THREADS=4 OUT=poolduel/results/m1 ./poolduel/repro.sh --full
 ```
 
+M2 (session/statement/I-O arms plus workload twins) rides `--m2-*` flags
+(same procedure code, same per-cell caps, every chunk with its own direct
+control, N/A rows emitted as nulls, never zeros):
+
+```sh
+./poolduel/repro.sh --m2-smoke     # m2a1 session rows, one repeat per arm
+./poolduel/repro.sh --m2-chunk m2c # one M2 chunk (m2a1..m2i2, 16 total)
+./poolduel/repro.sh --m2-na        # emit N/A JSON for unsupported rows
+./poolduel/repro.sh --m2-dry-run   # print the full 312-run M2 plan
+M2OUT=poolduel/results/m2 ./poolduel/repro.sh --m2-full
+```
+
 Requires `pgbench` plus `psql` from PostgreSQL 17. `repro.sh` runs
 `poolduel/harness/check.py` first (binaries, ratio guards, chunk caps)
 and fails loudly instead of running a compromised sweep.
@@ -57,11 +69,21 @@ Python 3, stdlib only, driving pgbench as a subprocess:
   (`direct`, `pgagroal`, `pgbouncer`, `pgpool`, `odyssey`, `pgcat`).
   Only `config_text()` and the port differ. Ports: direct 5432,
   pgagroal 6432, pgbouncer 6433, pgpool 6434, odyssey 6435, pgcat 6436.
-- `tests/`: 65 stdlib unittests (`python3 -m unittest discover
-  -s poolduel/tests`).
+  M2 variants (session/statement pipelines and pool modes, io_uring/epoll,
+  so_reuseport instances, workers, worker_threads, children sweep) arrive
+  via the cell's `variant` dict; cells without one render the M1 baseline.
+- `harness/m2.py`: M2 variant table as DATA (52 measured rows on 5 shared
+  geometries, 7 N/A rows with nulls), 16 chunks each under 60 min with
+  per-chunk direct control, published per-pooler budget table
+  (`--list-m2`), 2-workload cap per new arm per block.
+- `tests/`: 83 stdlib unittests (`python3 -m unittest discover
+  -s poolduel/tests`): 65 M1 plus 18 M2 (variant configs, M1 backcompat,
+  chunk coverage and caps, N/A schema, no-variant-leak into JSON).
 - `.github/workflows/poolduel-m1.yml`: 9-chunk CI sweep definition
   (manual dispatch only, pinned PG 17 plus pinned pooler builds,
   per-chunk artifacts).
+- `poolduel/ci/poolduel-m2.yml`: 16-chunk M2 sweep, staged for the same
+  PAT-backed promotion (build token lacks `workflows` scope).
 - `index.html`: M1 Pages report skeleton (honest pending state until the
   sweep publishes `results/medians.json`, which the page loads live).
 
