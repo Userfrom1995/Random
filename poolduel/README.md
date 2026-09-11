@@ -14,6 +14,10 @@ Tracks issue #302. Report entrypoint (M3): `/poolduel/index.html`.
 - `docs/configs/`: verbatim baselines with doc citations.
 - `docs/supavisor-deferral.md`: why Supavisor waits for its own milestone.
 - `docs/harness-contract.md`: identical adapter contract and JSON schema.
+- `docs/results.md`: how medians, comparisons, N/A semantics, and CSV/JSON
+  exports work (normative reading guide for every number on the page).
+- `docs/fairness-audit.md`: per-pooler config re-check against upstream
+  tuning docs, budget parity, anti-theater checklist, post-sweep gate.
 - `SPEC.md`: Researcher handoff to the Architect.
 
 ## Repro (M1 harness landed)
@@ -39,6 +43,16 @@ control, N/A rows emitted as nulls, never zeros):
 ./poolduel/repro.sh --m2-dry-run   # print the full 312-run M2 plan
 M2OUT=poolduel/results/m2 ./poolduel/repro.sh --m2-full
 ```
+
+After any sweep, build the publication artifacts with one command:
+
+```sh
+./poolduel/repro.sh --report  # raw JSON -> results/m1+m2/medians.json,
+                              # matrix.csv per matrix, results/report.json
+```
+
+With no sweep data on disk `--report` fails loudly instead of inventing
+numbers; the report page stays honestly pending by design.
 
 Requires `pgbench` plus `psql` from PostgreSQL 17. `repro.sh` runs
 `poolduel/harness/check.py` first (binaries, ratio guards, chunk caps)
@@ -76,15 +90,23 @@ Python 3, stdlib only, driving pgbench as a subprocess:
   geometries, 7 N/A rows with nulls), 16 chunks each under 60 min with
   per-chunk direct control, published per-pooler budget table
   (`--list-m2`), 2-workload cap per new arm per block.
-- `tests/`: 83 stdlib unittests (`python3 -m unittest discover
+- `tests/`: 100 stdlib unittests (`python3 -m unittest discover
   -s poolduel/tests`): 65 M1 plus 18 M2 (variant configs, M1 backcompat,
-  chunk coverage and caps, N/A schema, no-variant-leak into JSON).
+  chunk coverage and caps, N/A schema, no-variant-leak into JSON) plus 17
+  M3 (report aggregation, best-vs-best, iso-region, flatness, CSV, CLI).
 - `.github/workflows/poolduel-m1.yml`: 9-chunk CI sweep definition
   (manual dispatch only, pinned PG 17 plus pinned pooler builds,
   per-chunk artifacts).
-- `poolduel/ci/poolduel-m2.yml`: 16-chunk M2 sweep, staged for the same
-  PAT-backed promotion (build token lacks `workflows` scope).
-- `index.html`: M1 Pages report skeleton (honest pending state until the
-  sweep publishes `results/medians.json`, which the page loads live).
+- `.github/workflows/poolduel-m2.yml`: 16-chunk M2 sweep (manual dispatch,
+  same discipline).
+- `harness/report.py`: M3 publication engine (`python3
+  -m poolduel.harness.report --m1-dir ... --m2-dir ... --out
+  poolduel/results`): schema-validated raw JSON to medians with bands,
+  best-vs-best with binding-gate verdicts, pairwise matrix, iso-region
+  slices, surface flatness, full-matrix CSVs, and `report.json` for the
+  page live hooks.
+- `index.html`: full M1+M2 Pages report (lineup, both matrices, pilot
+  plan, pending-honest results tables and SVG charts that fill live from
+  `results/`, fairness summary, threats to validity, repro commands).
 
 - the Builder

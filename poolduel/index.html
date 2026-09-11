@@ -3,55 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Poolduel: PostgreSQL Pooler Shootout (M1 harness live)</title>
+<title>Poolduel: PostgreSQL Pooler Shootout (M1+M2 report)</title>
 <style>
 :root { color-scheme: dark; }
 body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  max-width: 1020px; margin: 0 auto; padding: 24px; line-height: 1.55;
+  max-width: 1080px; margin: 0 auto; padding: 24px; line-height: 1.55;
   background: #0d1117; color: #e6edf3; }
 h1 { font-size: 1.9rem; margin-bottom: 0.2em; }
+h2 { margin-top: 0; }
 .sub { color: #9aa7b4; margin-top: 0; }
 .banner { border: 1px solid #3fb950; border-radius: 8px; padding: 12px 16px;
   background: #0f2a18; margin: 16px 0; }
 .banner.pending { border-color: #d29922; background: #2a2008; }
-table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.92rem; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.88rem; }
 th, td { border: 1px solid #30363d; padding: 6px 8px; text-align: left; }
 th { background: #161b22; }
 code, pre { background: #161b22; border-radius: 6px; }
-pre { padding: 12px; overflow-x: auto; font-size: 0.82rem; }
+pre { padding: 12px; overflow-x: auto; font-size: 0.8rem; }
 code { padding: 1px 5px; }
 a { color: #58a6ff; }
-.section { margin-top: 28px; }
+.section { margin-top: 30px; border-top: 1px solid #21262d; padding-top: 18px; }
 .pend { color: #d29922; }
 .ok { color: #3fb950; }
+.na { color: #9aa7b4; }
 footer { margin-top: 36px; color: #9aa7b4; font-size: 0.85rem; }
 ul.tight li { margin-bottom: 4px; }
+.chart { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 12px; margin: 12px 0; overflow-x: auto; }
+.chart text { fill: #e6edf3; font-size: 11px; }
+.chart .bar-na { fill: #484f58; }
+.note { color: #9aa7b4; font-size: 0.88rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <h1>Poolduel: PostgreSQL connection pooler shootout</h1>
-<p class="sub">pgagroal vs PgBouncer vs pgpool-II vs Odyssey vs pgcat, plus direct-to-PostgreSQL control. Tracks issue #302. M1: transaction pooling.</p>
+<p class="sub">pgagroal vs PgBouncer vs pgpool-II vs Odyssey vs pgcat, plus direct-to-PostgreSQL control. Tracks issue #302. Full M1+M2 report.</p>
 
 <div class="banner pending" id="status-banner">
-<strong>Status: M1 harness live, sweep pending.</strong>
-The measurement harness, six adapters, M1 cell table, and chunked CI workflow
-are implemented and unit-tested. No benchmark medians exist yet: the CI sweep
-(<code>.github/workflows/poolduel-m1.yml</code>, 9 chunks, manual dispatch) has
-not run. Every results cell below honestly reads <span class="pend">pending</span>,
-never zero, never interpolated. This page is the M1 report skeleton; numbers
-appear only after the sweep commits raw JSON plus medians.
+<strong>Status: harness plus report live, sweeps pending.</strong>
+The M1 transaction matrix (7 cells, 9 CI chunks) and the M2 modes/I-O matrix
+(52 measured rows plus 7 N/A rows, 16 CI chunks) are implemented, unit-tested
+(100 tests), and dispatched manually from
+<code>.github/workflows/poolduel-m1.yml</code> and
+<code>.github/workflows/poolduel-m2.yml</code>. No benchmark medians exist
+yet: every results cell below honestly reads <span class="pend">pending</span>,
+never zero, never interpolated. Numbers appear only after the sweeps commit
+raw JSON plus medians; this page then fills in automatically from
+<code>results/m1/medians.json</code>, <code>results/m2/medians.json</code>,
+and <code>results/report.json</code>.
 </div>
 
 <div class="section">
 <h2>1. Lineup (named openly, pinned versions)</h2>
 <table>
-<tr><th>Arm</th><th>Pinned version</th><th>M1 mode</th><th>Config doc</th></tr>
-<tr><td>pgagroal</td><td>2.1.0 baseline, master tip SHA pinned at build</td><td>transaction</td><td><a href="docs/configs/pgagroal.md">pgagroal.md</a></td></tr>
-<tr><td>PgBouncer</td><td>1.25.2 tarball plus sha256</td><td>transaction</td><td><a href="docs/configs/pgbouncer.md">pgbouncer.md</a></td></tr>
-<tr><td>pgpool-II</td><td>4.7.2 head of 4.7 series</td><td>session-class (only mode; labeled)</td><td><a href="docs/configs/pgpool-II.md">pgpool-II.md</a></td></tr>
-<tr><td>Odyssey</td><td>v1.5.1 stable</td><td>transaction</td><td><a href="docs/configs/odyssey.md">odyssey.md</a></td></tr>
-<tr><td>pgcat</td><td>v1.2.0</td><td>transaction</td><td><a href="docs/configs/pgcat.md">pgcat.md</a></td></tr>
-<tr><td>direct</td><td>PG 17 (control, no pooler)</td><td>n/a</td><td>n/a</td></tr>
+<tr><th>Arm</th><th>Pinned version</th><th>M1 mode</th><th>M2 arms</th><th>Config doc</th></tr>
+<tr><td>pgagroal</td><td>2.1.0 baseline, master tip SHA pinned at build</td><td>transaction</td><td>session, performance, io_uring/epoll</td><td><a href="docs/configs/pgagroal.md">pgagroal.md</a></td></tr>
+<tr><td>PgBouncer</td><td>1.25.2 tarball plus sha256</td><td>transaction</td><td>session, statement, 2-instance so_reuseport</td><td><a href="docs/configs/pgbouncer.md">pgbouncer.md</a></td></tr>
+<tr><td>pgpool-II</td><td>4.7.2 head of 4.7 series</td><td>session-class (only mode; labeled)</td><td>session-class, children sweep 100x1/200x1</td><td><a href="docs/configs/pgpool-II.md">pgpool-II.md</a></td></tr>
+<tr><td>Odyssey</td><td>v1.5.1 stable</td><td>transaction</td><td>session, statement (provisional), workers 1/2/4</td><td><a href="docs/configs/odyssey.md">odyssey.md</a></td></tr>
+<tr><td>pgcat</td><td>v1.2.0</td><td>transaction</td><td>session, worker_threads 1/5</td><td><a href="docs/configs/pgcat.md">pgcat.md</a></td></tr>
+<tr><td>direct</td><td>PG 17 (control, no pooler)</td><td>n/a</td><td>control in every chunk</td><td>n/a</td></tr>
 </table>
 <p>Full pins: <a href="docs/versions.md">docs/versions.md</a>. Supavisor is
 deferred with a written reason: <a href="docs/supavisor-deferral.md">supavisor-deferral.md</a>,
@@ -59,7 +72,7 @@ not silently dropped. Any version upgrade means a re-run, never carried-forward 
 </div>
 
 <div class="section">
-<h2>2. M1 matrix (normative, every cell satisfies clients &gt;&gt; pool_size)</h2>
+<h2>2. M1 matrix: transaction pooling (normative, clients &gt;&gt; pool_size)</h2>
 <table>
 <tr><th>Cell</th><th>Workload</th><th>Clients</th><th>Pool</th><th>Ratio</th><th>Protocol</th><th>Churn</th><th>T (s)</th><th>Reps</th></tr>
 <tr><td>M1-1 flagship</td><td>select-only</td><td>100</td><td>10</td><td>10x</td><td>simple</td><td>no</td><td>120</td><td>5</td></tr>
@@ -78,7 +91,53 @@ contract: <a href="docs/harness-contract.md">docs/harness-contract.md</a>.</p>
 </div>
 
 <div class="section">
-<h2>3. Pilot discrimination proof (dry-run plan, no numbers claimed)</h2>
+<h2>3. M2 matrix: remaining modes, I/O variants, workload twins (normative)</h2>
+<p>M2 reuses the M1 procedure code and per-cell budgets (standard timing:
+30 s warmup, 60 s measured, 3 repeats) on five shared geometries
+(G-SEL100, G-TPCB50, G-UPD100, G-CHURN100, G-PREP50). 52 measured rows
+plus 7 N/A rows in 16 chunks, each under 60 min with its own direct
+control. Realized measured rows per pooler (published budget table,
+<code>cli --list-m2</code>): pgagroal 11, PgBouncer 12, Odyssey 11,
+pgcat 9, pgpool-II 9, direct control in every chunk. The residual spread
+is structural (pgpool-II has one mode, pgcat has no statement mode) and
+favors nobody: every measured and N/A row is committed.</p>
+<h3>Session arms (M2-S, M1-1/M1-2 geometries only)</h3>
+<table>
+<tr><th>Rows</th><th>Arm</th><th>Variant</th></tr>
+<tr><td>M2-S1/S2, S3/S4</td><td>pgagroal</td><td><code>pipeline=session</code>, <code>pipeline=performance</code></td></tr>
+<tr><td>M2-S5/S6, S15/S16</td><td>PgBouncer</td><td><code>pool_mode=session</code>, 1 vs 2 instances (so_reuseport)</td></tr>
+<tr><td>M2-S7/S8</td><td>Odyssey</td><td><code>pool=session</code>, workers=1</td></tr>
+<tr><td>M2-S9/S10, S13/S14</td><td>pgcat</td><td><code>pool_mode=session</code>, worker_threads 5 vs 1</td></tr>
+<tr><td>M2-S11/S12</td><td>pgpool-II</td><td>session-class (only mode; labeled)</td></tr>
+</table>
+<h3>Statement arms (M2-T, provisional Odyssey labeled)</h3>
+<table>
+<tr><th>Rows</th><th>Arm</th><th>Variant</th></tr>
+<tr><td>M2-T1/T2</td><td>PgBouncer</td><td><code>pool_mode=statement</code></td></tr>
+<tr><td>M2-T3/T4</td><td>Odyssey</td><td><code>pool=statement</code>, workers=1, provisional (verified empirically)</td></tr>
+<tr><td class="na">N/A on M2-T1/T2 geometries</td><td class="na">pgagroal, pgcat, pgpool-II</td><td class="na">no statement mode / unsupported / session-class only</td></tr>
+</table>
+<h3>I/O backends (M2-I)</h3>
+<table>
+<tr><th>Rows</th><th>Arm</th><th>Axis</th></tr>
+<tr><td>M2-I1..I4</td><td>pgagroal</td><td><code>ev_backend</code> io_uring vs epoll</td></tr>
+<tr><td>M2-I5/I6</td><td>PgBouncer</td><td>2 instances with so_reuseport</td></tr>
+<tr><td>M2-I7..I10</td><td>Odyssey</td><td><code>workers</code> 2 and 4</td></tr>
+<tr><td>M2-I11/I12</td><td>pgcat</td><td><code>worker_threads</code> 1</td></tr>
+<tr><td>M2-I13..I16</td><td>pgpool-II</td><td><code>num_init_children</code> 100x1, 200x1 (200x4 corner substituted per grid)</td></tr>
+</table>
+<h3>Workload twins (M2-W simple-update/churn, M2-P prepared)</h3>
+<table>
+<tr><th>Rows</th><th>Coverage</th></tr>
+<tr><td>M2-W1..W5</td><td>simple-update at M1-5 geometry for every session arm</td></tr>
+<tr><td>M2-W6..W10</td><td>churn twin at M1-6 geometry for every session arm</td></tr>
+<tr><td>M2-P1..P6</td><td>prepared twin at M1-3 geometry for arms claiming prepare support (pgagroal/pgbouncer session, pgbouncer statement, odyssey statement provisional, pgcat session, pgpool)</td></tr>
+<tr><td class="na">N/A</td><td class="na">Odyssey session prepared twin (reservation incompatible with session pooling); statement twin measured instead</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>4. Pilot discrimination proof (dry-run plan, no numbers claimed)</h2>
 <p>The pilot gate (test-matrix.md section 7) runs M1-1 plus M1-2, one repeat per
 arm, interleaved, before the full sweep. The live plan below is generated by the
 real harness CLI (<code>python3 -m poolduel.harness.cli --pilot --dry-run</code>),
@@ -99,16 +158,18 @@ plan=12 out=poolduel/results/m1</pre>
 <p>Measured pilot medians will be committed as raw JSON before any separation
 claim is made. If all arms tie within overlapping bands, the load scales up
 (200 clients, then <code>-s 20</code>) until they separate, or the reason is
-documented. No tie or ranking is asserted on this page today.</p>
+documented. No tie or ranking is asserted on this page today. The M2 full
+dry-run plans 312 arm-runs (<code>repro.sh --m2-dry-run</code>).</p>
 </div>
 
 <div class="section">
-<h2>4. Results (M1 medians: pending CI sweep)</h2>
+<h2>5. Results: M1 medians (pending CI sweep)</h2>
 <p>Headline metric per cell: median tps with min-max band and CV, plus p50/p90/
 p99/p999 from per-transaction logs, failed/skipped counts, exit codes. Published
 per arm only after the sweep. Unsupported cells will read
-<code>N/A (unsupported)</code>; over-cap cells <code>timeout/inconclusive</code>.</p>
-<table id="results-table">
+<code>N/A (unsupported)</code>; over-cap cells <code>timeout/inconclusive</code>.
+Full matrix: <a href="results/m1/matrix.csv">results/m1/matrix.csv</a> (published with the sweep).</p>
+<table id="results-m1">
 <tr><th>Cell</th><th>direct</th><th>pgagroal</th><th>PgBouncer</th><th>pgpool-II</th><th>Odyssey</th><th>pgcat</th></tr>
 <tr><td>M1-1 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
 <tr><td>M1-2 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
@@ -118,88 +179,328 @@ per arm only after the sweep. Unsupported cells will read
 <tr><td>M1-6 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
 <tr><td>M1-7 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
 </table>
-<p id="live-results-note">Live data hook: if sweep artifacts are published next
-to this page as <code>results/medians.json</code> (the harness
-<code>write_medians</code> schema: per cell-plus-pooler median/min/max/CV for
-tps, p50/p90/p99/p999), this table fills in automatically. Otherwise it stays
-pending by design.</p>
+<p class="note" id="m1-note">Live data hook: fills from <code>results/m1/medians.json</code>
+(harness <code>write_medians</code> schema) once the sweep publishes it. Otherwise pending by design.</p>
+<div class="chart" id="chart-m1"><p class="note">Chart pending: bars render here once <code>results/report.json</code> is published (median tps with min-max whiskers, every arm, every M1 cell).</p></div>
 </div>
 
 <div class="section">
-<h2>5. Fairness and threats to validity (summary)</h2>
+<h2>6. Results: M2 best-vs-best plus N/A (pending CI sweep)</h2>
+<p>Per cell the head arm is the highest tps median; every other arm carries the
+binding-gate verdict (non-overlapping min-max bands AND same-direction tps plus
+p99 agreement, else <code>inconclusive</code>). N/A rows are listed with nulls,
+never zeros, never interpolated. Full matrix:
+<a href="results/m2/matrix.csv">results/m2/matrix.csv</a>; machine-readable
+bundle: <a href="results/report.json">results/report.json</a>.</p>
+<table id="results-m2">
+<tr><th>Cell</th><th>Best arm</th><th>tps (median [min-max])</th><th>p99 (ms)</th><th>N/A arms</th></tr>
+<tr><td>M2-S session block</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M2-T statement block</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="na">pgagroal, pgcat, pgpool-II (unsupported)</td></tr>
+<tr><td>M2-I I/O block</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M2-W workload twins</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M2-P prepared twins</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="na">Odyssey session twin (see section 3)</td></tr>
+</table>
+<p class="note" id="m2-note">Live data hook: per-cell best rows render here from
+<code>results/report.json</code> once published. Peaks always ship with their
+exact configs attached (verbatim in <code>docs/configs/</code>).</p>
+</div>
+
+<div class="section">
+<h2>7. Iso-region slices and surface flatness (pending data)</h2>
+<div class="grid2">
+<div>
+<h3>Iso-region matching</h3>
+<p class="note">Every best-vs-best claim is accompanied by at least one slice
+where clients, backends, and duration match exactly (for example M1-1 beside
+M2 session rows on the shared G-SEL100 geometry). Matched slices render here
+from <code>results/report.json</code>.</p>
+<div id="iso-block"><p class="note">Pending sweep data.</p></div>
+</div>
+<div>
+<h3>Surface flatness</h3>
+<p class="note">Fast everywhere vs fast at one magic setting: spread is
+(peak minus trough) over peak across each pooler's own measured configs.
+At or below 15% reads flat, above reads peaky, one config reads
+single-point. Verdicts render here from <code>results/report.json</code>.</p>
+<div id="flat-block"><p class="note">Pending sweep data.</p></div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>8. Fairness audit (structural, pre-sweep pass complete)</h2>
 <ul class="tight">
 <li>One harness, identical adapter contract: same timeouts, warmup, JSON schema,
-failure semantics. Adapters differ only in <code>config_text()</code> and port.</li>
+failure semantics. Adapters differ only in <code>config_text()</code> and port.
+Contract: <a href="docs/harness-contract.md">docs/harness-contract.md</a>.</li>
 <li>Same runner image, same PG build and config, freshly initialized dataset per
 run, interleaved round-robin order, medians over repeats, per-chunk direct control.</li>
 <li>Every non-default pooler setting cites that pooler's own tuning docs in
-<code>docs/configs/</code>; anything uncited fails review.</li>
-<li>Best-vs-best per workload plus iso-region slices on shared axes
-(clients {50,100,200}, backends {10,20}); surface flatness reported with peaks.</li>
-<li>Threats: shared-runner variance (handled by medians, never static baselines);
-pgpool-II session-class-only comparison is labeled, not hidden; prepared-statement
-SQLSTATE 26000 fails the arm cell while the simple twin still compares; churn
-and prepared twins are always paired. Full text: <a href="docs/methodology.md">docs/methodology.md</a>.</li>
+<code>docs/configs/</code>; anything uncited fails review. Full re-check:
+<a href="docs/fairness-audit.md">docs/fairness-audit.md</a>.</li>
+<li>Budget parity published: M1 has 7 workloads per pooler; M2 realized rows are
+pgagroal 11, PgBouncer 12, Odyssey 11, pgcat 9, pgpool-II 9 (structural spread,
+documented, favors nobody). N/A rows committed as nulls.</li>
+<li>How results are computed, compared, and exported:
+<a href="docs/results.md">docs/results.md</a> (medians, binding gate, CSV/JSON schemas).</li>
 <li>Anti-theater checklist enforced: no home-team tuning, no sabotage by omission,
 no cherry-picked workloads, no hidden failures, no interpolated N/A, no
-carried-forward numbers across upgrades.</li>
+carried-forward numbers across upgrades. The Tester independently reproduces at
+least one sample cell before any gate passes.</li>
 </ul>
 </div>
 
 <div class="section">
-<h2>6. Reproduce it (one command)</h2>
-<pre>./poolduel/repro.sh --dry-run   # print the pilot plan, run nothing
+<h2>9. Threats to validity</h2>
+<ol>
+<li>Co-location: PG, pooler, and pgbench share 2-4 vCPUs; pgbench itself can
+bottleneck. Results rank arms on this hardware only, never absolute capacity claims.</li>
+<li>Prepared-mode incompatibility: transaction pooling breaks server-side prepares
+unless the pooler tracks them; errors are findings, not harness bugs; every
+prepared cell has a simple-protocol twin.</li>
+<li>Auth and startup asymmetry: <code>-C</code> cells measure connect plus auth;
+reset queries and auth methods are held constant and logged.</li>
+<li>Session-state leakage: custom scripts stay transaction-scoped; builtins already do.</li>
+<li>Reset-query cost: <code>DISCARD ALL</code>-style resets are part of the fair cost
+of multiplexing, held constant and reported.</li>
+<li>Autovacuum and checkpoints: fixed <code>CHECKPOINT</code>, identical vacuum
+defaults, warmup trimming via aggregate-interval logs.</li>
+<li>Shared-runner noise: handled by interleaving and medians, never by static
+baselines or single runs.</li>
+<li>pgpool-II session-class-only comparison is labeled, not hidden; Odyssey
+statement results are labeled provisional until empirically verified.</li>
+</ol>
+<p>Full text: <a href="docs/methodology.md">docs/methodology.md</a> sections 6-7.</p>
+</div>
+
+<div class="section">
+<h2>10. Reproduce it (one command)</h2>
+<pre>./poolduel/repro.sh --dry-run   # print the M1 pilot plan, run nothing
 ./poolduel/repro.sh --pilot     # M1-1 + M1-2, one repeat per arm
 ./poolduel/repro.sh --full      # all 9 M1 chunks (a1,a2,b1,b2,c,d,e,f,g)
-THREADS=4 OUT=poolduel/results/m1 ./poolduel/repro.sh --full</pre>
+THREADS=4 OUT=poolduel/results/m1 ./poolduel/repro.sh --full
+./poolduel/repro.sh --m2-dry-run  # print the full 312-run M2 plan
+./poolduel/repro.sh --m2-full     # all 16 M2 chunks plus N/A records
+./poolduel/repro.sh --report      # raw JSON -&gt; medians, matrix CSVs, report.json</pre>
 <p>Requires <code>pgbench</code> plus <code>psql</code> from PostgreSQL 17.
 <code>repro.sh</code> runs the preflight guard first
 (<code>poolduel/harness/check.py</code>: binaries, ratio guards, chunk caps)
-and fails loudly instead of running a compromised sweep.</p>
+and fails loudly instead of running a compromised sweep. Method:
+<a href="docs/methodology.md">docs/methodology.md</a> section 8
+(reproducibility-by-adversary).</p>
 </div>
 
 <footer>
-Poolduel M1 skeleton. Refs #302 (never Closes until the full M3 gates pass).
+Poolduel M1+M2 report. Refs #302 (never Closes until the full M3 gates pass:
+non-overlapping bands plus tps/p99 agreement; negative or marginal results stay Refs with a logged ledger).
 Docs: <a href="docs/test-matrix.md">test-matrix</a> |
 <a href="docs/modes.md">modes</a> | <a href="docs/grid.md">grid</a> |
 <a href="docs/methodology.md">methodology</a> | <a href="docs/versions.md">versions</a> |
-<a href="docs/harness-contract.md">harness-contract</a> | - the Builder
+<a href="docs/harness-contract.md">harness-contract</a> |
+<a href="docs/results.md">results</a> |
+<a href="docs/fairness-audit.md">fairness-audit</a> | - the Builder
 </footer>
 
 <script>
-// Fill the results table from results/medians.json when a sweep has published
-// it next to this page. Absence keeps every cell honestly pending.
+// Poolduel live report: fills pending tables and charts from sweep artifacts.
+// Absence of artifacts keeps every cell honestly pending (never zero-filled).
 (function () {
+  "use strict";
   var ARMS = ["direct", "pgagroal", "pgbouncer", "pgpool", "odyssey", "pgcat"];
-  var CELLS = ["M1-1", "M1-2", "M1-3", "M1-4", "M1-5", "M1-6", "M1-7"];
-  function fmt(entry) {
-    if (!entry || !entry.tps || entry.tps.median == null) return null;
-    var t = entry.tps;
-    return t.median + " [" + t.min + "-" + t.max + "]";
+  var M1_CELLS = ["M1-1", "M1-2", "M1-3", "M1-4", "M1-5", "M1-6", "M1-7"];
+
+  function fmtBand(tps) {
+    if (!tps || tps.median == null) return null;
+    return tps.median + " [" + tps.min + "-" + tps.max + "]";
   }
-  fetch("results/medians.json", { cache: "no-store" }).then(function (r) {
-    return r.ok ? r.json() : null;
-  }).catch(function () { return null; }).then(function (data) {
-    if (!data) return;
+
+  function fetchJson(url) {
+    return fetch(url, { cache: "no-store" }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).catch(function () { return null; });
+  }
+
+  function fillM1(medians) {
+    if (!medians || !medians.length) return false;
     var byKey = {};
-    (Array.isArray(data) ? data : []).forEach(function (e) {
-      byKey[e.cell_id + "|" + e.pooler] = e;
-    });
-    var table = document.getElementById("results-table");
+    medians.forEach(function (e) { byKey[e.cell_id + "|" + e.pooler] = e; });
+    var table = document.getElementById("results-m1");
     var rows = table.getElementsByTagName("tr");
+    var filled = 0;
     for (var i = 1; i < rows.length; i++) {
       var tds = rows[i].getElementsByTagName("td");
       for (var j = 1; j < tds.length; j++) {
-        var v = fmt(byKey[CELLS[i - 1] + "|" + ARMS[j - 1]]);
-        if (v) { tds[j].textContent = v; tds[j].className = "ok"; }
+        var entry = byKey[M1_CELLS[i - 1] + "|" + ARMS[j - 1]];
+        if (entry && entry.status === "N/A (unsupported)") {
+          tds[j].textContent = "N/A (unsupported)";
+          tds[j].className = "na";
+          filled++;
+        } else {
+          var v = entry ? fmtBand(entry.tps) : null;
+          if (v) { tds[j].textContent = v; tds[j].className = "ok"; filled++; }
+        }
       }
     }
-    var banner = document.getElementById("status-banner");
-    banner.className = "banner";
-    banner.innerHTML = "<strong>Status: M1 medians published below.</strong> " +
-      "Raw JSON plus medians committed with exact configs; see the results table. Refs #302.";
-    document.getElementById("live-results-note").textContent =
-      "Live data: loaded from results/medians.json published with the sweep.";
+    if (filled) {
+      document.getElementById("m1-note").textContent =
+        "Live data: loaded from results/m1/medians.json published with the sweep.";
+    }
+    return filled > 0;
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  }
+
+  function fillM2(bundle) {
+    if (!bundle || !bundle.best) return false;
+    var blocks = [
+      { label: "M2-S session block", prefix: "M2-S" },
+      { label: "M2-T statement block", prefix: "M2-T" },
+      { label: "M2-I I/O block", prefix: "M2-I" },
+      { label: "M2-W workload twins", prefix: "M2-W" },
+      { label: "M2-P prepared twins", prefix: "M2-P" }
+    ];
+    var table = document.getElementById("results-m2");
+    var html = "<tr><th>Cell</th><th>Best arm</th>" +
+      "<th>tps (median [min-max])</th><th>p99 (ms)</th><th>N/A arms</th></tr>";
+    var anyData = false;
+    blocks.forEach(function (b) {
+      var cells = Object.keys(bundle.best).filter(function (c) {
+        return c.indexOf(b.prefix) === 0;
+      }).sort();
+      if (!cells.length) {
+        html += "<tr><td>" + esc(b.label) +
+          '</td><td class="pend">pending</td><td class="pend">pending</td>' +
+          '<td class="pend">pending</td><td class="pend">pending</td></tr>';
+        return;
+      };
+      cells.forEach(function (cell) {
+        anyData = true;
+        var info = bundle.best[cell];
+        var head = info.ranked.length ? info.ranked[0] : null;
+        var na = info.na.map(function (n) {
+          return n.pooler + " (" + n.status + ")";
+        }).join(", ") || "-";
+        html += "<tr><td>" + esc(cell) + "</td>" +
+          "<td>" + (head ? esc(head.pooler) + " <span class='note'>" +
+            esc(head.verdict === "best" ? "" : head.verdict) + "</span>"
+            : '<span class="na">no measured arms</span>') + "</td>" +
+          "<td>" + (head ? esc(fmtBand(head.tps) || "-") : "-") + "</td>" +
+          "<td>" + (head && head.p99_ms && head.p99_ms.median != null
+            ? esc(head.p99_ms.median) : "-") + "</td>" +
+          '<td class="na">' + esc(na) + "</td></tr>";
+      });
+    });
+    table.innerHTML = html;
+    if (anyData) {
+      document.getElementById("m2-note").textContent =
+        "Live data: best-vs-best rows loaded from results/report.json published with the sweep.";
+    }
+    return anyData;
+  }
+
+  function renderCharts(bundle, m1medians) {
+    var host = document.getElementById("chart-m1");
+    var byKey = {};
+    (m1medians || []).forEach(function (e) {
+      byKey[e.cell_id + "|" + e.pooler] = e;
+    });
+    var peak = 0;
+    M1_CELLS.forEach(function (c) {
+      ARMS.forEach(function (a) {
+        var e = byKey[c + "|" + a];
+        if (e && e.tps && e.tps.max != null && e.tps.max > peak) peak = e.tps.max;
+      });
+    });
+    if (!peak) return false;
+    var W = 640, rowH = 20, labelW = 150, pad = 8;
+    var rows = [];
+    M1_CELLS.forEach(function (c) {
+      ARMS.forEach(function (a) { rows.push({ cell: c, arm: a }); });
+    });
+    var H = rows.length * rowH + 30;
+    var svg = '<svg width="' + W + '" height="' + H +
+      '" role="img" aria-label="M1 median tps with min-max bands">';
+    rows.forEach(function (r, i) {
+      var y = 24 + i * rowH;
+      var e = byKey[r.cell + "|" + r.arm];
+      svg += '<text x="0" y="' + (y + 11) + '">' +
+        esc(r.cell + " " + r.arm) + "</text>";
+      if (e && e.tps && e.tps.median != null) {
+        var x0 = labelW + (e.tps.min / peak) * (W - labelW - pad);
+        var x1 = labelW + (e.tps.max / peak) * (W - labelW - pad);
+        var xm = labelW + (e.tps.median / peak) * (W - labelW - pad);
+        var color = r.arm === "direct" ? "#9aa7b4" : "#3fb950";
+        svg += '<line x1="' + x0.toFixed(1) + '" y1="' + (y + 8) +
+          '" x2="' + x1.toFixed(1) + '" y2="' + (y + 8) +
+          '" stroke="#58a6ff" stroke-width="3"/>';
+        svg += '<line x1="' + xm.toFixed(1) + '" y1="' + (y + 3) +
+          '" x2="' + xm.toFixed(1) + '" y2="' + (y + 13) +
+          '" stroke="' + color + '" stroke-width="2"/>';
+        svg += '<text x="' + (x1 + 4).toFixed(1) + '" y="' + (y + 11) + '">' +
+          esc(e.tps.median) + "</text>";
+      } else {
+        svg += '<text x="' + labelW + '" y="' + (y + 11) +
+          '" class="pend" fill="#d29922">' +
+          (e ? esc(e.status) : "pending") + "</text>";
+      }
+    });
+    svg += "</svg>";
+    host.innerHTML = "<p class='note'>M1 median tps per arm (blue bar: min-max " +
+      "band, tick: median). Live from results/m1/medians.json.</p>" + svg;
+    return true;
+  }
+
+  function fillIsoFlat(bundle) {
+    if (!bundle) return false;
+    var iso = document.getElementById("iso-block");
+    var regions = (bundle.iso_regions || []).filter(function (r) {
+      return r.matched;
+    });
+    if (regions.length) {
+      var html = "";
+      regions.forEach(function (r) {
+        html += "<p class='note'><code>" + esc(r.workload) + " c=" +
+          esc(r.clients) + " pool=" + esc(r.pool_size) + " T=" +
+          esc(r.duration_s) + " " + esc(r.protocol) +
+          (r.churn ? " churn" : "") + "</code> matched cells: " +
+          esc(r.matched_cells.join(", ")) + "</p>";
+      });
+      iso.innerHTML = html;
+    }
+    var flat = document.getElementById("flat-block");
+    var keys = bundle.flatness ? Object.keys(bundle.flatness).sort() : [];
+    if (keys.length) {
+      var fhtml = "<table><tr><th>Pooler</th><th>Configs</th>" +
+        "<th>Spread</th><th>Verdict</th><th>Peak cell</th></tr>";
+      keys.forEach(function (k) {
+        var f = bundle.flatness[k];
+        fhtml += "<tr><td>" + esc(k) + "</td><td>" + esc(f.configs_measured) +
+          "</td><td>" + (f.spread == null ? "-" : (100 * f.spread).toFixed(1) +
+            "%") + "</td><td>" + esc(f.verdict) + "</td><td>" +
+          (f.peak ? esc(f.peak.cell_id) + " @ " + esc(f.peak.tps_median)
+            : "-") + "</td></tr>";
+      });
+      flat.innerHTML = fhtml + "</table>";
+    }
+    return regions.length > 0 || keys.length > 0;
+  }
+
+  fetchJson("results/m1/medians.json").then(function (m1) {
+    var gotM1 = fillM1(m1);
+    return fetchJson("results/report.json").then(function (bundle) {
+      var gotChart = renderCharts(bundle, m1);
+      var gotM2 = fillM2(bundle);
+      var gotIso = fillIsoFlat(bundle);
+      if (gotM1 || gotM2 || gotChart || gotIso) {
+        var banner = document.getElementById("status-banner");
+        banner.className = "banner";
+        banner.innerHTML = "<strong>Status: sweep medians published below.</strong> " +
+          "Raw JSON plus medians committed with exact configs; " +
+          "CSV exports alongside the tables. Refs #302.";
+      }
+    });
   });
 })();
 </script>
