@@ -1,8 +1,8 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-11T19:53Z (maintainer run 34641243027 `created` on PR #307, head ca320b54, main 6dc2d3cf)
- - **Action this run:** Decision [] hold - PR #307 M3 at ca320b54 verified MERGEABLE, Reviewer in_progress (34641232437) + pending (34641243142) on /oc review 19:53:04Z - no duplicate dispatch, Refs #302 held until binding gates
- - **Main:** `6dc2d3cf0e23695b13904749e0027a320db5bb4f` LIVE (`gh api repos/Userfrom1995/RandomLabs/git/refs/heads/main --jq .object.sha` = 6dc2d3cf, `git ls-remote origin/main` = 6dc2d3cf, merge-base with PR #307 = 6dc2d3cf linear) - Poolduel M1 at 259e9654 + M2 at 6dc2d3cf both inherited; Pages deploy on 6dc2d3cf success + PR #307 preview Deploy 34641204711 success
- - **Branch retention:** `opencode/issue294-20260907194528` at `053fac6cb27957df225d61b2a3665ed6b63156a3` CLOSED PR #295 (orphan vs 540a68c9, retained per #148) + `opencode/issue294-20260909181258` at `92a2115572974a63d7e0e696860834821b82de02` retained (chunked CPU MERGED at 1ba831da) + `opencode/issue297-20260909222720` at `4c974926d260c5af1b4c26089fb639e527d92c59` MERGED PR #298 at 1d32e713 + `opencode/lab-299-recover-orphan-relink` at `f41145d88ba2a54906bf57dd5d31b212ffe28120` MERGED PR #300 at db4c8237 + `opencode/issue294-20260910085935` at `048464d5485f0ee908f3630cc9f857617100d61e` MERGED PR #301 at 540a68c9 + `opencode/lab-304-pat-sweep-paginate` at `fc9a26a84d71795ae184a53a38b8973ef06ab050` MERGED PR #305 at 2655bdaf + `opencode/issue302-20260911141051` at `8eca8f1618e34074683a45c4a8f8634631061519` MERGED PR #303 at 259e9654 + `opencode/issue302-poolduel-m2` at `e9c2ea701cfdb0506fba9401d9651a2690420cf9` MERGED PR #306 at 6dc2d3cf + `opencode/issue302-poolduel-m3` at `ca320b54f6203c2c8ad6f4e4871975a287ebd831` OPEN PR #307
+ - **Updated:** 2026-09-11T19:58Z (maintainer run 34641648234 `created` on PR #307, head 874acb46, main 6dc2d3cf)
+ - **Action this run:** Decision [] hold - PR #307 M3 at 874acb46 verified MERGEABLE (fixer patch landed), Reviewer in_progress (34641639876) + pending (34641648213) on /oc review 19:57:47Z - no duplicate dispatch, Refs #302 held until binding gates
+ - **Main:** `6dc2d3cf0e23695b13904749e0027a320db5bb4f` LIVE (`gh api repos/Userfrom1995/RandomLabs/git/refs/heads/main --jq .object.sha` = 6dc2d3cf, `git ls-remote origin/main` = 6dc2d3cf, merge-base with PR #307 = 6dc2d3cf linear) - Poolduel M1 at 259e9654 + M2 at 6dc2d3cf both inherited; Pages deploy on 6dc2d3cf success + PR #307 preview Deploy 34641629918 success on 874acb46
+ - **Branch retention:** `opencode/issue294-20260907194528` at `053fac6cb27957df225d61b2a3665ed6b63156a3` CLOSED PR #295 (orphan vs 540a68c9, retained per #148) + `opencode/issue294-20260909181258` at `92a2115572974a63d7e0e696860834821b82de02` retained (chunked CPU MERGED at 1ba831da) + `opencode/issue297-20260909222720` at `4c974926d260c5af1b4c26089fb639e527d92c59` MERGED PR #298 at 1d32e713 + `opencode/lab-299-recover-orphan-relink` at `f41145d88ba2a54906bf57dd5d31b212ffe28120` MERGED PR #300 at db4c8237 + `opencode/issue294-20260910085935` at `048464d5485f0ee908f3630cc9f857617100d61e` MERGED PR #301 at 540a68c9 + `opencode/lab-304-pat-sweep-paginate` at `fc9a26a84d71795ae184a53a38b8973ef06ab050` MERGED PR #305 at 2655bdaf + `opencode/issue302-20260911141051` at `8eca8f1618e34074683a45c4a8f8634631061519` MERGED PR #303 at 259e9654 + `opencode/issue302-poolduel-m2` at `e9c2ea701cfdb0506fba9401d9651a2690420cf9` MERGED PR #306 at 6dc2d3cf + `opencode/issue302-poolduel-m3` at `874acb4615c1961e7759371c98bfc0809b854f8a` OPEN PR #307
 ---
 
 ## STANDING OWNER DIRECTIVES (active)
@@ -20,29 +20,29 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Live at 6dc2d3cf.
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main 6dc2d3cf LIVE - Poolduel M1+M2 landed, Pages green:** `origin/main` = 6dc2d3cf verified via API and `git ls-remote`, parent 9ec34463 + builder commits rebased at merge, `poolduel/ci/poolduel-m2.yml` -> `.github/workflows/poolduel-m2.yml` via PAT at 6dc2d3cf, `poolduel/index.html` Pages skeleton live, `opencode-test.yml`/`opencode-review.yml` 120/90 + guard live, `opencode.json` two-knob free, Pages Deploy 34641242803 success on 6dc2d3cf, PR #307 preview Deploy 34641204711 success on ca320b54
+ - **Main 6dc2d3cf LIVE - Poolduel M1+M2 landed, Pages green:** `origin/main` = 6dc2d3cf verified via API and `git ls-remote`, parent 9ec34463 + builder commits rebased at merge, `poolduel/ci/poolduel-m2.yml` -> `.github/workflows/poolduel-m2.yml` via PAT at 6dc2d3cf, `poolduel/index.html` Pages skeleton live, `opencode-test.yml`/`opencode-review.yml` 120/90 + guard live, `opencode.json` two-knob free, Pages Deploy 34641655520 success on 6dc2d3cf, PR #307 preview Deploy 34641629918 success on 874acb46
  - **PR #305 MERGED at 2655bdaf - Closes #304 completed**
  - **PR #303 Poolduel M1 MERGED at 259e9654 - Refs #302**
  - **PR #306 Poolduel M2 MERGED at 6dc2d3cf - Refs #302**
- - **PR #307 Poolduel M3 OPEN at ca320b54 - Refs #302:** head ca320b54f6203c2c8ad6f4e4871975a287ebd831 on `opencode/issue302-poolduel-m3` vs 6dc2d3cf, MERGEABLE, 14 files (harness/report.py, poolduel/index.html, docs/results.md, docs/fairness-audit.md, repro.sh --report, tests/test_report.py 17 new tests 100/100 green), merge-base 6dc2d3cf linear, Refs #302 (never Closes: no medians yet)
+ - **PR #307 Poolduel M3 OPEN at 874acb46 - Refs #302:** head 874acb4615c1961e7759371c98bfc0809b854f8a on `opencode/issue302-poolduel-m3` vs 6dc2d3cf, MERGEABLE, 14 files (harness/report.py, poolduel/index.html, docs/results.md, docs/fairness-audit.md, repro.sh --report, tests/test_report.py 17 new tests 100/100 green), merge-base 6dc2d3cf linear, Refs #302 (never Closes: no medians yet), fixer 3/3 findings applied, second review cycle
 
 ## IN FLIGHT
- - **Poolduel #302 - M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 awaiting Reviewer on PR #307:** Issue OPEN at 2026-09-11T12:24:56Z. Build pushed as ca320b54 on `opencode/issue302-poolduel-m3` (PR #307, Refs #302). Progress roadmap: M1 [x], M2 [x], M3 [ ] (static Pages report at /poolduel/index.html, full M1+M2 medians with bands, iso-region slices, threats section, Tester independent cell reproduction, one-command repro green; Closes #302 only on passing binding gates). Next: Reviewer verdict -> Tester -> merge Refs #302.
+ - **Poolduel #302 - M1 SHIPPED at 259e9654, M2 SHIPPED at 6dc2d3cf, M3 awaiting Reviewer (second pass) on PR #307:** Issue OPEN at 2026-09-11T12:24:56Z. Build pushed as 874acb46 on `opencode/issue302-poolduel-m3` (PR #307, Refs #302). Fixer verified at 874acb46 (mixed-status null medians, trough symmetry inconclusive, pgbench gate, README #286). Progress roadmap: M1 [x], M2 [x], M3 [ ] (static Pages report at /poolduel/index.html, full M1+M2 medians with bands, iso-region slices, threats section, Tester independent cell reproduction, one-command repro green; Closes #302 only on passing binding gates). Next: Reviewer verdict (second pass) -> Tester -> merge Refs #302.
  - **No other open PRs besides #307:** `gh pr list --state open` = [307] only; branches retained per policy.
 
 ## PIPELINE POSITION
- Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted. Poolduel #302 is single lab priority; M1+M2 SHIPPED via Refs #302; pagination infra fixed at 2655bdaf. M3 Builder pushed PR #307 at ca320b54 - autonomous epic chaining at Reviewer gate; issue remains OPEN until M3 binding gates pass with Closes #302.
+ Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted. Poolduel #302 is single lab priority; M1+M2 SHIPPED via Refs #302; pagination infra fixed at 2655bdaf. M3 Builder pushed PR #307 at ca320b54, fixer patched to 874acb46 - autonomous epic chaining at Reviewer second-pass gate; issue remains OPEN until M3 binding gates pass with Closes #302.
 
 ## NEXT-RUN PLAYBOOK
- 1. Monitor opencode-review runs 34641232437 (in_progress) and 34641243142 (pending) on PR #307 ca320b54 - await /oc approve or /oc fix with file:line blockers.
- 2. On approve, await Tester /oc approve-test (Tester will reproduce pilot/plan 312 arm-runs, verify page JS, check fairness-audit, repro.sh --report failure with no data).
+ 1. Monitor opencode-review runs 34641639876 (in_progress) and 34641648213 (pending) on PR #307 874acb46 - await /oc approve or /oc fix (second pass) with file:line blockers.
+ 2. On approve, dispatch Tester /oc test (Tester will reproduce pilot/plan 312 arm-runs, verify page JS, check fairness-audit, repro.sh --report failure with no data).
  3. On approve-test, merge PR #307 via PAT rebase (Refs #302, never Closes until medians + binding gates), verify Pages deploy, keep issue #302 open.
  4. No auto-ideation - Ideator only on explicit Owner request per Poolduel freeze.
  5. Keep `Refs #302` until M3 final gates; never close #302 on intermediate or negative results.
 
 ## ISSUES
- - **#302 Poolduel** - OPEN (M1 SHIPPED 259e9654, M2 SHIPPED 6dc2d3cf, M3 PR #307 ca320b54 awaiting review)
- - **#307 PR** - OPEN at `ca320b54f6203c2c8ad6f4e4871975a287ebd831` on `opencode/issue302-poolduel-m3` (Poolduel M3 Refs #302, 2 commits, 14 files, MERGEABLE, review in_progress)
+ - **#302 Poolduel** - OPEN (M1 SHIPPED 259e9654, M2 SHIPPED 6dc2d3cf, M3 PR #307 874acb46 awaiting second review)
+ - **#307 PR** - OPEN at `874acb4615c1961e7759371c98bfc0809b854f8a` on `opencode/issue302-poolduel-m3` (Poolduel M3 Refs #302, 14 files, MERGEABLE, fixer 3/3 applied, review in_progress)
  - **#304** - CLOSED at 2655bdaf (Closes via #305)
  - **#303 PR** - MERGED at 259e9654 on opencode/issue302-20260911141051 (Poolduel M1 Refs #302)
  - **#305 PR** - MERGED at 2655bdaf on opencode/lab-304-pat-sweep-paginate
@@ -56,8 +56,8 @@
  - **#70** - OPEN lab-health (nominal, pagination fix verified)
 
 ## OPEN QUESTIONS
- - Will Reviewer enforce anti-theater checklist, budget parity, N/A never zero, harness/report.py stdlib-only, page live-from-results only, fairness-audit re-check, and repro.sh --report loud failure before approving PR #307?
- - Will Tester independently verify M1 pilot byte-identical plus M2 312 arm-runs dry-run and page JS node --check before approve-test?
+ - Will Reviewer approve second pass (3 findings corrected: null medians on mixed-status, pgbench gate, README #286 + nits) before Tester?
+ - Will Tester independently verify M1 pilot byte-identical plus M2 312 arm-runs dry-run and page JS node --check plus repro.sh --report loud failure before approve-test?
  - Will M3 merge (Refs #302) hold until sweep produces medians and binding gates (non-overlapping bands + tps/p99 agreement) before any Closes #302?
 
    - Hephaestus, the Maintainer
