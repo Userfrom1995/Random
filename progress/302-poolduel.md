@@ -4,7 +4,7 @@ Status: in-progress
 Date: 2026-09-11. Owner directive via #42 (supreme priority).
 Blueprint: `ideas/2026-09-11-poolduel.md`. Researcher spec: `poolduel/docs/`.
 
-Active Milestone: M1 (Complete, ready for review)
+Active Milestone: M2 (Complete, ready for review)
 
 ## Milestone roadmap
 
@@ -16,11 +16,16 @@ Active Milestone: M1 (Complete, ready for review)
   validation; [x] working `repro.sh` (`--pilot`/`--full`/`--dry-run`
   plus preflight `check.py`); [x] chunked CI workflow (9 chunks,
   each with own direct control, each under 60 min, manual dispatch).
-  (PR 1 target, Refs #302)
-- Milestone 2 (M2 modes + I/O + extra workloads): [ ] session arms;
-  [ ] statement arms (PgBouncer + provisional Odyssey, rest N/A);
-  [ ] I/O axes (io_uring/epoll, so_reuseport, workers, worker_threads,
-  pgpool children sweep); [ ] extra workload twins. (PR 2 target, Refs #302)
+  (Merged as PR #303, Refs #302)
+- Milestone 2 (M2 modes + I/O + extra workloads): [x] session arms
+  (pgagroal session + performance, pgbouncer/odyssey/pgcat session,
+  pgpool session-class); [x] statement arms (PgBouncer + provisional
+  Odyssey, rest N/A with nulls); [x] I/O axes (io_uring/epoll,
+  so_reuseport 2-instance, workers 1/2/4, worker_threads 1/5, pgpool
+  children sweep with 200x4 corner substituted); [x] extra workload
+  twins (simple-update + churn for session arms, prepared where
+  supported). 52 measured rows + 7 N/A rows, 16 chunks each under
+  60 min, `--list-m2` budget table published. (This PR, Refs #302)
 - Milestone 3 (report + audit): [ ] static Pages report at
   `/poolduel/index.html`; [ ] full M1+M2 medians with bands, iso-region
   slices, threats section; [ ] Tester independent cell reproduction;
@@ -53,9 +58,11 @@ Active Milestone: M1 (Complete, ready for review)
   or an owner push; content is final, no edits needed. The M1 sweep
   cannot be dispatched until that promotion lands.
 
-Current step: M1 implementation complete, awaiting review
+Current step: M2 implementation complete, awaiting review
 Next steps: Reviewer audit, then Tester sample-cell reproduction;
-  M2 session/statement/I-O arms in the next milestone PR.
+  M2 sweep dispatch needs PAT promotion of poolduel/ci/poolduel-m2.yml
+  to .github/workflows/ (/oc lab route or owner push); M3 Pages report
+  in the next milestone PR.
 
 Builder follow-up (2026-09-11): added `poolduel/index.html` Pages report
 skeleton closing the last open M1 spec item. Honest pending state: lineup
@@ -67,6 +74,28 @@ interpolation. Also cleaned the stale README placeholder block and fixed
 the test count (65) plus the promoted workflow path. Verified: 65/65
 unittests green, HTML parses, page JS passes `node --check`, pilot dry-run
 reproduces the embedded plan.
+
+Builder M2 (2026-09-11): full M2 arms on branch
+`opencode/issue302-poolduel-m2`. `harness/m2.py` variant table as DATA
+(52 measured rows on 5 shared geometries reusing M1 shapes at standard
+60 s/3-rep timing, 7 N/A rows with nulls), 16 chunks each under 60 min
+with per-chunk direct control (worst 48 min). Adapters render the cell
+`variant` dict (pgagroal pipeline/ev_backend, pgbouncer pool_mode plus
+2-instance so_reuseport multi-proc start, odyssey pool/workers with
+provisional statement label, pgcat pool_mode/worker_threads, pgpool
+children sweep with the 200x4 corner substituted); M1 cells without a
+variant render unchanged (65/65 M1 tests still green untouched).
+CLI gains `--matrix m2`, `--list-m2`, `--write-na`; `check.py` covers M2
+ratios, budgets, chunk coverage, N/A schema; `repro.sh` gains `--m2-*`
+modes. M2 sweep workflow staged at `poolduel/ci/poolduel-m2.yml` for
+PAT-backed promotion (same route M1 took). Parity: same procedure code,
+same caps, at most 2 workloads per new arm per block, realized counts
+published (`--list-m2`: pgagroal 11, pgbouncer 12, odyssey 11, pgcat 9,
+pgpool 9; residual spread is structural and documented in
+`m2_budget_table`). Verified: 83/83 unittests green, M1 pilot dry-run
+byte-identical to the plan embedded in `index.html`, full M2 dry-run
+plans 312 arm-runs, N/A emission schema-valid. No numbers claimed:
+CI has not run either matrix yet. `index.html` untouched (M3 owns it).
 
 Refs #302. No Closes: M2 report and M3 binding gates remain.
 

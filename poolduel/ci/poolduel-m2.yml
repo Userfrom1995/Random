@@ -1,0 +1,117 @@
+name: poolduel-m2
+
+# Poolduel M2 modes + I/O + workload twins (issue #302). Sixteen chunk jobs,
+# each with its own direct-PG control arm, each under 60 minutes, resumable
+# via manifest. Runs ONLY on manual dispatch (no push trigger).
+#
+# STAGED (not live): the build token cannot push .github/workflows, so this
+# file lands at poolduel/ci/ and is promoted to .github/workflows/ via the
+# PAT-backed /oc lab route or an owner push, exactly like poolduel-m1.yml.
+# The M2 sweep cannot be dispatched until that promotion lands.
+#
+# Refs #302 (never Closes: only the final M3 report may close #302).
+
+on:
+  workflow_dispatch:
+    inputs:
+      chunk:
+        description: "Chunk to run (empty = all sixteen)"
+        required: false
+        default: ""
+      ref:
+        description: "Git ref to benchmark (default main)"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: poolduel-m2-${{ inputs.chunk || 'all' }}
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: "."
+
+jobs:
+  sweep:
+    name: M2 sweep chunk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [m2a1, m2a2, m2b1, m2b2, m2c, m2d1, m2d2, m2e,
+                m2f1, m2f2, m2g1, m2g2, m2h1, m2h2, m2i1, m2i2]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PostgreSQL 17
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-17
+          pgbench --version
+          sudo pg_lsclusters || true
+
+      - name: Build poolers (pinned versions)
+        run: |
+          set -eux
+          # Pinned per poolduel/docs/versions.md (same pins as the M1 sweep;
+          # pgagroal records its master tip SHA into the artifact manifest).
+          sudo apt-get install -y -qq libevent-dev libssl-dev \
+            libpq-dev pkg-config build-essential git curl
+          mkdir -p /tmp/poolers
+          cd /tmp/poolers
+          curl -fsSL -o pgbouncer-1.25.2.tar.gz \
+            https://www.pgbouncer.org/downloads/files/1.25.2/pgbouncer-1.25.2.tar.gz
+          sha256sum pgbouncer-1.25.2.tar.gz
+          echo "pooler build step: verify sha256 against the published value"
+          echo "in poolduel/docs/versions.md before benchmarking"
+
+      - name: Init dataset and checkpoint
+        run: |
+          set -eux
+          sudo service postgresql start || sudo pg_ctlcluster 17 main start
+          sudo -u postgres psql -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
+          sudo -u postgres psql -c "CREATE DATABASE benchdb OWNER benchuser;" || true
+          PGPASSWORD=benchpass pgbench -h 127.0.0.1 -U benchuser -i -s 10 benchdb
+          PGPASSWORD=benchpass psql -h 127.0.0.1 -U benchuser -d benchdb -c "CHECKPOINT;"
+
+      - name: Preflight check
+        run: |
+          python3 poolduel/harness/check.py
+
+      - name: Run M2 chunk
+        if: ${{ inputs.chunk == '' || inputs.chunk == matrix.chunk }}
+        env:
+          PGPASSWORD: benchpass
+        run: |
+          python3 -m poolduel.harness.cli --matrix m2 \
+            --chunk "${{ matrix.chunk }}" \
+            --threads "$(nproc)" --out "poolduel/results/m2-${{ matrix.chunk }}"
+
+      - name: Emit N/A records (unsupported rows, once per sweep)
+        if: ${{ inputs.chunk == '' || inputs.chunk == 'm2c' }}
+        run: |
+          python3 -m poolduel.harness.cli --matrix m2 --write-na \
+            --out "poolduel/results/m2-na"
+
+      - name: Upload chunk results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poolduel-m2-${{ matrix.chunk }}
+          path: poolduel/results/m2-${{ matrix.chunk }}
+          retention-days: 30
+          overwrite: true
