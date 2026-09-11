@@ -45,6 +45,13 @@ Active Milestone: M1 (Complete, ready for review)
   worst chunk 54 min. Still compliant ("at least 4 chunks", per-chunk
   direct control, under-60-min). No sweep numbers claimed: CI has not
   run the matrix yet, so no medians, no rankings, no gates passed.
+- Infra note (2026-09-11): the M1 sweep workflow is written and
+  YAML-valid but staged at `poolduel/ci/poolduel-m1.yml`, NOT at
+  `.github/workflows/`: the build token (GitHub App) is refused
+  workflow-scope pushes ("without `workflows` permission"). Promotion
+  is one mechanical `git mv` via a PAT-backed step (`/oc lab` route)
+  or an owner push; content is final, no edits needed. The M1 sweep
+  cannot be dispatched until that promotion lands.
 
 Current step: M1 implementation complete, awaiting review
 Next steps: Reviewer audit, then Tester sample-cell reproduction;

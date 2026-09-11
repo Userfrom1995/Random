@@ -59,8 +59,12 @@ Python 3, stdlib only, driving pgbench as a subprocess:
   pgagroal 6432, pgbouncer 6433, pgpool 6434, odyssey 6435, pgcat 6436.
 - `tests/`: 26 stdlib unittests (`python3 -m unittest discover
   -s poolduel/tests`).
-- `.github/workflows/poolduel-m1.yml`: 9-chunk CI sweep, manual dispatch
-  only, pinned PG 17 plus pinned pooler builds, per-chunk artifacts.
+- `poolduel/ci/poolduel-m1.yml`: 9-chunk CI sweep definition
+  (manual dispatch only, pinned PG 17 plus pinned pooler builds,
+  per-chunk artifacts). Staged here because the build token cannot
+  push workflow files; promote with
+  `git mv poolduel/ci/poolduel-m1.yml .github/workflows/poolduel-m1.yml`
+  via a PAT-backed step or owner push, then dispatch.
 
 ## Repro (Architect and Builder deliver in M1)
 
