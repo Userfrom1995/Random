@@ -106,9 +106,12 @@ def aggregate(records):
         statuses = {r["status"] for r in rows}
         if len(statuses) > 1:
             entry["status"] = "timeout/inconclusive"
-        for metric in METRIC_KEYS:
-            entry[metric] = summarize(
-                [r[metric] for r in rows if r[metric] is not None])
+            for metric in METRIC_KEYS:
+                entry[metric] = summarize([])
+        else:
+            for metric in METRIC_KEYS:
+                entry[metric] = summarize(
+                    [r[metric] for r in rows if r[metric] is not None])
         medians.append(entry)
     return medians
 
@@ -240,13 +243,14 @@ def flatness(medians):
         if len(peaks) < 2:
             out[pooler] = {"configs_measured": len(peaks),
                            "spread": None, "verdict": "single-point",
-                           "peak": None}
+                           "peak": None, "trough": None}
             continue
         by_med = sorted(peaks, key=lambda p: p[1])
         trough, peak = by_med[0], by_med[-1]
         spread = (peak[1] - trough[1]) / peak[1] if peak[1] else None
-        verdict = ("flat" if spread is not None
-                   and spread <= FLATNESS_SPREAD_FRACTION else "peaky")
+        verdict = ("inconclusive" if spread is None
+                   else "flat" if spread <= FLATNESS_SPREAD_FRACTION
+                   else "peaky")
         out[pooler] = {
             "configs_measured": len(peaks),
             "spread": spread,

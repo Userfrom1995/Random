@@ -86,6 +86,9 @@ class AggregateTest(unittest.TestCase):
         bad = make_rec("M1-1", "pgbouncer", 4, status="timeout/inconclusive")
         med = report.aggregate(recs + [bad])
         self.assertEqual(med[0]["status"], "timeout/inconclusive")
+        for metric in report.METRIC_KEYS:
+            self.assertIsNone(med[0][metric]["median"],
+                              metric)
 
     def test_mixed_context_flagged_not_failed(self):
         recs = trio("M1-1", "pgbouncer", [1000.0, 1100.0, 1200.0],
