@@ -111,5 +111,22 @@ Refs #302. No Closes: M2 report and M3 binding gates remain.
   `m1/matrix.csv`, `m2/...`, `report.json` for the page live hooks).
   CLI fails loudly on missing/empty results (no invented numbers).
   `tests/test_report.py`: 17 new tests; 100/100 green total.
+- M3-2 (2026-09-11): full `poolduel/index.html` publication report
+  (M1+M2 matrices, verbatim pilot plan, pending-honest M1 table plus
+  live SVG charts with min-max whiskers, M2 best-vs-best, iso-region
+  and flatness blocks, fairness summary, full threats text, repro
+  commands; fills live from `results/` only). `docs/results.md`
+  (normative reading guide) plus `docs/fairness-audit.md` (per-pooler
+  doc-cited re-check, budget parity, anti-theater list, post-sweep
+  gate). `repro.sh --report` one-command artifact build (loud failure
+  with no data) plus a `--m2-full` echo fix. `poolduel/README.md`
+  M3 section, root `index.html` plus root `README.md` Poolduel entries,
+  `ideas/2026-09-11-poolduel-shootout-report.md`, `results/` dirs.
+
+Current step: M3 implementation complete, awaiting review
+Next steps: Reviewer audit, then Tester sample-cell reproduction after
+  sweep dispatch; post-sweep config re-check per fairness-audit section 4
+  before any gate passes. `Refs #302`: no medians exist yet, so no gate
+  can pass and no `Closes` is claimed.
 
 - the Builder
