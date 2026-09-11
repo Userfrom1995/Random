@@ -1,8 +1,15 @@
-"""Odyssey adapter (M1: transaction pool, single worker).
+"""Odyssey adapter (M1: transaction pool; M2: session/statement + workers).
 
 Refs: https://pg-odyssey.tech/configuration/rules.html,
 https://pg-odyssey.tech/configuration/global.html,
 https://pg-odyssey.tech/features/pooling.html
+
+M2 variants from the cell's ``variant`` dict (grid.md section 4):
+``pool`` in {transaction, session, statement} (default transaction) and
+``workers`` in {1, 2, 4} (default 1). The statement arm is provisional
+(modes.md section 4: accepted by config, thin upstream prose): results
+carry a provisional config comment and the empirical 26000 rule still
+applies. Cells without a variant render the M1 baseline byte-identically.
 """
 
 from .base import BaseAdapter
@@ -13,38 +20,72 @@ class OdysseyAdapter(BaseAdapter):
     BINARY = "odyssey"
     DEFAULT_PORT = 6435
 
+    POOLS = ("transaction", "session", "statement")
+
+    def variant(self, cell):
+        return dict(cell.get("variant") or {})
+
+    def pool(self, cell):
+        pool = self.variant(cell).get("pool", "transaction")
+        if pool not in self.POOLS:
+            raise ValueError("odyssey: unknown pool %r" % (pool,))
+        return pool
+
+    def workers(self, cell):
+        workers = int(self.variant(cell).get("workers", 1))
+        if workers not in (1, 2, 4):
+            raise ValueError("odyssey: workers must be 1, 2, or 4")
+        return workers
+
     def config_text(self, cell):
         pool_size = int(cell["pool_size"])
-        reserve = ("yes" if cell.get("protocol") == "prepared" else "no")
-        return (
-            "# Odyssey M1 baseline (transaction pool, workers = 1)\n"
-            "# refs: rules.html, global.html, features/pooling.html\n"
-            "workers 1\n"
-            "resolvers 1\n"
-            "backend_connect_timeout_ms 30000\n"
-            "listen {\n"
-            '  host "127.0.0.1"\n'
-            "  port %d\n" % self.port +
-            "}\n"
-            "route {\n"
-            '  service "benchdb"\n'
-            '  database "benchdb"\n'
-            '  user "benchuser"\n'
-            '  backend_host "127.0.0.1"\n'
-            "  backend_port %d\n" % self.pg_port +
-            "  pool transaction\n"
-            "  pool_size %d\n" % pool_size +
-            "  pool_discard yes\n"
-            "  pool_smart_discard no\n"
-            "  pool_cancel yes\n"
-            "  pool_rollback yes\n"
-            "  pool_timeout 0\n"
-            "  pool_ttl 0\n"
-            "  server_lifetime 3600\n"
-            "  pool_reserve_prepared_statement %s\n" % reserve +
-            "  server_pstmt_cache_size 0\n"
-            "}\n"
-        )
+        pool = self.pool(cell)
+        workers = self.workers(cell)
+        variant = self.variant(cell)
+        if "pool_reserve_prepared_statement" in variant:
+            reserve = "yes" if variant["pool_reserve_prepared_statement"] else "no"
+        else:
+            reserve = ("yes" if cell.get("protocol") == "prepared" else "no")
+        prov = bool(variant.get("provisional", pool == "statement"))
+        label = ("M1 baseline (transaction pool, workers = 1)"
+                 if pool == "transaction" and workers == 1 and not prov
+                 else "M2 variant (pool=%s, workers=%d%s)"
+                 % (pool, workers, ", provisional" if prov else ""))
+        lines = [
+            "# Odyssey %s" % label,
+            "# refs: rules.html, global.html, features/pooling.html",
+        ]
+        if prov:
+            lines.append("# PROVISIONAL statement arm: verify empirically "
+                         "(modes.md section 4)")
+        lines.extend([
+            "workers %d" % workers,
+            "resolvers 1",
+            "backend_connect_timeout_ms 30000",
+            "listen {",
+            '  host "127.0.0.1"',
+            "  port %d" % self.port,
+            "}",
+            "route {",
+            '  service "benchdb"',
+            '  database "benchdb"',
+            '  user "benchuser"',
+            '  backend_host "127.0.0.1"',
+            "  backend_port %d" % self.pg_port,
+            "  pool %s" % pool,
+            "  pool_size %d" % pool_size,
+            "  pool_discard yes",
+            "  pool_smart_discard no",
+            "  pool_cancel yes",
+            "  pool_rollback yes",
+            "  pool_timeout 0",
+            "  pool_ttl 0",
+            "  server_lifetime 3600",
+            "  pool_reserve_prepared_statement %s" % reserve,
+            "  server_pstmt_cache_size 0",
+            "}",
+        ])
+        return "\n".join(lines) + "\n"
 
     def setup(self, workdir, cell):
         super().setup(workdir, cell)
