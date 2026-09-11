@@ -57,25 +57,12 @@ Python 3, stdlib only, driving pgbench as a subprocess:
   (`direct`, `pgagroal`, `pgbouncer`, `pgpool`, `odyssey`, `pgcat`).
   Only `config_text()` and the port differ. Ports: direct 5432,
   pgagroal 6432, pgbouncer 6433, pgpool 6434, odyssey 6435, pgcat 6436.
-- `tests/`: 26 stdlib unittests (`python3 -m unittest discover
+- `tests/`: 65 stdlib unittests (`python3 -m unittest discover
   -s poolduel/tests`).
-- `poolduel/ci/poolduel-m1.yml`: 9-chunk CI sweep definition
+- `.github/workflows/poolduel-m1.yml`: 9-chunk CI sweep definition
   (manual dispatch only, pinned PG 17 plus pinned pooler builds,
-  per-chunk artifacts). Staged here because the build token cannot
-  push workflow files; promote with
-  `git mv poolduel/ci/poolduel-m1.yml .github/workflows/poolduel-m1.yml`
-  via a PAT-backed step or owner push, then dispatch.
+  per-chunk artifacts).
+- `index.html`: M1 Pages report skeleton (honest pending state until the
+  sweep publishes `results/medians.json`, which the page loads live).
 
-## Repro (Architect and Builder deliver in M1)
-
-`repro.sh` replays the matrix with one command. Until M1 lands, this file is
-the placeholder the build fills in.
-
-```sh
-#!/bin/sh
-# Poolduel one-command repro. M1 implements this script.
-set -eu
-echo "poolduel repro: harness lands in M1 (Refs #302)"
-```
-
-- Dr. Mob, the Researcher
+- the Builder

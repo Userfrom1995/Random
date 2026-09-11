@@ -57,6 +57,17 @@ Current step: M1 implementation complete, awaiting review
 Next steps: Reviewer audit, then Tester sample-cell reproduction;
   M2 session/statement/I-O arms in the next milestone PR.
 
+Builder follow-up (2026-09-11): added `poolduel/index.html` Pages report
+skeleton closing the last open M1 spec item. Honest pending state: lineup
+table with pins, normative M1 cell table, verbatim 12-line pilot dry-run
+plan, results table with pending cells (fills live from
+`results/medians.json` only after the sweep publishes it), fairness and
+threats summary, repro commands. No numbers claimed, no zeros, no
+interpolation. Also cleaned the stale README placeholder block and fixed
+the test count (65) plus the promoted workflow path. Verified: 65/65
+unittests green, HTML parses, page JS passes `node --check`, pilot dry-run
+reproduces the embedded plan.
+
 Refs #302. No Closes: M2 report and M3 binding gates remain.
 
 - the Builder

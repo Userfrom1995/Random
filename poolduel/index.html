@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poolduel: PostgreSQL Pooler Shootout (M1 harness live)</title>
+<style>
+:root { color-scheme: dark; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  max-width: 1020px; margin: 0 auto; padding: 24px; line-height: 1.55;
+  background: #0d1117; color: #e6edf3; }
+h1 { font-size: 1.9rem; margin-bottom: 0.2em; }
+.sub { color: #9aa7b4; margin-top: 0; }
+.banner { border: 1px solid #3fb950; border-radius: 8px; padding: 12px 16px;
+  background: #0f2a18; margin: 16px 0; }
+.banner.pending { border-color: #d29922; background: #2a2008; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.92rem; }
+th, td { border: 1px solid #30363d; padding: 6px 8px; text-align: left; }
+th { background: #161b22; }
+code, pre { background: #161b22; border-radius: 6px; }
+pre { padding: 12px; overflow-x: auto; font-size: 0.82rem; }
+code { padding: 1px 5px; }
+a { color: #58a6ff; }
+.section { margin-top: 28px; }
+.pend { color: #d29922; }
+.ok { color: #3fb950; }
+footer { margin-top: 36px; color: #9aa7b4; font-size: 0.85rem; }
+ul.tight li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h1>Poolduel: PostgreSQL connection pooler shootout</h1>
+<p class="sub">pgagroal vs PgBouncer vs pgpool-II vs Odyssey vs pgcat, plus direct-to-PostgreSQL control. Tracks issue #302. M1: transaction pooling.</p>
+
+<div class="banner pending" id="status-banner">
+<strong>Status: M1 harness live, sweep pending.</strong>
+The measurement harness, six adapters, M1 cell table, and chunked CI workflow
+are implemented and unit-tested. No benchmark medians exist yet: the CI sweep
+(<code>.github/workflows/poolduel-m1.yml</code>, 9 chunks, manual dispatch) has
+not run. Every results cell below honestly reads <span class="pend">pending</span>,
+never zero, never interpolated. This page is the M1 report skeleton; numbers
+appear only after the sweep commits raw JSON plus medians.
+</div>
+
+<div class="section">
+<h2>1. Lineup (named openly, pinned versions)</h2>
+<table>
+<tr><th>Arm</th><th>Pinned version</th><th>M1 mode</th><th>Config doc</th></tr>
+<tr><td>pgagroal</td><td>2.1.0 baseline, master tip SHA pinned at build</td><td>transaction</td><td><a href="docs/configs/pgagroal.md">pgagroal.md</a></td></tr>
+<tr><td>PgBouncer</td><td>1.25.2 tarball plus sha256</td><td>transaction</td><td><a href="docs/configs/pgbouncer.md">pgbouncer.md</a></td></tr>
+<tr><td>pgpool-II</td><td>4.7.2 head of 4.7 series</td><td>session-class (only mode; labeled)</td><td><a href="docs/configs/pgpool-II.md">pgpool-II.md</a></td></tr>
+<tr><td>Odyssey</td><td>v1.5.1 stable</td><td>transaction</td><td><a href="docs/configs/odyssey.md">odyssey.md</a></td></tr>
+<tr><td>pgcat</td><td>v1.2.0</td><td>transaction</td><td><a href="docs/configs/pgcat.md">pgcat.md</a></td></tr>
+<tr><td>direct</td><td>PG 17 (control, no pooler)</td><td>n/a</td><td>n/a</td></tr>
+</table>
+<p>Full pins: <a href="docs/versions.md">docs/versions.md</a>. Supavisor is
+deferred with a written reason: <a href="docs/supavisor-deferral.md">supavisor-deferral.md</a>,
+not silently dropped. Any version upgrade means a re-run, never carried-forward numbers.</p>
+</div>
+
+<div class="section">
+<h2>2. M1 matrix (normative, every cell satisfies clients &gt;&gt; pool_size)</h2>
+<table>
+<tr><th>Cell</th><th>Workload</th><th>Clients</th><th>Pool</th><th>Ratio</th><th>Protocol</th><th>Churn</th><th>T (s)</th><th>Reps</th></tr>
+<tr><td>M1-1 flagship</td><td>select-only</td><td>100</td><td>10</td><td>10x</td><td>simple</td><td>no</td><td>120</td><td>5</td></tr>
+<tr><td>M1-2 flagship</td><td>tpcb-like (primary)</td><td>50</td><td>10</td><td>5x</td><td>simple</td><td>no</td><td>120</td><td>5</td></tr>
+<tr><td>M1-3</td><td>tpcb-like prepared twin</td><td>50</td><td>10</td><td>5x</td><td>prepared</td><td>no</td><td>60</td><td>3</td></tr>
+<tr><td>M1-4</td><td>select-only saturation</td><td>200</td><td>10</td><td>20x</td><td>simple</td><td>no</td><td>60</td><td>3</td></tr>
+<tr><td>M1-5</td><td>simple-update</td><td>100</td><td>20</td><td>5x</td><td>simple</td><td>no</td><td>60</td><td>3</td></tr>
+<tr><td>M1-6</td><td>select-only churn twin (-C)</td><td>100</td><td>10</td><td>10x</td><td>simple</td><td>yes</td><td>60</td><td>3</td></tr>
+<tr><td>M1-7</td><td>tpcb-like heavy</td><td>100</td><td>10</td><td>10x</td><td>simple</td><td>no</td><td>60</td><td>3</td></tr>
+</table>
+<p>Warmup 30 s discarded before every measured run. Scale <code>-s 10</code>.
+Spec: <a href="docs/test-matrix.md">docs/test-matrix.md</a>,
+grid: <a href="docs/grid.md">docs/grid.md</a>,
+method: <a href="docs/methodology.md">docs/methodology.md</a>,
+contract: <a href="docs/harness-contract.md">docs/harness-contract.md</a>.</p>
+</div>
+
+<div class="section">
+<h2>3. Pilot discrimination proof (dry-run plan, no numbers claimed)</h2>
+<p>The pilot gate (test-matrix.md section 7) runs M1-1 plus M1-2, one repeat per
+arm, interleaved, before the full sweep. The live plan below is generated by the
+real harness CLI (<code>python3 -m poolduel.harness.cli --pilot --dry-run</code>),
+12 arm-runs, verified in CI:</p>
+<pre>M1-1 direct r1 T=120 c=100 pool=10 select-only
+M1-1 pgagroal r1 T=120 c=100 pool=10 select-only
+M1-1 pgbouncer r1 T=120 c=100 pool=10 select-only
+M1-1 pgpool r1 T=120 c=100 pool=10 select-only
+M1-1 odyssey r1 T=120 c=100 pool=10 select-only
+M1-1 pgcat r1 T=120 c=100 pool=10 select-only
+M1-2 direct r1 T=120 c=50 pool=10 tpcb-like
+M1-2 pgagroal r1 T=120 c=50 pool=10 tpcb-like
+M1-2 pgbouncer r1 T=120 c=50 pool=10 tpcb-like
+M1-2 pgpool r1 T=120 c=50 pool=10 tpcb-like
+M1-2 odyssey r1 T=120 c=50 pool=10 tpcb-like
+M1-2 pgcat r1 T=120 c=50 pool=10 tpcb-like
+plan=12 out=poolduel/results/m1</pre>
+<p>Measured pilot medians will be committed as raw JSON before any separation
+claim is made. If all arms tie within overlapping bands, the load scales up
+(200 clients, then <code>-s 20</code>) until they separate, or the reason is
+documented. No tie or ranking is asserted on this page today.</p>
+</div>
+
+<div class="section">
+<h2>4. Results (M1 medians: pending CI sweep)</h2>
+<p>Headline metric per cell: median tps with min-max band and CV, plus p50/p90/
+p99/p999 from per-transaction logs, failed/skipped counts, exit codes. Published
+per arm only after the sweep. Unsupported cells will read
+<code>N/A (unsupported)</code>; over-cap cells <code>timeout/inconclusive</code>.</p>
+<table id="results-table">
+<tr><th>Cell</th><th>direct</th><th>pgagroal</th><th>PgBouncer</th><th>pgpool-II</th><th>Odyssey</th><th>pgcat</th></tr>
+<tr><td>M1-1 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-2 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-3 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-4 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-5 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-6 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+<tr><td>M1-7 tps (median)</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td><td class="pend">pending</td></tr>
+</table>
+<p id="live-results-note">Live data hook: if sweep artifacts are published next
+to this page as <code>results/medians.json</code> (the harness
+<code>write_medians</code> schema: per cell-plus-pooler median/min/max/CV for
+tps, p50/p90/p99/p999), this table fills in automatically. Otherwise it stays
+pending by design.</p>
+</div>
+
+<div class="section">
+<h2>5. Fairness and threats to validity (summary)</h2>
+<ul class="tight">
+<li>One harness, identical adapter contract: same timeouts, warmup, JSON schema,
+failure semantics. Adapters differ only in <code>config_text()</code> and port.</li>
+<li>Same runner image, same PG build and config, freshly initialized dataset per
+run, interleaved round-robin order, medians over repeats, per-chunk direct control.</li>
+<li>Every non-default pooler setting cites that pooler's own tuning docs in
+<code>docs/configs/</code>; anything uncited fails review.</li>
+<li>Best-vs-best per workload plus iso-region slices on shared axes
+(clients {50,100,200}, backends {10,20}); surface flatness reported with peaks.</li>
+<li>Threats: shared-runner variance (handled by medians, never static baselines);
+pgpool-II session-class-only comparison is labeled, not hidden; prepared-statement
+SQLSTATE 26000 fails the arm cell while the simple twin still compares; churn
+and prepared twins are always paired. Full text: <a href="docs/methodology.md">docs/methodology.md</a>.</li>
+<li>Anti-theater checklist enforced: no home-team tuning, no sabotage by omission,
+no cherry-picked workloads, no hidden failures, no interpolated N/A, no
+carried-forward numbers across upgrades.</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>6. Reproduce it (one command)</h2>
+<pre>./poolduel/repro.sh --dry-run   # print the pilot plan, run nothing
+./poolduel/repro.sh --pilot     # M1-1 + M1-2, one repeat per arm
+./poolduel/repro.sh --full      # all 9 M1 chunks (a1,a2,b1,b2,c,d,e,f,g)
+THREADS=4 OUT=poolduel/results/m1 ./poolduel/repro.sh --full</pre>
+<p>Requires <code>pgbench</code> plus <code>psql</code> from PostgreSQL 17.
+<code>repro.sh</code> runs the preflight guard first
+(<code>poolduel/harness/check.py</code>: binaries, ratio guards, chunk caps)
+and fails loudly instead of running a compromised sweep.</p>
+</div>
+
+<footer>
+Poolduel M1 skeleton. Refs #302 (never Closes until the full M3 gates pass).
+Docs: <a href="docs/test-matrix.md">test-matrix</a> |
+<a href="docs/modes.md">modes</a> | <a href="docs/grid.md">grid</a> |
+<a href="docs/methodology.md">methodology</a> | <a href="docs/versions.md">versions</a> |
+<a href="docs/harness-contract.md">harness-contract</a> | - the Builder
+</footer>
+
+<script>
+// Fill the results table from results/medians.json when a sweep has published
+// it next to this page. Absence keeps every cell honestly pending.
+(function () {
+  var ARMS = ["direct", "pgagroal", "pgbouncer", "pgpool", "odyssey", "pgcat"];
+  var CELLS = ["M1-1", "M1-2", "M1-3", "M1-4", "M1-5", "M1-6", "M1-7"];
+  function fmt(entry) {
+    if (!entry || !entry.tps || entry.tps.median == null) return null;
+    var t = entry.tps;
+    return t.median + " [" + t.min + "-" + t.max + "]";
+  }
+  fetch("results/medians.json", { cache: "no-store" }).then(function (r) {
+    return r.ok ? r.json() : null;
+  }).catch(function () { return null; }).then(function (data) {
+    if (!data) return;
+    var byKey = {};
+    (Array.isArray(data) ? data : []).forEach(function (e) {
+      byKey[e.cell_id + "|" + e.pooler] = e;
+    });
+    var table = document.getElementById("results-table");
+    var rows = table.getElementsByTagName("tr");
+    for (var i = 1; i < rows.length; i++) {
+      var tds = rows[i].getElementsByTagName("td");
+      for (var j = 1; j < tds.length; j++) {
+        var v = fmt(byKey[CELLS[i - 1] + "|" + ARMS[j - 1]]);
+        if (v) { tds[j].textContent = v; tds[j].className = "ok"; }
+      }
+    }
+    var banner = document.getElementById("status-banner");
+    banner.className = "banner";
+    banner.innerHTML = "<strong>Status: M1 medians published below.</strong> " +
+      "Raw JSON plus medians committed with exact configs; see the results table. Refs #302.";
+    document.getElementById("live-results-note").textContent =
+      "Live data: loaded from results/medians.json published with the sweep.";
+  });
+})();
+</script>
+</body>
+</html>
