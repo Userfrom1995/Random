@@ -1,0 +1,9 @@
+poolduel ECharts vendor pin (M4, Refs #302)
+
+version: 5.5.1
+dist: poolduel/vendor/echarts-5.5.1/dist/echarts.min.js
+source_url: https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js
+sha256: e84270bd0cd5bdf60fefc26d00c2a391cb2e81f4d26a7a9ee16185a54773a3cf
+license: poolduel/vendor/echarts-5.5.1/LICENSE (Apache-2.0, upstream apache/echarts)
+renderer: svg only (echarts.init(el, null, {renderer: "svg"}))
+offline: no CDN references anywhere under poolduel/ (reviewer-verifiable via grep)
