@@ -22,12 +22,18 @@ on:
   issues:
     types: [opened]
   workflow_run:
-    # Failure/crash summon: fires on EVERY workflow completion BY DESIGN.
-    # There is no workflows-ignore filter, and an explicit allowlist would
-    # silently miss every future workflow (new projects must not have to
-    # remember this file). Self-exclusion (never triage our own completion)
-    # and conclusion filtering (failure/timed_out only) both live in the
-    # job `if:` below, where a skipped run costs nothing.
+    # Failure/crash summon. GitHub REQUIRES a non-empty `workflows:` list
+    # here (an omitted list is an invalid workflow file that disables this
+    # entire workflow) - there is no workflows-ignore filter. Names must
+    # match each workflow's `name:` field exactly, and `maintainer` itself
+    # is excluded (self-inclusion would re-trigger on every Maintainer
+    # completion: infinite loop).
+    # ROT GUARD (no allowlist can stay correct by itself): the Maintainer
+    # audits this list against live workflow names on every run (prompt
+    # rule) and the Reviewer blocks infra PRs that add/rename a workflow
+    # without updating it - so a new workflow can never silently miss
+    # failure triage.
+    workflows: [auditor, "Deploy static site to GitHub Pages", "Lab Engineer", opencode-review, opencode-pr-trigger, opencode-test, ideate, opencode, opencode-recover, poolduel-m1, poolduel-m2, postformer-cpu-train]
     types: [completed]
 
 permissions:

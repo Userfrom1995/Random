@@ -92,9 +92,11 @@ Lab Engineer / Infra Track:                                                   �
   [opened, synchronize, ready_for_review, reopened] · `issue_comment`
   [created] (no-op when the comment is a `/oc` trigger - opencode.yml already
   dispatched - or authored by the bot) · `issues` [opened] ·
-  `workflow_run` [completed] (all workflows by design - no allowlist to
-  rot when new ones are added; the maintainer's own completions and all
-  non-failure/timed_out conclusions are excluded by name-check in the job
+  `workflow_run` [completed] (explicit allowlist - GitHub rejects an empty
+  list and offers no ignore-filter, so every workflow except `maintainer`
+  itself is named; the list self-heals via the Maintainer's per-run audit
+  plus a Reviewer checklist block on infra PRs that add/rename workflows
+  without updating it. Conclusions filtered to failure/timed_out in the job
   gate, so a crashed run with no comment still summons triage).
 - Concurrency - per-PR groups, queued execution:
 
