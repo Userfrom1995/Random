@@ -6,39 +6,39 @@
     "context_mixed": false,
     "duration_s": 120,
     "latency_avg_ms": {
-      "cv": 0.1386618148770525,
-      "max": 4.017,
-      "median": 3.996,
-      "min": 3.077,
+      "cv": 0.027577450165190465,
+      "max": 4.09,
+      "median": 4.033,
+      "min": 3.851,
       "n": 5
     },
     "n": 5,
     "p50_ms": {
-      "cv": 4.984768677727485e-05,
-      "max": 249915.512,
-      "median": 249912.979,
-      "min": 249885.8665,
+      "cv": 2.8495135315132513e-05,
+      "max": 249905.016,
+      "median": 249891.211,
+      "min": 249888.1825,
       "n": 5
     },
     "p90_ms": {
-      "cv": 2.5878364706830442e-05,
-      "max": 249939.562,
-      "median": 249927.9026,
-      "min": 249921.8507,
+      "cv": 3.563520542192559e-05,
+      "max": 249938.665,
+      "median": 249921.37,
+      "min": 249919.387,
       "n": 5
     },
     "p999_ms": {
-      "cv": 4.594933261573784e-05,
-      "max": 249956.83487,
-      "median": 249936.35647,
-      "min": 249928.92124,
+      "cv": 3.883312363149e-05,
+      "max": 249953.69815,
+      "median": 249939.246031,
+      "min": 249928.69201,
       "n": 5
     },
     "p99_ms": {
-      "cv": 4.087837210275157e-05,
-      "max": 249953.38669999997,
-      "median": 249935.8747,
-      "min": 249928.8244,
+      "cv": 3.834793039194382e-05,
+      "max": 249952.3315,
+      "median": 249937.44631,
+      "min": 249927.8461,
       "n": 5
     },
     "pool_size": 10,
@@ -47,10 +47,10 @@
     "scale": 10,
     "status": "measured",
     "tps": {
-      "cv": 0.1459823412033649,
-      "max": 32470.85279,
-      "median": 25006.460735,
-      "min": 24879.275128,
+      "cv": 0.027763716424120444,
+      "max": 25949.138945,
+      "median": 24772.698517,
+      "min": 24433.468533,
       "n": 5
     },
     "workload": "select-only"
@@ -62,52 +62,52 @@
     "context_mixed": false,
     "duration_s": 120,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0894126419180719,
+      "max": 5.651,
+      "median": 4.802,
+      "min": 4.752,
+      "n": 5
     },
     "n": 5,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 6.674650524928622e-05,
+      "max": 249898.815,
+      "median": 249867.917,
+      "min": 249858.112,
+      "n": 5
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 4.247056400986539e-05,
+      "max": 249905.301,
+      "median": 249892.414,
+      "min": 249881.8333,
+      "n": 5
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 4.3770030980096055e-05,
+      "max": 249911.90019000001,
+      "median": 249894.11659099997,
+      "min": 249886.51194000003,
+      "n": 5
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 4.311400529443212e-05,
+      "max": 249910.7409,
+      "median": 249893.00591,
+      "min": 249886.0884,
+      "n": 5
     },
     "pool_size": 10,
     "pooler": "pgbouncer",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0864631404106581,
+      "max": 21030.395515,
+      "median": 20815.050492,
+      "min": 17688.851597,
+      "n": 5
     },
     "workload": "select-only"
   },
@@ -118,52 +118,108 @@
     "context_mixed": false,
     "duration_s": 120,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.05115193344176733,
+      "max": 4.897,
+      "median": 4.471,
+      "min": 4.458,
+      "n": 5
     },
     "n": 5,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.00022828995058445274,
+      "max": 248238.66850000003,
+      "median": 248138.13050000003,
+      "min": 248099.5215,
+      "n": 5
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.00024873570947043713,
+      "max": 248315.01309999998,
+      "median": 248289.6156,
+      "min": 248188.8948,
+      "n": 5
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.00027377624201878076,
+      "max": 248391.73419699998,
+      "median": 248318.52071100002,
+      "min": 248234.93576000002,
+      "n": 5
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0002704505119304466,
+      "max": 248384.30197,
+      "median": 248316.31311,
+      "min": 248230.7936,
+      "n": 5
+    },
+    "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.04996282282183128,
+      "max": 22266.25059,
+      "median": 22198.745341,
+      "min": 20278.488538,
+      "n": 5
+    },
+    "workload": "select-only"
+  },
+  {
+    "cell_id": "M1-1",
+    "churn": false,
+    "clients": 100,
+    "context_mixed": false,
+    "duration_s": 120,
+    "latency_avg_ms": {
+      "cv": 0.04783327272957619,
+      "max": 5.764,
+      "median": 5.456,
+      "min": 5.204,
+      "n": 5
+    },
+    "n": 5,
+    "p50_ms": {
+      "cv": 0.00010526348936786059,
+      "max": 249747.26299999998,
+      "median": 249710.89750000002,
+      "min": 249682.373,
+      "n": 5
+    },
+    "p90_ms": {
+      "cv": 0.0001090081586103532,
+      "max": 249808.3253,
+      "median": 249746.673,
+      "min": 249744.636,
+      "n": 5
+    },
+    "p999_ms": {
+      "cv": 0.0001048544948614957,
+      "max": 249815.537079,
+      "median": 249775.14144,
+      "min": 249749.452319,
+      "n": 5
+    },
+    "p99_ms": {
+      "cv": 0.00010428865255702651,
+      "max": 249814.86279,
+      "median": 249772.5534,
+      "min": 249749.25719,
+      "n": 5
     },
     "pool_size": 10,
     "pooler": "pgpool",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.034481511947492646,
+      "max": 18551.590615,
+      "median": 18304.257216,
+      "min": 17319.553685,
+      "n": 5
     },
     "workload": "select-only"
   },
@@ -174,39 +230,39 @@
     "context_mixed": false,
     "duration_s": 120,
     "latency_avg_ms": {
-      "cv": 0.39099341654667047,
-      "max": 32.03,
-      "median": 21.065,
-      "min": 12.957,
+      "cv": 0.1879622516373122,
+      "max": 13.037,
+      "median": 9.646,
+      "min": 8.921,
       "n": 5
     },
     "n": 5,
     "p50_ms": {
-      "cv": 0.0008664337211612657,
-      "max": 130014.282,
-      "median": 129877.8585,
-      "min": 129703.9975,
+      "cv": 0.0001425560914852625,
+      "max": 129964.17850000001,
+      "median": 129941.3915,
+      "min": 129918.765,
       "n": 5
     },
     "p90_ms": {
-      "cv": 0.0058137396162776965,
-      "max": 131720.10330000002,
-      "median": 130982.1095,
-      "min": 129976.94459999999,
+      "cv": 0.0005338536932639397,
+      "max": 130122.16619999999,
+      "median": 130029.70069999999,
+      "min": 129944.8505,
       "n": 5
     },
     "p999_ms": {
-      "cv": 0.011623008586642836,
-      "max": 133504.553715,
-      "median": 131235.57149600002,
-      "min": 130013.504324,
+      "cv": 0.002723349797685726,
+      "max": 130854.52317000001,
+      "median": 130137.88271600001,
+      "min": 129950.366854,
       "n": 5
     },
     "p99_ms": {
-      "cv": 0.01099008527800502,
-      "max": 133277.25615000003,
-      "median": 131215.28996000002,
-      "min": 130009.88924,
+      "cv": 0.0024960369158728377,
+      "max": 130779.72570000001,
+      "median": 130127.20616,
+      "min": 129949.84354,
       "n": 5
     },
     "pool_size": 10,
@@ -215,10 +271,10 @@
     "scale": 10,
     "status": "measured",
     "tps": {
-      "cv": 0.3615039790178052,
-      "max": 3855.142283,
-      "median": 2372.414417,
-      "min": 1560.212999,
+      "cv": 0.17830726242006367,
+      "max": 5600.958607,
+      "median": 5179.549819,
+      "min": 3831.425295,
       "n": 5
     },
     "workload": "tpcb-like"
@@ -230,13 +286,237 @@
     "context_mixed": false,
     "duration_s": 120,
     "latency_avg_ms": {
+      "cv": 0.18026839126743965,
+      "max": 16.287,
+      "median": 13.389,
+      "min": 11.293,
+      "n": 5
+    },
+    "n": 5,
+    "p50_ms": {
+      "cv": 4.4016388941495086e-05,
+      "max": 129992.247,
+      "median": 129983.927,
+      "min": 129976.446,
+      "n": 5
+    },
+    "p90_ms": {
+      "cv": 0.0007423445978708036,
+      "max": 130237.9625,
+      "median": 130036.8234,
+      "min": 130003.47899999999,
+      "n": 5
+    },
+    "p999_ms": {
+      "cv": 0.005071158120743125,
+      "max": 131547.096471,
+      "median": 130075.512258,
+      "min": 130004.344794,
+      "n": 5
+    },
+    "p99_ms": {
+      "cv": 0.004639223442730521,
+      "max": 131417.88771,
+      "median": 130074.66858,
+      "min": 130004.27094000002,
+      "n": 5
+    },
+    "pool_size": 10,
+    "pooler": "pgbouncer",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.1788247892360549,
+      "max": 4426.988206,
+      "median": 3734.005229,
+      "min": 3069.424381,
+      "n": 5
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-2",
+    "churn": false,
+    "clients": 50,
+    "context_mixed": false,
+    "duration_s": 120,
+    "latency_avg_ms": {
+      "cv": 0.12082773448983936,
+      "max": 16.62,
+      "median": 16.237,
+      "min": 12.406,
+      "n": 5
+    },
+    "n": 5,
+    "p50_ms": {
+      "cv": 0.00010915751147792325,
+      "max": 129972.35699999999,
+      "median": 129965.2895,
+      "min": 129940.367,
+      "n": 5
+    },
+    "p90_ms": {
+      "cv": 0.006584594225544861,
+      "max": 131909.26919999998,
+      "median": 129993.8513,
+      "min": 129973.3753,
+      "n": 5
+    },
+    "p999_ms": {
+      "cv": 0.008337098674600803,
+      "max": 132429.886477,
+      "median": 130001.26427,
+      "min": 129983.37765299999,
+      "n": 5
+    },
+    "p99_ms": {
+      "cv": 0.008215409788863618,
+      "max": 132393.59376999998,
+      "median": 130000.52870000001,
+      "min": 129982.52853,
+      "n": 5
+    },
+    "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.1327599678232766,
+      "max": 4029.327502,
+      "median": 3078.645883,
+      "min": 3007.061485,
+      "n": 5
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-2",
+    "churn": false,
+    "clients": 50,
+    "context_mixed": false,
+    "duration_s": 120,
+    "latency_avg_ms": {
+      "cv": 0.19126207647196422,
+      "max": 18.089,
+      "median": 14.088,
+      "min": 12.118,
+      "n": 5
+    },
+    "n": 5,
+    "p50_ms": {
+      "cv": 0.0036812092086725536,
+      "max": 129850.519,
+      "median": 129844.2245,
+      "min": 128939.534,
+      "n": 5
+    },
+    "p90_ms": {
+      "cv": 0.0036536696008359574,
+      "max": 130029.98370000001,
+      "median": 129927.2364,
+      "min": 129101.86660000001,
+      "n": 5
+    },
+    "p999_ms": {
+      "cv": 0.00473899615473996,
+      "max": 130581.312963,
+      "median": 129952.59048,
+      "min": 129126.31004,
+      "n": 5
+    },
+    "p99_ms": {
+      "cv": 0.004613495910707408,
+      "max": 130526.92563000001,
+      "median": 129951.9648,
+      "min": 129124.0964,
+      "n": 5
+    },
+    "pool_size": 10,
+    "pooler": "pgpool",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.18866440574615612,
+      "max": 4121.466083,
+      "median": 3545.640643,
+      "min": 2744.443847,
+      "n": 5
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-3",
+    "churn": false,
+    "clients": 50,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": 0.018069300090141054,
+      "max": 12.057,
+      "median": 11.994,
+      "min": 11.657,
+      "n": 3
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": 0.00017170019169157697,
+      "max": 129841.11600000001,
+      "median": 129810.9925,
+      "min": 129797.5955,
+      "n": 3
+    },
+    "p90_ms": {
+      "cv": 0.00012368896908946693,
+      "max": 129880.679,
+      "median": 129880.60800000001,
+      "min": 129852.8205,
+      "n": 3
+    },
+    "p999_ms": {
+      "cv": 0.00014616980720667967,
+      "max": 129916.13683999999,
+      "median": 129891.97914,
+      "min": 129878.68474499999,
+      "n": 3
+    },
+    "p99_ms": {
+      "cv": 0.00014175342918989263,
+      "max": 129912.9134,
+      "median": 129890.9454,
+      "min": 129876.33345,
+      "n": 3
+    },
+    "pool_size": 10,
+    "pooler": "direct",
+    "protocol": "prepared",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.018104853681760607,
+      "max": 4278.889544,
+      "median": 4158.892244,
+      "min": 4138.3841,
+      "n": 3
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-3",
+    "churn": false,
+    "clients": 50,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
       "cv": null,
       "max": null,
       "median": null,
       "min": null,
       "n": 0
     },
-    "n": 5,
+    "n": 3,
     "p50_ms": {
       "cv": null,
       "max": null,
@@ -267,63 +547,7 @@
     },
     "pool_size": 10,
     "pooler": "pgbouncer",
-    "protocol": "simple",
-    "scale": 10,
-    "status": "timeout/inconclusive",
-    "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "workload": "tpcb-like"
-  },
-  {
-    "cell_id": "M1-2",
-    "churn": false,
-    "clients": 50,
-    "context_mixed": false,
-    "duration_s": 120,
-    "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "n": 5,
-    "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "pool_size": 10,
-    "pooler": "pgpool",
-    "protocol": "simple",
+    "protocol": "prepared",
     "scale": 10,
     "status": "timeout/inconclusive",
     "tps": {
@@ -342,164 +566,108 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": 0.009047924755285295,
-      "max": 11.799,
-      "median": 11.757,
-      "min": 11.598,
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p90_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p999_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p99_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "prepared",
+    "scale": 10,
+    "status": "timeout/inconclusive",
+    "tps": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-3",
+    "churn": false,
+    "clients": 50,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": 0.0033109414809302357,
+      "max": 25.936,
+      "median": 25.844,
+      "min": 25.765,
       "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": 0.0002673085312064479,
-      "max": 129867.5985,
-      "median": 129835.935,
-      "min": 129798.2735,
+      "cv": 0.000581016153704089,
+      "max": 129341.202,
+      "median": 129301.33300000001,
+      "min": 129195.8325,
       "n": 3
     },
     "p90_ms": {
-      "cv": 0.00020573864800938152,
-      "max": 129931.20499999999,
-      "median": 129887.95850000001,
-      "min": 129882.3775,
+      "cv": 0.0005370802204613034,
+      "max": 129490.214,
+      "median": 129394.98800000001,
+      "min": 129354.897,
       "n": 3
     },
     "p999_ms": {
-      "cv": 0.0005155050785405293,
-      "max": 130015.37578999999,
-      "median": 129911.057305,
-      "min": 129890.42310500001,
+      "cv": 0.0006307344243157233,
+      "max": 129519.11012000001,
+      "median": 129424.87709,
+      "min": 129356.51862,
       "n": 3
     },
     "p99_ms": {
-      "cv": 0.0004867508497665632,
-      "max": 130007.7239,
-      "median": 129908.45004999998,
-      "min": 129890.19905000001,
+      "cv": 0.0006217849264388074,
+      "max": 129516.4832,
+      "median": 129422.15990000001,
+      "min": 129356.37120000001,
       "n": 3
     },
     "pool_size": 10,
-    "pooler": "direct",
+    "pooler": "pgpool",
     "protocol": "prepared",
     "scale": 10,
     "status": "measured",
     "tps": {
-      "cv": 0.008889533826779683,
-      "max": 4299.755377,
-      "median": 4242.776177,
-      "min": 4228.126259,
+      "cv": 0.003263669279290651,
+      "max": 1930.573978,
+      "median": 1924.986093,
+      "min": 1918.036529,
       "n": 3
-    },
-    "workload": "tpcb-like"
-  },
-  {
-    "cell_id": "M1-3",
-    "churn": false,
-    "clients": 50,
-    "context_mixed": false,
-    "duration_s": 60,
-    "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "n": 3,
-    "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "pool_size": 10,
-    "pooler": "pgbouncer",
-    "protocol": "prepared",
-    "scale": 10,
-    "status": "timeout/inconclusive",
-    "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "workload": "tpcb-like"
-  },
-  {
-    "cell_id": "M1-3",
-    "churn": false,
-    "clients": 50,
-    "context_mixed": false,
-    "duration_s": 60,
-    "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "n": 3,
-    "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
-    },
-    "pool_size": 10,
-    "pooler": "pgpool",
-    "protocol": "prepared",
-    "scale": 10,
-    "status": "timeout/inconclusive",
-    "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
     },
     "workload": "tpcb-like"
   },
@@ -566,52 +734,108 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.004332537321024696,
+      "max": 11.849,
+      "median": 11.785,
+      "min": 11.748,
+      "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0001045279210044016,
+      "max": 499830.58349999995,
+      "median": 499811.856,
+      "min": 499732.199,
+      "n": 3
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 6.202532207524893e-05,
+      "max": 499899.93299999996,
+      "median": 499856.3855,
+      "min": 499839.92949999997,
+      "n": 3
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.00011864797516276742,
+      "max": 499958.86671000003,
+      "median": 499878.7817749999,
+      "min": 499843.039585,
+      "n": 3
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.00011349696450487806,
+      "max": 499953.5091,
+      "median": 499876.74574999994,
+      "min": 499842.75685,
+      "n": 3
     },
     "pool_size": 10,
     "pooler": "pgbouncer",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.004317807343377192,
+      "max": 17015.809447,
+      "median": 16963.015084,
+      "min": 16871.181523,
+      "n": 3
+    },
+    "workload": "select-only"
+  },
+  {
+    "cell_id": "M1-4",
+    "churn": false,
+    "clients": 200,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": 0.014670516196681771,
+      "max": 10.559,
+      "median": 10.525,
+      "min": 10.278,
+      "n": 3
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": 0.0001663577543858309,
+      "max": 497452.5725,
+      "median": 497321.9865,
+      "min": 497299.25749999995,
+      "n": 3
+    },
+    "p90_ms": {
+      "cv": 0.00021741049843557853,
+      "max": 497667.7465,
+      "median": 497569.228,
+      "min": 497451.675,
+      "n": 3
+    },
+    "p999_ms": {
+      "cv": 0.000343339814901775,
+      "max": 497793.45409,
+      "median": 497685.10862499994,
+      "min": 497458.60896000004,
+      "n": 3
+    },
+    "p99_ms": {
+      "cv": 0.00032627021352136056,
+      "max": 497773.06989999994,
+      "median": 497683.53024999995,
+      "min": 497457.9786,
+      "n": 3
+    },
+    "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.014998235458026907,
+      "max": 19360.417621,
+      "median": 18897.924209,
+      "min": 18839.2953,
+      "n": 3
     },
     "workload": "select-only"
   },
@@ -678,39 +902,39 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": 0.05640441676970638,
-      "max": 19.376,
-      "median": 18.883,
-      "min": 17.369,
+      "cv": 0.21916861813223285,
+      "max": 14.943,
+      "median": 11.017,
+      "min": 9.963,
       "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": 0.0019774144555017277,
-      "max": 249739.135,
-      "median": 249727.7795,
-      "min": 248879.15649999998,
+      "cv": 0.002211745662500628,
+      "max": 249749.3755,
+      "median": 249582.804,
+      "min": 248721.816,
       "n": 3
     },
     "p90_ms": {
-      "cv": 0.00015750896717111286,
-      "max": 249971.6362,
-      "median": 249935.247,
-      "min": 249892.976,
+      "cv": 0.00905188641448379,
+      "max": 254060.56399999998,
+      "median": 250495.5345,
+      "min": 249826.29299999998,
       "n": 3
     },
     "p999_ms": {
-      "cv": 0.00016358617337380562,
-      "max": 249989.26097200002,
-      "median": 249937.64874,
-      "min": 249908.52296,
+      "cv": 0.01497950477278672,
+      "max": 256978.34546,
+      "median": 251168.164755,
+      "min": 249871.11623999997,
       "n": 3
     },
     "p99_ms": {
-      "cv": 0.00016276642423746922,
-      "max": 249987.65872,
-      "median": 249937.4304,
-      "min": 249907.1096,
+      "cv": 0.01444274595208534,
+      "max": 256713.0926,
+      "median": 251107.01655,
+      "min": 249867.0414,
       "n": 3
     },
     "pool_size": 20,
@@ -719,10 +943,66 @@
     "scale": 10,
     "status": "measured",
     "tps": {
-      "cv": 0.05787351331986042,
-      "max": 5732.581733,
-      "median": 5272.211911,
-      "min": 5139.054507,
+      "cv": 0.20045275474915428,
+      "max": 10018.074915,
+      "median": 9052.380086,
+      "min": 6675.398624,
+      "n": 3
+    },
+    "workload": "simple-update"
+  },
+  {
+    "cell_id": "M1-5",
+    "churn": false,
+    "clients": 100,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": 0.09554428974960881,
+      "max": 17.648,
+      "median": 16.739,
+      "min": 14.608,
+      "n": 3
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": 0.00010732492381077349,
+      "max": 249981.76,
+      "median": 249960.344,
+      "min": 249928.44900000002,
+      "n": 3
+    },
+    "p90_ms": {
+      "cv": 0.015926979538540244,
+      "max": 257737.849,
+      "median": 251931.0525,
+      "min": 249986.133,
+      "n": 3
+    },
+    "p999_ms": {
+      "cv": 0.031457683080009444,
+      "max": 265414.11892,
+      "median": 253618.52581499997,
+      "min": 249991.21962000002,
+      "n": 3
+    },
+    "p99_ms": {
+      "cv": 0.030061265627515477,
+      "max": 264716.2762,
+      "median": 253465.11914999998,
+      "min": 249990.7572,
+      "n": 3
+    },
+    "pool_size": 20,
+    "pooler": "pgbouncer",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.09926772891285914,
+      "max": 6843.995958,
+      "median": 5972.354954,
+      "min": 5665.128833,
       "n": 3
     },
     "workload": "simple-update"
@@ -770,7 +1050,7 @@
       "n": 0
     },
     "pool_size": 20,
-    "pooler": "pgbouncer",
+    "pooler": "pgcat",
     "protocol": "simple",
     "scale": 10,
     "status": "timeout/inconclusive",
@@ -790,52 +1070,52 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0036477683301689933,
+      "max": 13.925,
+      "median": 13.908,
+      "min": 13.83,
+      "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 5.6292924884005275e-05,
+      "max": 249889.0955,
+      "median": 249888.39,
+      "min": 249864.38650000002,
+      "n": 3
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 3.3614539113397886e-05,
+      "max": 250004.634,
+      "median": 249999.0425,
+      "min": 249988.11200000002,
+      "n": 3
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 7.857291233947108e-05,
+      "max": 250049.002355,
+      "median": 250019.55428999997,
+      "min": 250011.75221,
+      "n": 3
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 7.263163624581698e-05,
+      "max": 250044.46055000002,
+      "median": 250018.19789999997,
+      "min": 250009.6031,
+      "n": 3
     },
     "pool_size": 20,
     "pooler": "pgpool",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.005034121711982108,
+      "max": 7227.268363,
+      "median": 7174.52391,
+      "min": 7157.999695,
+      "n": 3
     },
     "workload": "simple-update"
   },
@@ -994,6 +1274,62 @@
       "n": 0
     },
     "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "timeout/inconclusive",
+    "tps": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "workload": "select-only"
+  },
+  {
+    "cell_id": "M1-6",
+    "churn": true,
+    "clients": 100,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p90_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p999_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "p99_ms": {
+      "cv": null,
+      "max": null,
+      "median": null,
+      "min": null,
+      "n": 0
+    },
+    "pool_size": 10,
     "pooler": "pgpool",
     "protocol": "simple",
     "scale": 10,
@@ -1014,39 +1350,39 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": 0.11615342300606471,
-      "max": 54.696,
-      "median": 45.423,
-      "min": 44.609,
+      "cv": 0.128782548562335,
+      "max": 27.613,
+      "median": 26.91,
+      "min": 21.632,
       "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": 0.002101972615992719,
-      "max": 249633.83250000002,
-      "median": 249120.595,
-      "min": 248586.6405,
+      "cv": 0.002216613410266591,
+      "max": 249812.319,
+      "median": 249071.31650000002,
+      "min": 248732.1725,
       "n": 3
     },
     "p90_ms": {
-      "cv": 0.007472077547276651,
-      "max": 254565.832,
-      "median": 252722.8635,
-      "min": 250789.908,
+      "cv": 0.0013371278541955314,
+      "max": 251148.5215,
+      "median": 250790.34100000001,
+      "min": 250478.3328,
       "n": 3
     },
     "p999_ms": {
-      "cv": 0.013430241883886097,
-      "max": 258404.76589,
-      "median": 255116.03257500002,
-      "min": 251556.43628999998,
+      "cv": 0.002168976094326293,
+      "max": 251746.93442499998,
+      "median": 251658.64129000003,
+      "min": 250761.475968,
       "n": 3
     },
     "p99_ms": {
-      "cv": 0.012893072432432299,
-      "max": 258055.77190000002,
-      "median": 254898.47175,
-      "min": 251486.75190000003,
+      "cv": 0.002080437217105802,
+      "max": 251692.53325,
+      "median": 251579.7049,
+      "min": 250735.73568,
       "n": 3
     },
     "pool_size": 10,
@@ -1055,10 +1391,10 @@
     "scale": 10,
     "status": "measured",
     "tps": {
-      "cv": 0.1088047258756614,
-      "max": 2235.982121,
-      "median": 2196.514242,
-      "min": 1824.671605,
+      "cv": 0.13884149876509705,
+      "max": 4614.149949,
+      "median": 3709.061753,
+      "min": 3612.899023,
       "n": 3
     },
     "workload": "tpcb-like"
@@ -1070,52 +1406,52 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.1911474422520754,
+      "max": 45.078,
+      "median": 34.635,
+      "min": 31.551,
+      "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.0046809652692034525,
+      "max": 249928.5215,
+      "median": 249186.57,
+      "min": 247644.407,
+      "n": 3
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.011723954464972007,
+      "max": 256318.6045,
+      "median": 251387.82150000002,
+      "min": 251000.239,
+      "n": 3
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.021691021805853396,
+      "max": 261902.172325,
+      "median": 252725.317935,
+      "min": 251928.97582,
+      "n": 3
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.02079334670965312,
+      "max": 261394.57525,
+      "median": 252603.72735,
+      "min": 251844.54519999996,
+      "n": 3
     },
     "pool_size": 10,
     "pooler": "pgbouncer",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.17708368668373187,
+      "max": 3168.674826,
+      "median": 2886.452442,
+      "min": 2217.825365,
+      "n": 3
     },
     "workload": "tpcb-like"
   },
@@ -1126,52 +1462,108 @@
     "context_mixed": false,
     "duration_s": 60,
     "latency_avg_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.028651034747956796,
+      "max": 41.152,
+      "median": 39.767,
+      "min": 38.882,
+      "n": 3
     },
     "n": 3,
     "p50_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.004765051382357861,
+      "max": 249965.8345,
+      "median": 249797.25900000002,
+      "min": 247830.02850000001,
+      "n": 3
     },
     "p90_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.01269029573902794,
+      "max": 255685.83000000002,
+      "median": 250267.15399999998,
+      "min": 250034.019,
+      "n": 3
     },
     "p999_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.015100957548769004,
+      "max": 256799.18696999998,
+      "median": 250350.47339,
+      "min": 250054.42983,
+      "n": 3
     },
     "p99_ms": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.014882123725018521,
+      "max": 256697.97269999998,
+      "median": 250342.8989,
+      "min": 250052.5743,
+      "n": 3
+    },
+    "pool_size": 10,
+    "pooler": "pgcat",
+    "protocol": "simple",
+    "scale": 10,
+    "status": "measured",
+    "tps": {
+      "cv": 0.02850348534253077,
+      "max": 2571.114672,
+      "median": 2513.809758,
+      "min": 2429.201629,
+      "n": 3
+    },
+    "workload": "tpcb-like"
+  },
+  {
+    "cell_id": "M1-7",
+    "churn": false,
+    "clients": 100,
+    "context_mixed": false,
+    "duration_s": 60,
+    "latency_avg_ms": {
+      "cv": 0.1574158745977055,
+      "max": 39.332,
+      "median": 39.099,
+      "min": 29.416,
+      "n": 3
+    },
+    "n": 3,
+    "p50_ms": {
+      "cv": 0.0010868579226781256,
+      "max": 249755.9265,
+      "median": 249307.505,
+      "min": 249267.7265,
+      "n": 3
+    },
+    "p90_ms": {
+      "cv": 0.00013069173947052772,
+      "max": 250548.553,
+      "median": 250533.1836,
+      "min": 250485.74300000002,
+      "n": 3
+    },
+    "p999_ms": {
+      "cv": 0.0008344377805951917,
+      "max": 251122.22236,
+      "median": 250778.240676,
+      "min": 250743.51128,
+      "n": 3
+    },
+    "p99_ms": {
+      "cv": 0.0007675827911041481,
+      "max": 251070.0706,
+      "median": 250755.96275999997,
+      "min": 250720.0778,
+      "n": 3
     },
     "pool_size": 10,
     "pooler": "pgpool",
     "protocol": "simple",
     "scale": 10,
-    "status": "timeout/inconclusive",
+    "status": "measured",
     "tps": {
-      "cv": null,
-      "max": null,
-      "median": null,
-      "min": null,
-      "n": 0
+      "cv": 0.172739004527537,
+      "max": 3394.259644,
+      "median": 2555.201142,
+      "min": 2540.16272,
+      "n": 3
     },
     "workload": "tpcb-like"
   }
