@@ -70,6 +70,27 @@ jobs:
             sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-17
+          # The noble runner image ships a preinstalled PG 16 cluster on
+          # port 5432 and /usr/bin/pgbench is 16 (run 34689464131 proved
+          # both: pg_lsclusters showed only 16/main, pgbench 16.15). The
+          # versions.md pin is PG 17, so drop 16 and give 17 port 5432.
+          sudo pg_ctlcluster 16 main stop || true
+          sudo pg_dropcluster 16 main --stop || true
+          if sudo pg_lsclusters | grep -qE '^17[[:space:]]'; then
+            sudo pg_ctlcluster 17 main start || true
+          else
+            sudo pg_createcluster 17 main -p 5432 --start
+          fi
+          # Guarantee 17 owns 5432 (harness + adapters assume pg_port 5432).
+          if ! sudo pg_lsclusters | grep -qE '^17[[:space:]]+main[[:space:]]+5432[[:space:]]'; then
+            echo "poolduel: PG 17 is not on port 5432" >&2
+            sudo pg_lsclusters || true
+            exit 1
+          fi
+          # Pin pgbench/psql to the 17 client (overrides /usr/bin 16 left
+          # by the runner image) for every later step on PATH.
+          sudo ln -sf /usr/lib/postgresql/17/bin/pgbench /usr/local/bin/pgbench
+          sudo ln -sf /usr/lib/postgresql/17/bin/psql /usr/local/bin/psql
           pgbench --version
           sudo pg_lsclusters || true
 
@@ -147,16 +168,27 @@ jobs:
           cargo build --release
           sudo install -m 0755 target/release/pgcat /usr/local/bin/pgcat
           cd /tmp/poolers
+          # Refresh the loader cache: pgagroal installs libpgagroal.so.2
+          # under /usr/local/lib and fails at startup without this
+          # (run 34689464131: "cannot open shared object file").
+          sudo ldconfig
+          ldconfig -p | grep -E 'libpgagroal|libpq' || true
 
       - name: Verify pooler binaries
         run: |
           set -eux
-          export PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH"
+          export PATH="/usr/lib/postgresql/17/bin:/usr/local/bin:$HOME/.cargo/bin:$PATH"
           # Fail loudly here (before any pgbench minute is spent) if any
           # pooler binary the harness adapters exec is missing from PATH.
           for bin in pgbouncer pgpool odyssey pgagroal pgcat; do
             command -v "$bin" || { echo "missing pooler binary: $bin" >&2; exit 1; }
           done
+          # Pinned per poolduel/docs/versions.md: pgbench must be PG 17.
+          case "$(pgbench --version)" in
+            *" 17."*) echo "pgbench is PG 17: $(pgbench --version)" ;;
+            *) echo "poolduel: pgbench is not PG 17: $(pgbench --version)" >&2; exit 1 ;;
+          esac
+          pgagroal --version || true
           pgbouncer --version || true
           pgpool --version || true
           odyssey --version || true
@@ -170,9 +202,15 @@ jobs:
       - name: Init dataset and checkpoint
         run: |
           set -eux
+          export PATH="/usr/lib/postgresql/17/bin:/usr/local/bin:$PATH"
           sudo service postgresql start || sudo pg_ctlcluster 17 main start
-          sudo -u postgres psql -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
-          sudo -u postgres psql -c "CREATE DATABASE benchdb OWNER benchuser;" || true
+          # pgpool writes its default pid file to /var/run/pgpool/; the
+          # runner user cannot create it (run 34689464131 rc=3), so
+          # pre-create it here instead of touching harness configs.
+          sudo mkdir -p /var/run/pgpool
+          sudo chown "$(id -un)" /var/run/pgpool
+          sudo -u postgres psql --cluster 17/main -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
+          sudo -u postgres psql --cluster 17/main -c "CREATE DATABASE benchdb OWNER benchuser;" || true
           PGPASSWORD=benchpass pgbench -h 127.0.0.1 -U benchuser -i -s 10 benchdb
           PGPASSWORD=benchpass psql -h 127.0.0.1 -U benchuser -d benchdb -c "CHECKPOINT;"
 
@@ -185,8 +223,14 @@ jobs:
         env:
           PGPASSWORD: benchpass
         run: |
+          # Absolute --out is load-bearing: adapters launch poolers with
+          # cwd=workdir while passing workdir-relative config paths, so a
+          # relative --out doubles the prefix and every pooler exits at
+          # startup (run 34689464131: all five arms rc=1/3/78/127, direct
+          # only). Absolute --out keeps CI green with no harness change.
+          export PATH="/usr/lib/postgresql/17/bin:/usr/local/bin:$PATH"
           python3 -m poolduel.harness.cli --chunk "${{ matrix.chunk }}" \
-            --threads "$(nproc)" --out "poolduel/results/m1-${{ matrix.chunk }}"
+            --threads "$(nproc)" --out "$(pwd)/poolduel/results/m1-${{ matrix.chunk }}"
 
       - name: Record pooler versions
         if: always()
