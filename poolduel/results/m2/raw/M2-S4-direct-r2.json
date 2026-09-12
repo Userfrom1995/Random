@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2b1/work-M2-S4-direct-r2/logs/cell-M2-S4-r2-37607.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2b1/work-M2-S4-direct-r2/logs/cell-M2-S4-r2-37607.25662"
+  },
+  "cell_id": "M2-S4",
+  "churn": false,
+  "clients": 50,
+  "duration_s": 60,
+  "exit_code": 0,
+  "failed": 0,
+  "latency_avg_ms": 26.94,
+  "latency_stddev_ms": 62.441,
+  "p50_ms": 129312.4975,
+  "p90_ms": 130572.6945,
+  "p999_ms": 130889.09107499999,
+  "p99_ms": 130860.32775,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "direct",
+  "pooler_config": "# direct-PG control (no pooler)\n# docs: https://www.postgresql.org/docs/17/pgbench.html\nshared_buffers = 512MB\nmax_connections = 300\nsynchronous_commit = on\nfsync = on\n",
+  "pooler_version": null,
+  "protocol": "simple",
+  "repeat": 2,
+  "scale": 10,
+  "seed": 44,
+  "skipped": 0,
+  "status": "measured",
+  "threads": 4,
+  "tps": 1853.970821,
+  "warmup_s": 30,
+  "workload": "tpcb-like"
+}

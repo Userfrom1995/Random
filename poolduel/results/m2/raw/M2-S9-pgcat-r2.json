@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2a2/work-M2-S9-pgcat-r2/logs/cell-M2-S9-r2-37635.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2a2/work-M2-S9-pgcat-r2/logs/cell-M2-S9-r2-37635.26359"
+  },
+  "cell_id": "M2-S9",
+  "churn": false,
+  "clients": 100,
+  "duration_s": 60,
+  "exit_code": 1,
+  "failed": 0,
+  "latency_avg_ms": null,
+  "latency_stddev_ms": null,
+  "p50_ms": null,
+  "p90_ms": null,
+  "p999_ms": null,
+  "p99_ms": null,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "pgcat",
+  "pooler_config": "# pgcat M2 variant (pool_mode=session, worker_threads=5)\n# refs: CONFIG.md, README.md, pgcat.toml example\n[general]\nhost = \"0.0.0.0\"\nport = 6436\nconnect_timeout = 1000\nidle_timeout = 30000\nserver_lifetime = 86400000\nworker_threads = 5\n# admin console credentials (CONFIG.md: general.admin_username\n# / admin_password are required fields; CI-only values)\nadmin_username = \"pgcat_admin\"\nadmin_password = \"pgcat_admin_pass\"\n\n[pools.benchdb]\npool_mode = \"session\"\nload_balancing_mode = \"random\"\ndefault_role = \"any\"\nquery_parser_enabled = true\nprimary_reads_enabled = true\nprepared_statements_cache_size = 0\n\n[pools.benchdb.users.0]\nusername = \"benchuser\"\npassword = \"benchpass\"\npool_size = 10\n# single-shard layout (CONFIG.md pools.<pool>.shards.<idx>:\n# servers are [host, port, role] triples, database selects\n# the backend database; one primary shard, no replicas)\n\n[pools.benchdb.shards.0]\nservers = [ [\"127.0.0.1\", 5432, \"primary\"] ]\ndatabase = \"benchdb\"\n",
+  "pooler_version": "v1.2.0",
+  "protocol": "simple",
+  "repeat": 2,
+  "scale": 10,
+  "seed": 44,
+  "skipped": 0,
+  "status": "timeout/inconclusive",
+  "threads": 4,
+  "tps": null,
+  "warmup_s": 30,
+  "workload": "select-only"
+}

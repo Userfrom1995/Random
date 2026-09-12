@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I14-pgpool-r2/logs/cell-M2-I14-r2-37656.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I14-pgpool-r2/logs/cell-M2-I14-r2-37656.27649"
+  },
+  "cell_id": "M2-I14",
+  "churn": false,
+  "clients": 50,
+  "duration_s": 60,
+  "exit_code": 0,
+  "failed": 0,
+  "latency_avg_ms": 55.086,
+  "latency_stddev_ms": 104.153,
+  "p50_ms": 130234.5455,
+  "p90_ms": 130499.1425,
+  "p999_ms": 130571.355575,
+  "p99_ms": 130564.79075000001,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "pgpool",
+  "pooler_config": "# pgpool-II M2 variant (num_init_children=100, max_pool=1)\n# refs: runtime-config-connection-pooling.html, runtime-config-connection.html\nlisten_addresses = '127.0.0.1'\nport = 6434\nbackend_hostname0 = '127.0.0.1'\nbackend_port0 = 5432\nconnection_cache = on\nmax_pool = 1\nnum_init_children = 100\nreserved_connections = 0\nlisten_backlog_multiplier = 2\nserialize_accept = off\nchild_life_time = 300\nchild_max_connections = 0\nconnection_life_time = 0\nclient_idle_limit = 0\nreset_query_list = 'ABORT; DISCARD ALL'\nload_balance_mode = off\n# auth (docs ch.6 Client Authentication, CI-only): frontend\n# pool_hba stays disabled (default), backend SCRAM uses the\n# workdir pool_passwd plaintext benchuser entry (6.2.4.1).\n# effective backends (children x max_pool) = 100\n",
+  "pooler_version": "4.7.2",
+  "protocol": "simple",
+  "repeat": 2,
+  "scale": 10,
+  "seed": 44,
+  "skipped": 0,
+  "status": "measured",
+  "threads": 4,
+  "tps": 906.581805,
+  "warmup_s": 30,
+  "workload": "tpcb-like"
+}

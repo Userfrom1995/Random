@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2i2/work-M2-P4-odyssey-r1/logs/cell-M2-P4-r1-36794.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2i2/work-M2-P4-odyssey-r1/logs/cell-M2-P4-r1-36794.25428"
+  },
+  "cell_id": "M2-P4",
+  "churn": false,
+  "clients": 50,
+  "duration_s": 60,
+  "exit_code": 0,
+  "failed": 0,
+  "latency_avg_ms": 36.671,
+  "latency_stddev_ms": 2.796,
+  "p50_ms": 129973.042,
+  "p90_ms": 130044.09950000001,
+  "p999_ms": 130084.24746500001,
+  "p99_ms": 130080.59765000001,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "odyssey",
+  "pooler_config": "# Odyssey M2 variant (pool=statement, workers=1, provisional)\n# refs: rules.html, global.html, storage.html, features/pooling.html\n# PROVISIONAL statement arm: verify empirically (modes.md section 4)\nworkers 1\nresolvers 1\nbackend_connect_timeout_ms 30000\nlog_format \"%p %t %l [%i %s] (%c) %m\\n\"\nlog_to_stdout yes\nlisten {\n  host \"127.0.0.1\"\n  port 6435\n}\nstorage \"benchdb_store\" {\n  type \"remote\"\n  host \"127.0.0.1\"\n  port 5432\n}\ndatabase \"benchdb\" {\n  user \"benchuser\" {\n    authentication \"none\"\n    storage \"benchdb_store\"\n    storage_user \"benchuser\"\n    storage_password \"benchpass\"\n    pool \"statement\"\n    pool_size 10\n    pool_discard yes\n    pool_smart_discard no\n    pool_cancel yes\n    pool_rollback yes\n    pool_timeout 0\n    pool_ttl 0\n    server_lifetime 3600\n    pool_reserve_prepared_statement yes\n  }\n}\n",
+  "pooler_version": "1.5.1",
+  "protocol": "prepared",
+  "repeat": 1,
+  "scale": 10,
+  "seed": 43,
+  "skipped": 0,
+  "status": "measured",
+  "threads": 4,
+  "tps": 1363.079846,
+  "warmup_s": 30,
+  "workload": "tpcb-like"
+}
