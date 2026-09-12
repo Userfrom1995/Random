@@ -63,6 +63,13 @@ class OdysseyAdapter(BaseAdapter):
             "workers %d" % workers,
             "resolvers 1",
             "backend_connect_timeout_ms 30000",
+            # log_format is MANDATORY (odyssey 1.5.1 sources/config.c
+            # od_config_validate FATALs "log_format is not defined"
+            # otherwise); value verbatim from upstream odyssey.conf.
+            # log_to_stdout keeps logs in the runner capture, matching
+            # pgagroal log_type = console.
+            'log_format "%p %t %l [%i %s] (%c) %m\\n"',
+            "log_to_stdout yes",
             "listen {",
             '  host "127.0.0.1"',
             "  port %d" % self.port,
