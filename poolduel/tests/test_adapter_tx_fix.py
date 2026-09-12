@@ -18,7 +18,6 @@ from unittest import mock
 
 from poolduel.harness.adapters import OdysseyAdapter, PgAgroalAdapter
 from poolduel.harness.adapters.base import AdapterError
-from poolduel.harness.adapters import pgagroal as pgagroal_mod
 from poolduel.harness.cells import get_cell
 
 
