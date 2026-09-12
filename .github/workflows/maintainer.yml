@@ -436,6 +436,39 @@ jobs:
                               print(f"::error::Failed to create PR for '{head}': {r.stderr.strip()}")
                   continue
 
+              # SWEEP DISPATCH (PAT-backed): run a sweep/train workflow whose
+              # completion must summon triage. Runs dispatched with the bot
+              # token do NOT emit workflow_run triggers (platform
+              # anti-recursion), so their failures complete silently - sweeps
+              # must go out with the owner credential. Handled here (never
+              # via an agent-run gh call, never via /oc comment) because no
+              # agent env may hold the PAT.
+              SWEEP_ALLOWLIST = ("poolduel-m1", "poolduel-m2", "postformer-cpu-train")
+              if action == "sweep":
+                  wf = d.get("workflow", "")
+                  ref = d.get("ref", "") or "main"
+                  inputs = d.get("inputs", "") or {}
+                  skey = ("sweep", wf, ref, json.dumps(inputs, sort_keys=True) if isinstance(inputs, dict) else str(inputs))
+                  if skey in posted:
+                      print(f"skip sweep '{wf}' (duplicate in this run)")
+                      continue
+                  if wf not in SWEEP_ALLOWLIST:
+                      print(f"::error::Refusing sweep dispatch for '{wf}': not in allowlist {list(SWEEP_ALLOWLIST)} (route new sweep workflows via lab first)")
+                      continue
+                  if not isinstance(inputs, dict):
+                      print(f"::error::sweep 'inputs' must be an object for '{wf}'")
+                      continue
+                  cmd = ["gh", "workflow", "run", wf, "--repo", repo, "--ref", ref]
+                  for k, v in inputs.items():
+                      cmd += ["-f", f"{k}={v}"]
+                  r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+                  if r.returncode == 0:
+                      print(f"dispatched sweep '{wf}' on ref '{ref}'" + (f" inputs {inputs}" if inputs else " (defaults)"))
+                      posted.add(skey)
+                  else:
+                      print(f"::error::Failed to dispatch sweep '{wf}': {r.stderr.strip()}")
+                  continue
+
               if not target:
                   continue
               try:

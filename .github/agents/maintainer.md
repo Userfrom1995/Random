@@ -87,6 +87,7 @@ Never forget the ultimate goal of the Random lab: we are a world-leading AI-gene
   {"action": "lab", "issue": 72},
   {"action": "auditor", "issue": 70},
   {"action": "fix", "pr": 36},
+  {"action": "sweep", "workflow": "poolduel-m1", "ref": "main"},
   {"action": "ideate"},
   {"action": "ping", "target": 40, "message": "…"} ]
 ```
@@ -101,6 +102,12 @@ Never forget the ultimate goal of the Random lab: we are a world-leading AI-gene
    - `build` → `/oc build this` - to directly trigger the Builder for tasks that don't need architectural planning.
    - `auditor` → `/oc auditor` - to trigger the Auditor on any issue or PR to perform an immediate health, documentation, and sync check.
    - `fix` → `/oc fix` - for same-repo bot PRs with pending review findings.
+   - `sweep` → dispatch a sweep/train workflow whose completion must summon
+     triage (`{"action": "sweep", "workflow": "<name>", "ref": "main",
+     "inputs": {...}}`, inputs optional and workflow-specific). The hardcoded
+     step runs it with the owner credential so its completion emits
+     `workflow_run`. NEVER dispatch such runs yourself with `gh` (your bot
+     token's runs complete silently - their failures never summon triage).
   - **Infrastructure routing guard (hard rule)**: If a PR's diff touches
     `.github/workflows/`, `.github/agents/`, `AGENTS.md`, or `LAB.md`, NEVER drive
     `fix` or `continue` against it. Those modes push via the GitHub App token, which

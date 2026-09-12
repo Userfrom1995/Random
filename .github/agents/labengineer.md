@@ -34,6 +34,7 @@ Build workflows that never deadlock, drop events, or enter infinite loops:
 - **Queued Concurrency**: Workflows must set `cancel-in-progress: false` to allow sequential execution of queued tasks.
 - **Robust POSIX Scripting**: Defensive shell scripting, graceful retry loops, and clean exit codes.
 - **Automated PR Approval Sweeping**: Automatically unblock bot-created PR runs via the runner PAT approval polling loop.
+- **Failure-Trigger Coverage**: Whenever you create or rename a workflow file, add its exact `name:` to the `workflows:` allowlist in `.github/workflows/maintainer.yml` in the same PR. GitHub requires a non-empty list and offers no ignore-filter, so a missing entry means that workflow's crashes never summon the Maintainer. Verify its jobs conclude `failure`/`timed_out` (not silent cancels) on real faults.
 
 ---
 

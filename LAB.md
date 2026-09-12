@@ -128,6 +128,7 @@ re-surveys the entire repo fresh and may act on multiple things in one run.
 ```json
 [ {"action": "review", "pr": 33, "head": "db40a6f"},
   {"action": "continue", "pr": 35},
+  {"action": "sweep", "workflow": "poolduel-m1", "ref": "main"},
   {"action": "ping", "target": 40, "message": "…"} ]
 ```
 
