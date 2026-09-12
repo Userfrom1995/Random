@@ -46,7 +46,7 @@ class PgCatAdapter(BaseAdapter):
                  % (mode, threads))
         return (
             "# pgcat %s\n" % label +
-            "# refs: CONFIG.md, README.md\n"
+            "# refs: CONFIG.md, README.md, pgcat.toml example\n"
             "[general]\n"
             'host = "0.0.0.0"\n'
             "port = %d\n" % self.port +
@@ -54,6 +54,10 @@ class PgCatAdapter(BaseAdapter):
             "idle_timeout = 30000\n"
             "server_lifetime = 86400000\n"
             "worker_threads = %d\n" % threads +
+            "# admin console credentials (CONFIG.md: general.admin_username\n"
+            "# / admin_password are required fields; CI-only values)\n"
+            'admin_username = "pgcat_admin"\n'
+            'admin_password = "pgcat_admin_pass"\n'
             "\n[pools.benchdb]\n"
             'pool_mode = "%s"\n' % mode +
             'load_balancing_mode = "random"\n'
@@ -64,7 +68,13 @@ class PgCatAdapter(BaseAdapter):
             "\n[pools.benchdb.users.0]\n"
             'username = "benchuser"\n'
             'password = "benchpass"\n'
-            "pool_size = %d\n" % pool_size
+            "pool_size = %d\n" % pool_size +
+            "# single-shard layout (CONFIG.md pools.<pool>.shards.<idx>:\n"
+            "# servers are [host, port, role] triples, database selects\n"
+            "# the backend database; one primary shard, no replicas)\n"
+            "\n[pools.benchdb.shards.0]\n"
+            'servers = [ ["127.0.0.1", %d, "primary"] ]\n' % self.pg_port +
+            'database = "benchdb"\n'
         )
 
     def setup(self, workdir, cell):

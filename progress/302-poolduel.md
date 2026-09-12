@@ -1,10 +1,11 @@
 # Progress: poolduel build (issue #302)
 
 Status: in-progress
-Date: 2026-09-11. Owner directive via #42 (supreme priority).
+Date: 2026-09-12. Owner directive via #42 (supreme priority).
 Blueprint: `ideas/2026-09-11-poolduel.md`. Researcher spec: `poolduel/docs/`.
 
-Active Milestone: M3 (in progress on `opencode/issue302-poolduel-m3`)
+Active Milestone: adapter startup/auth fix (on
+`opencode/302-poolduel-adapter-fixes`; sweep re-dispatch blocked until merge)
 
 ## Milestone roadmap
 
@@ -128,5 +129,70 @@ Next steps: Reviewer audit, then Tester sample-cell reproduction after
   sweep dispatch; post-sweep config re-check per fairness-audit section 4
   before any gate passes. `Refs #302`: no medians exist yet, so no gate
   can pass and no `Closes` is claimed.
+
+- the Builder
+
+## Adapter startup/auth fix log (branch `opencode/302-poolduel-adapter-fixes`)
+
+Context: sweep `poolduel-m1` 34697687073 (2026-09-12, main 44df4ddb)
+FAILED 9/9 product arms; aggregate committed partial medians (direct +
+pgbouncer + pgpool timeout/inconclusive, zero raw for
+pgagroal/odyssey/pgcat). Sweep pipeline itself green (Lab 34698415063).
+Root causes proven from the `poolduel-m1-a1` chunk artifact workdirs:
+
+1. pgagroal rc=1 `invalid option -- 'H'`: argv used `-H`/`-d <path>`/`-f`
+   (none exist; `-d` is a no-arg daemon flag). Plus latent: config had no
+   `[primary]` backend server section (host/port in `[pgagroal]` is the
+   bind address, not the backend) and HBA `trust` leaves the pooler with
+   no password for the SCRAM backend.
+2. odyssey rc=1 `odyssey.conf:11 unknown parameter`: legacy
+   `route { service ... backend_host ... }` syntax rejected by 1.5.1;
+   also missing mandatory `authentication` and backend credentials.
+3. pgcat rc=78 `missing field admin_username`: `[general]` lacked the
+   required admin fields; also no `shards` section rendered.
+4. pgbouncer exit 1 `password authentication failed` (`no such user`):
+   no `auth_file`, so every pgbench login died at the pooler.
+5. pgpool exit 1 `failed to authenticate with backend using SCRAM`
+   (`valid password not found`): empty `pool_passwd` (pgpool created it
+   in the workdir cwd, proving cwd resolution).
+
+Fixes (all `poolduel/harness/adapters/`, doc-cited, identical
+timeouts/schema/failure semantics - runner untouched):
+
+- `base.py`: `setup()` stores `os.path.abspath(workdir)` (kills the
+  relative-path doubling for every adapter's argv and config refs).
+- `pgagroal.py`: argv `[pgagroal -c conf -a hba -l dblimit]` foreground;
+  added `[primary]` server section (host 127.0.0.1, pg_port); HBA
+  `trust` -> `scram-sha-256` so benchuser auts against PG itself via
+  the allow_unknown_users passthrough (CONFIGURATION.html).
+- `odyssey.py`: `storage "benchdb_store"` (remote, storage.html) plus
+  `database/user` routing rule (rules.html) with
+  `authentication "none"` (CI-only frontend), `storage_user` /
+  `storage_password` benchuser/benchpass for the SCRAM backend leg;
+  dropped `server_pstmt_cache_size` (not an Odyssey parameter) and the
+  legacy route block.
+- `pgcat.py`: `admin_username`/`admin_password` (required, CONFIG.md)
+  plus `[pools.benchdb.shards.0]` single-primary shard
+  (`pgcat.toml` example syntax, verified by tomllib in tests).
+- `pgbouncer.py`: `users.txt` (`"benchuser" "benchpass"`, plaintext
+  permitted, config.html) + `auth_type = scram-sha-256` + absolute
+  `auth_file`; backend uses the client password pgbench presents.
+- `pgpool.py`: workdir `pool_passwd` with plaintext
+  `benchuser:benchpass` (6.2.4.1: SCRAM backend auth needs plaintext
+  or AES entries); frontend pool_hba stays disabled (default).
+- `docs/configs/`: pgagroal (server section, scram HBA, CLI), odyssey
+  (storage+rule rewrite, auth note), pgcat (admin + shard), pgbouncer
+  (auth_file), pgpool-II (pool_passwd + ch.6 links). Every non-default
+  value still cites upstream docs.
+- Tests: 7 new regression tests in `test_adapters.py` (argv flags +
+  absolute paths, server section, storage/database syntax, admin +
+  shards incl. TOML parse, users.txt, pool_passwd, abspath setup);
+  updated two stale `pool <mode>` markers in `test_m2.py` to the
+  quoted 1.5.1 syntax. 123/123 green, `repro.sh --dry-run` intact.
+
+Current step: fix branch complete, awaiting review
+Next steps: Reviewer audit -> Tester repro -> merge -> Maintainer
+  re-dispatches `poolduel-m1` (9 chunks) then chains `poolduel-m2`.
+  `Refs #302`: no `Closes` until binding gates pass on green medians.
 
 - the Builder

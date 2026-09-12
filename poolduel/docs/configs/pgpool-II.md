@@ -4,7 +4,9 @@ Reference (normative):
 https://www.pgpool.net/docs/latest/en/html/runtime-config-connection-pooling.html,
 https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html,
 https://www.pgpool.net/docs/latest/en/html/runtime-config-load-balancing.html,
-https://www.pgpool.net/docs/latest/en/html/restrictions.html
+https://www.pgpool.net/docs/latest/en/html/restrictions.html,
+https://www.pgpool.net/docs/latest/en/html/auth-pool-hba-conf.html,
+https://www.pgpool.net/docs/latest/en/html/auth-methods.html
 
 ## M1/M2 baseline (session-class, the only pooling mode)
 
@@ -30,5 +32,12 @@ ceiling (`children x max_pool`) inside PG `max_connections` with headroom;
 `reset_query_list` default hygiene; load balancing off so the benchmark
 measures pooling, not routing. For the 200-client row use
 `num_init_children = 200, max_pool = 1`.
+
+Auth (CI-only): frontend `pool_hba` stays disabled (the default), so the
+benchmark client connects unchallenged; the backend SCRAM leg uses the
+workdir `pool_passwd` file holding the plaintext `benchuser:benchpass`
+entry (section 6.2.4.1: SCRAM backend auth requires a plaintext or AES
+entry - md5 entries cannot be used). pgpool resolves `pool_passwd` in its
+startup working directory, which the harness sets to the per-arm workdir.
 
 - Dr. Mob, the Researcher

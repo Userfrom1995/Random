@@ -45,8 +45,8 @@ class PgAgroalAdapter(BaseAdapter):
         # grid.md: blocking_timeout 0 in transaction mode, 30s in sessions.
         blocking = "0" if pipe == "transaction" else "30s"
         label = ("M1 baseline (transaction pipeline)" if pipe == "transaction"
-                 and ev == "auto"
-                 else "M2 variant (pipeline=%s, ev_backend=%s)" % (pipe, ev))
+                  and ev == "auto"
+                  else "M2 variant (pipeline=%s, ev_backend=%s)" % (pipe, ev))
         return (
             "# pgagroal %s\n" % label +
             "# refs: CONFIGURATION.html, PIPELINES.html, ARCHITECTURE.html\n"
@@ -67,10 +67,22 @@ class PgAgroalAdapter(BaseAdapter):
             "allow_unknown_users = true\n"
             "log_type = console\n"
             "log_level = info\n"
+            "# backend server section (CONFIGURATION.html: sections other\n"
+            "# than [pgagroal] each configure one PostgreSQL backend;\n"
+            "# without one the pooler has no server to pool)\n"
+            "[primary]\n"
+            "host = 127.0.0.1\n"
+            "port = %d\n" % self.pg_port +
+            "primary = on\n"
             "# per-db pool (pgagroal_databases.conf): benchdb benchuser %d\n" % pool_size +
-            "# HBA (pgagroal_hba.conf, CI-only trust): "
-            "host benchdb benchuser 127.0.0.1/32 trust\n"
+            "# HBA (pgagroal_hba.conf, CI-only): scram-sha-256 so the\n"
+            "# client password (PGPASSWORD=benchpass in CI) is collected\n"
+            "# and benchuser authenticates against PostgreSQL itself\n"
+            "# (allow_unknown_users passthrough, CONFIGURATION.html).\n"
         )
+
+    def hba_text(self):
+        return "host benchdb benchuser 127.0.0.1/32 scram-sha-256\n"
 
     def setup(self, workdir, cell):
         super().setup(workdir, cell)
@@ -78,11 +90,12 @@ class PgAgroalAdapter(BaseAdapter):
         self.write_file("pgagroal.conf", self.config_text(cell))
         self.write_file("pgagroal_databases.conf",
                         "benchdb benchuser %d\n" % pool_size)
-        self.write_file("pgagroal_hba.conf",
-                        "host benchdb benchuser 127.0.0.1/32 trust\n")
+        self.write_file("pgagroal_hba.conf", self.hba_text())
 
     def start_argv(self, cell):
+        # Flags per pgagroal CLI: -c config, -a HBA, -l limit/databases
+        # file; -d is a daemon flag taking no argument. Foreground run.
         return [self.BINARY, "-c",
-                self.workdir + "/pgagroal.conf", "-H",
-                self.workdir + "/pgagroal_hba.conf", "-d",
-                self.workdir + "/pgagroal_databases.conf", "-f"]
+                self.workdir + "/pgagroal.conf", "-a",
+                self.workdir + "/pgagroal_hba.conf", "-l",
+                self.workdir + "/pgagroal_databases.conf"]

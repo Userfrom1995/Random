@@ -2,6 +2,7 @@
 
 Reference (normative): https://pg-odyssey.tech/configuration/rules.html,
 https://pg-odyssey.tech/configuration/global.html,
+https://pg-odyssey.tech/configuration/storage.html,
 https://pg-odyssey.tech/features/pooling.html
 
 ## M1 baseline (transaction pool, single worker)
@@ -9,21 +10,44 @@ https://pg-odyssey.tech/features/pooling.html
 Global: `workers = 1`, `resolvers = 1`,
 `backend_connect_timeout_ms = 30000`.
 
-Route:
+Backend endpoint (storage reference):
 
 ```ini
-pool = transaction
-pool_size = 10
-pool_discard = yes
-pool_smart_discard = no
-pool_cancel = yes
-pool_rollback = yes
-pool_timeout = 0
-pool_ttl = 0
-server_lifetime = 3600
-pool_reserve_prepared_statement = no
-server_pstmt_cache_size = 0
+storage "benchdb_store" {
+  type "remote"
+  host "127.0.0.1"
+  port 5432
+}
 ```
+
+Routing rule (database/user blocks referencing the storage):
+
+```ini
+database "benchdb" {
+  user "benchuser" {
+    authentication "none"
+    storage "benchdb_store"
+    storage_user "benchuser"
+    storage_password "benchpass"
+    pool = transaction
+    pool_size = 10
+    pool_discard = yes
+    pool_smart_discard = no
+    pool_cancel = yes
+    pool_rollback = yes
+    pool_timeout = 0
+    pool_ttl = 0
+    server_lifetime = 3600
+    pool_reserve_prepared_statement = no
+  }
+}
+```
+
+Auth note (CI-only): frontend `authentication "none"` trusts the benchmark
+client; the backend leg always carries `storage_user`/`storage_password`
+against PostgreSQL SCRAM. The legacy `route { service ... backend_host ..
+}` syntax is rejected by Odyssey 1.5.1 (`unknown parameter`) and is not
+used; `server_pstmt_cache_size` is not an Odyssey parameter and is not set.
 
 Rationale cites: mode semantics from the pooling feature page; every
 `pool_*` default from the rules reference; `workers` from the global

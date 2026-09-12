@@ -53,7 +53,8 @@ class OdysseyAdapter(BaseAdapter):
                  % (pool, workers, ", provisional" if prov else ""))
         lines = [
             "# Odyssey %s" % label,
-            "# refs: rules.html, global.html, features/pooling.html",
+            "# refs: rules.html, global.html, storage.html, "
+            "features/pooling.html",
         ]
         if prov:
             lines.append("# PROVISIONAL statement arm: verify empirically "
@@ -66,23 +67,33 @@ class OdysseyAdapter(BaseAdapter):
             '  host "127.0.0.1"',
             "  port %d" % self.port,
             "}",
-            "route {",
-            '  service "benchdb"',
-            '  database "benchdb"',
-            '  user "benchuser"',
-            '  backend_host "127.0.0.1"',
-            "  backend_port %d" % self.pg_port,
-            "  pool %s" % pool,
-            "  pool_size %d" % pool_size,
-            "  pool_discard yes",
-            "  pool_smart_discard no",
-            "  pool_cancel yes",
-            "  pool_rollback yes",
-            "  pool_timeout 0",
-            "  pool_ttl 0",
-            "  server_lifetime 3600",
-            "  pool_reserve_prepared_statement %s" % reserve,
-            "  server_pstmt_cache_size 0",
+            # Backend endpoint (storage.html): single remote PG node.
+            'storage "benchdb_store" {',
+            '  type "remote"',
+            '  host "127.0.0.1"',
+            "  port %d" % self.pg_port,
+            "}",
+            # Routing rule (rules.html): database/user blocks referencing
+            # the storage. Frontend authentication "none" is CI-only (the
+            # benchmark client is trusted); the backend leg always uses
+            # storage_user/storage_password against PostgreSQL scram.
+            'database "benchdb" {',
+            '  user "benchuser" {',
+            '    authentication "none"',
+            '    storage "benchdb_store"',
+            '    storage_user "benchuser"',
+            '    storage_password "benchpass"',
+            '    pool "%s"' % pool,
+            "    pool_size %d" % pool_size,
+            "    pool_discard yes",
+            "    pool_smart_discard no",
+            "    pool_cancel yes",
+            "    pool_rollback yes",
+            "    pool_timeout 0",
+            "    pool_ttl 0",
+            "    server_lifetime 3600",
+            '    pool_reserve_prepared_statement %s' % reserve,
+            "  }",
             "}",
         ])
         return "\n".join(lines) + "\n"

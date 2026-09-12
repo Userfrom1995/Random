@@ -30,7 +30,10 @@ class BaseAdapter:
 
     # -- interface (override in subclasses) --
     def setup(self, workdir, cell):
-        self.workdir = workdir
+        # Absolute workdir: adapters render config paths and argv from it,
+        # and relative paths double up when the runner also sets cwd
+        # (proven by CI workdirs: relative --out doubled config paths).
+        self.workdir = os.path.abspath(workdir)
         self._cell = dict(cell)
         os.makedirs(workdir, exist_ok=True)
 
