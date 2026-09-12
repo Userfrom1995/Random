@@ -85,9 +85,13 @@ jobs:
           # https://github.com/yandex/odyssey/releases/tag/v1.5.1
           # https://github.com/pgagroal/pgagroal
           # https://github.com/postgresml/pgcat/releases/tag/v1.2.0
+          # pgagroal CMakeLists.txt lists FATAL deps: zlib, bzip2, zstd, lz4,
+          # OpenSSL 3+, rst2man, liburing 2.5+ on Linux, libatomic.
+          # Ref: https://github.com/pgagroal/pgagroal/blob/master/CMakeLists.txt
           sudo apt-get install -y -qq libevent-dev libssl-dev \
             libpq-dev pkg-config build-essential git curl cmake \
-            flex bison libev-dev pandoc
+            flex bison libev-dev pandoc libbz2-dev zlib1g-dev \
+            libzstd-dev liblz4-dev liburing-dev python3-docutils
           mkdir -p /tmp/poolers
           cd /tmp/poolers
           # --- PgBouncer 1.25.2 (2026-05-08) ---
@@ -188,6 +192,7 @@ jobs:
         if: always()
         run: |
           set -eux
+          export PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH"
           out="poolduel/results/m1-${{ matrix.chunk }}"
           mkdir -p "$out"
           {
@@ -202,8 +207,11 @@ jobs:
             echo "pgcat v1.2.0 git SHA:"
             cat /tmp/poolers/pgcat.sha 2>/dev/null || echo "n/a"
             echo "binaries:"
-            command -v pgbouncer; command -v pgpool; command -v odyssey
-            command -v pgagroal; command -v pgcat
+            command -v pgbouncer || echo "n/a (missing pgbouncer)"
+            command -v pgpool || echo "n/a (missing pgpool)"
+            command -v odyssey || echo "n/a (missing odyssey)"
+            command -v pgagroal || echo "n/a (missing pgagroal)"
+            command -v pgcat || echo "n/a (missing pgcat)"
           } > "$out/pooler-versions.txt"
           cat "$out/pooler-versions.txt"
 
