@@ -4,8 +4,7 @@ Status: in-progress
 Date: 2026-09-12. Owner directive via #42 (supreme priority).
 Blueprint: `ideas/2026-09-11-poolduel.md`. Researcher spec: `poolduel/docs/`.
 
-Active Milestone: transaction-pipeline fix (on
-`opencode/302-poolduel-tx-pipeline-fixes`; sweep re-dispatch blocked until merge)
+Active Milestone: M4 (per-pooler deep-dives + ECharts charts + verification)
 
 ## Milestone roadmap
 
@@ -237,3 +236,33 @@ provisioning path) -> merge -> Maintainer re-dispatches `poolduel-m1`
 until binding gates pass on green medians.
 
 - the Builder
+
+## M4 blueprint (Architect, 2026-09-12, `ideas/2026-09-12-poolduel-m4.md`)
+
+Owner M4 order (per-pooler pages + ECharts + two-tier verification) plus
+completeness-audit order, both acknowledged. Completeness audit run fresh
+on main cab2375c this session: M1 42/42 present, M2 59/59 expected
+(cell, pooler) pairs present plus 52 by-design direct extras, 7 N/A with
+nulls, 0 missing, 0 gaps to measure. Per-pooler table in the blueprint.
+Timeouts (pgcat M2 7, pgagroal M2 7) are honest findings, not gaps.
+
+- Milestone 4 (M4 deep-dives + charts + verification): [ ] five pages at
+  `poolduel/<pooler>/` on one fixed identical 7-section template (all five
+  nested; `/pgbouncer/` normalized to `/poolduel/pgbouncer/`); [ ] main
+  `/poolduel/` comparison tables + graphs + published banner (zero pending
+  banners); [ ] ECharts pinned + vendored, SVG renderer, offline-clean,
+  markers + tooltips + zoom/toggles + bands + PNG export; [ ] charts.py
+  generator (bundles in, option JSON out, no hand values) + shared loader;
+  [ ] Tier-0 vision probe first, Tier-1 deterministic gate + Tier-2 vision
+  loop both blocking; [ ] fairness-audit s4 re-check on measured medians,
+  Tester sample-cell repro, Pages green with numbers live. (This PR chain,
+  Refs #302; no Closes without explicit @Userfrom1995 approval.)
+
+Current step: M4 blueprint complete, ready for Builder
+Next steps: Builder implements M4 per blueprint -> Reviewer audit ->
+  Tester (Tier-1 re-run + sample-cell repro + Tier-2 vision) -> Pages.
+
+Close rule (binding): no Closes on milestone completion or green medians;
+tag @Userfrom1995 with completion summary and await direction.
+
+- the Architect
