@@ -109,6 +109,7 @@ class PgAgroalAdapter(BaseAdapter):
             "[primary]\n"
             "host = 127.0.0.1\n"
             "port = %d\n" % self.pg_port +
+            "primary = on\n" +
             "# per-db pool (pgagroal_databases.conf): full\n"
             "# DATABASE USER MAX_SIZE INITIAL_SIZE MIN_SIZE triple, all > 0\n"
             "# (mandatory for the transaction pipeline); prefilled to max\n"
