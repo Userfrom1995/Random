@@ -23,12 +23,23 @@ validation = off
 track_prepared_statements = off
 nodelay = on
 keep_alive = on
-allow_unknown_users = true
+allow_unknown_users = false
 log_type = console
 log_level = info
 ```
 
-Per-database pool (`pgagroal_databases.conf`): `benchdb benchuser 10`.
+Per-database pool (`pgagroal_databases.conf`): full triple
+`benchdb benchuser 10 10 10` (DATABASE USER MAX_SIZE INITIAL_SIZE
+MIN_SIZE, all > 0 - mandatory for the transaction pipeline per the
+validator in `src/libpgagroal/configuration.c`; prefilled to max per
+the PIPELINES prefill recommendation). User vault
+(`pgagroal_users.conf` via `-u`, provisioned in adapter setup with
+`pgagroal-admin master-key` + `user add` for benchuser, CI-only bench
+credential): mandatory for the transaction pipeline ("Users must be
+defined for the transaction pipeline"); `allow_unknown_users` must be
+`false` for the same pipeline (both FATALs proven in
+`src/libpgagroal/configuration.c`; `test/conf/01-02` pin
+`allow_unknown_users = false`).
 Backend server section (mandatory per CONFIGURATION.html - sections other
 than `[pgagroal]` each configure one PostgreSQL backend):
 
@@ -41,13 +52,14 @@ primary = on
 
 HBA (`pgagroal_hba.conf`): `host benchdb benchuser 127.0.0.1/32 scram-sha-256`
 (CI-only; production would use per-user vault entries). The scram method
-makes the pooler collect the client password (CI `PGPASSWORD=benchpass`)
-so `benchuser` authenticates against PostgreSQL itself via the
-`allow_unknown_users` passthrough (CONFIGURATION.html); `trust` cannot be
+makes the pooler collect the client password (CI `PGPASSWORD=benchpass`,
+vault entry created with the same credential) so the vault-known
+`benchuser` authenticates against PostgreSQL itself
+(CONFIGURATION.html); `trust` cannot be
 used because the pooler would then hold no password for the SCRAM backend.
 Startup: `pgagroal -c pgagroal.conf -a pgagroal_hba.conf -l
-pgagroal_databases.conf` in the foreground (`-d` is a daemon flag taking
-no argument).
+pgagroal_databases.conf -u pgagroal_users.conf` in the foreground (`-d`
+is a daemon flag taking no argument).
 Rationale cites: transaction-mode advice (`blocking_timeout = 0`,
 `idle_timeout = 0`, `max_connection_age = 0`) from PIPELINES; `ev_backend`
 choices from ARCHITECTURE.

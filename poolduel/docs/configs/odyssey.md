@@ -8,7 +8,11 @@ https://pg-odyssey.tech/features/pooling.html
 ## M1 baseline (transaction pool, single worker)
 
 Global: `workers = 1`, `resolvers = 1`,
-`backend_connect_timeout_ms = 30000`.
+`backend_connect_timeout_ms = 30000`,
+`log_format = "%p %t %l [%i %s] (%c) %m\n"` (MANDATORY - odyssey 1.5.1
+`sources/config.c` `od_config_validate` FATALs `log_format is not
+defined` otherwise; value verbatim from upstream `odyssey.conf`),
+`log_to_stdout = yes` (keeps logs in the runner capture).
 
 Backend endpoint (storage reference):
 

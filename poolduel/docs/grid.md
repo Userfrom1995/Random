@@ -32,14 +32,18 @@ https://pgagroal.github.io/doc/PIPELINES.html
 | `ev_backend` | {`io_uring`, `epoll`} | `auto` |
 | `max_connections` | {10, 20} (iso backends) | 100 |
 | per-db `MAX_SIZE` | matches `max_connections` | unset |
+| per-db `INITIAL_SIZE`, `MIN_SIZE` | prefilled to `MAX_SIZE` (all > 0, mandatory for transaction) | 0 |
+| user vault (`-u`) | benchuser defined (mandatory for transaction) | unset |
 | `blocking_timeout` | {0 (transaction mode per docs), 30s (session modes)} | 30s |
 | `idle_timeout`, `max_connection_age` | {0} (disabled per transaction-mode advice) | 0 |
 | `validation` | {off} (M1/M2 baseline) | off |
 | `track_prepared_statements` | {off, on} (transaction prepared twin only) | off |
 | `nodelay`, `keep_alive` | {on} fixed | on |
 
-`allow_unknown_users`, `disconnect_client`, TLS, failover stay at defaults
-(off / 0) unless a documented M2 variant says otherwise.
+`allow_unknown_users = false` (mandatory for the transaction pipeline per
+the upstream validator; upstream `test/conf/01-02` pin the same),
+`disconnect_client`, TLS, failover stay at defaults (0 / off) unless a
+documented M2 variant says otherwise.
 
 ## 2. PgBouncer grid
 

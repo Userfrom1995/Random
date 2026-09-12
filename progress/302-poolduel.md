@@ -4,8 +4,8 @@ Status: in-progress
 Date: 2026-09-12. Owner directive via #42 (supreme priority).
 Blueprint: `ideas/2026-09-11-poolduel.md`. Researcher spec: `poolduel/docs/`.
 
-Active Milestone: adapter startup/auth fix (on
-`opencode/302-poolduel-adapter-fixes`; sweep re-dispatch blocked until merge)
+Active Milestone: transaction-pipeline fix (on
+`opencode/302-poolduel-tx-pipeline-fixes`; sweep re-dispatch blocked until merge)
 
 ## Milestone roadmap
 
@@ -194,5 +194,46 @@ Current step: fix branch complete, awaiting review
 Next steps: Reviewer audit -> Tester repro -> merge -> Maintainer
   re-dispatches `poolduel-m1` (9 chunks) then chains `poolduel-m2`.
   `Refs #302`: no `Closes` until binding gates pass on green medians.
+
+- the Builder
+
+## 2026-09-12 transaction-pipeline fix (this run, `opencode/302-poolduel-tx-pipeline-fixes`)
+
+Sweep 34699523244 (on eb07f10f) FAILED 9/9 product startup again, now
+down to two arms (Lab run 34701351432, artifact-proven):
+- pgagroal tip rc=1 `Users must be defined for the transaction pipeline`
+- odyssey 1.5.1 rc=1 `log_format is not defined`
+Direct/pgbouncer/pgcat/pgpool now measure (19 measured medians in
+ac897b75); pgagroal/odyssey emit zero raw records.
+
+Fixes (proven against upstream source, not guessed):
+- `pgagroal.py`: `allow_unknown_users = false` (validator FATALs on
+  true; test/conf/01-02 pin false); `pgagroal_databases.conf` now the
+  full `benchdb benchuser N N N` triple (max/initial/min all > 0
+  mandatory, prefilled per PIPELINES); new `provision_users()` runs
+  `pgagroal-admin master-key` (once per HOME) + `user add` for
+  benchuser in setup() when the binary exists (CI/local repro),
+  skipping silently when absent (unit tests); password via
+  PGAGROAL_PASSWORD env, stdin DEVNULL, AdapterError on failure;
+  `start_argv` gains `-u <abs users.conf>`.
+- `odyssey.py`: `log_format "%p %t %l [%i %s] (%c) %m\n"` (verbatim
+  from upstream odyssey.conf; mandatory per sources/config.c
+  od_config_validate) + `log_to_stdout yes`. Verified against v1.5.1
+  source that no other global is mandatory without unix_socket_dir
+  (which the harness does not set).
+- `docs/configs/pgagroal.md`, `odyssey.md`, `grid.md`: updated to the
+  corrected rendering with upstream citations (validator paths,
+  test/conf, odyssey.conf).
+- Tests: 12 new in `tests/test_adapter_tx_fix.py` (mandates per
+  pipeline, triple shape, vault argv, provision mock matrix incl.
+  key-skip + loud failure + no-password-on-cmdline, log globals per
+  variant). 149/149 green, `repro.sh --dry-run` intact (12-row pilot
+  plan byte-identical), M1 pilot table in index.html untouched.
+
+Current step: fix branch complete, awaiting review
+Next steps: Reviewer audit -> Tester repro (incl. pgagroal-admin
+provisioning path) -> merge -> Maintainer re-dispatches `poolduel-m1`
+(9 chunks) then chains `poolduel-m2`. `Refs #302`: no `Closes`
+until binding gates pass on green medians.
 
 - the Builder
