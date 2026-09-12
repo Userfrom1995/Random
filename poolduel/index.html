@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="poolduel-charts-prefix" content="results/charts/">
 <title>Poolduel: PostgreSQL Pooler Shootout (M1+M2 report)</title>
 <style>
 :root { color-scheme: dark; }
@@ -30,7 +31,9 @@ footer { margin-top: 36px; color: #9aa7b4; font-size: 0.85rem; }
 ul.tight li { margin-bottom: 4px; }
 .chart { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
   padding: 12px; margin: 12px 0; overflow-x: auto; }
-.chart text { fill: #e6edf3; font-size: 11px; }
+.echart { width: 100%; height: 420px; background: #161b22;
+  border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin: 12px 0; }
+nav.poolnav { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
 .chart .bar-na { fill: #484f58; }
 .note { color: #9aa7b4; font-size: 0.88rem; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -41,18 +44,17 @@ ul.tight li { margin-bottom: 4px; }
 <h1>Poolduel: PostgreSQL connection pooler shootout</h1>
 <p class="sub">pgagroal vs PgBouncer vs pgpool-II vs Odyssey vs pgcat, plus direct-to-PostgreSQL control. Tracks issue #302. Full M1+M2 report.</p>
 
-<div class="banner pending" id="status-banner">
-<strong>Status: harness plus report live, sweeps pending.</strong>
-The M1 transaction matrix (7 cells, 9 CI chunks) and the M2 modes/I-O matrix
-(52 measured rows plus 7 N/A rows, 16 CI chunks) are implemented, unit-tested
-(100 tests), and dispatched manually from
-<code>.github/workflows/poolduel-m1.yml</code> and
-<code>.github/workflows/poolduel-m2.yml</code>. No benchmark medians exist
-yet: every results cell below honestly reads <span class="pend">pending</span>,
-never zero, never interpolated. Numbers appear only after the sweeps commit
-raw JSON plus medians; this page then fills in automatically from
-<code>results/m1/medians.json</code>, <code>results/m2/medians.json</code>,
-and <code>results/report.json</code>.
+<div class="banner" id="status-banner">
+<strong>Status: sweep medians published below.</strong>
+Raw JSON plus medians committed with exact configs (M1: 42 cells, M2: 111
+records incl. 7 N/A with nulls); CSV exports alongside the tables.
+Per-pooler deep-dives:
+<a href="pgagroal/">pgagroal</a> |
+<a href="pgbouncer/">PgBouncer</a> |
+<a href="pgpool/">pgpool-II</a> |
+<a href="odyssey/">Odyssey</a> |
+<a href="pgcat/">pgcat</a>.
+Refs #302.
 </div>
 
 <div class="section">
@@ -163,7 +165,7 @@ dry-run plans 312 arm-runs (<code>repro.sh --m2-dry-run</code>).</p>
 </div>
 
 <div class="section">
-<h2>5. Results: M1 medians (pending CI sweep)</h2>
+<h2>5. Results: M1 medians (sweep published)</h2>
 <p>Headline metric per cell: median tps with min-max band and CV, plus p50/p90/
 p99/p999 from per-transaction logs, failed/skipped counts, exit codes. Published
 per arm only after the sweep. Unsupported cells will read
@@ -185,7 +187,7 @@ Full matrix: <a href="results/m1/matrix.csv">results/m1/matrix.csv</a> (publishe
 </div>
 
 <div class="section">
-<h2>6. Results: M2 best-vs-best plus N/A (pending CI sweep)</h2>
+<h2>6. Results: M2 best-vs-best plus N/A (sweep published)</h2>
 <p>Per cell the head arm is the highest tps median; every other arm carries the
 binding-gate verdict (non-overlapping min-max bands AND same-direction tps plus
 p99 agreement, else <code>inconclusive</code>). N/A rows are listed with nulls,
@@ -206,7 +208,35 @@ exact configs attached (verbatim in <code>docs/configs/</code>).</p>
 </div>
 
 <div class="section">
-<h2>7. Iso-region slices and surface flatness (pending data)</h2>
+<h2>6b. Comparison graphs (interactive, ECharts SVG)</h2>
+<p class="note">Every figure below is generated from committed bundles by
+<code>harness/charts.py</code> (<code>results/charts/comparison.json</code>,
+no hand values): per-point markers, hover tooltips with exact values, legend
+toggles, dataZoom, min-max bands, PNG export. Axes start at zero; N/A and
+timeout cells are marked, never zero-filled. Per-pooler deep-dives:
+<a href="pgagroal/">pgagroal</a> | <a href="pgbouncer/">PgBouncer</a> |
+<a href="pgpool/">pgpool-II</a> | <a href="odyssey/">Odyssey</a> |
+<a href="pgcat/">pgcat</a>.</p>
+<h3>M1 best-vs-best per workload</h3>
+<div class="echart" data-page="comparison" data-chart="m1-best"></div>
+<h3>M2 session block</h3>
+<div class="echart" data-page="comparison" data-chart="m2-session"></div>
+<h3>M2 statement block</h3>
+<div class="echart" data-page="comparison" data-chart="m2-statement"></div>
+<h3>M2 I/O block</h3>
+<div class="echart" data-page="comparison" data-chart="m2-io"></div>
+<h3>M2 workload twins</h3>
+<div class="echart" data-page="comparison" data-chart="m2-workloads"></div>
+<h3>M2 prepared twins</h3>
+<div class="echart" data-page="comparison" data-chart="m2-prepared"></div>
+<h3>Iso-region overlay (shared geometry)</h3>
+<div class="echart" data-page="comparison" data-chart="iso-overlay"></div>
+<h3>Surface flatness strip</h3>
+<div class="echart" data-page="comparison" data-chart="flatness"></div>
+</div>
+
+<div class="section">
+<h2>7. Iso-region slices and surface flatness (sweep published)</h2>
 <div class="grid2">
 <div>
 <h3>Iso-region matching</h3>
@@ -281,7 +311,8 @@ statement results are labeled provisional until empirically verified.</li>
 THREADS=4 OUT=poolduel/results/m1 ./poolduel/repro.sh --full
 ./poolduel/repro.sh --m2-dry-run  # print the full 312-run M2 plan
 ./poolduel/repro.sh --m2-full     # all 16 M2 chunks plus N/A records
-./poolduel/repro.sh --report      # raw JSON -&gt; medians, matrix CSVs, report.json</pre>
+./poolduel/repro.sh --report      # raw JSON -&gt; medians, matrix CSVs, report.json
+./poolduel/repro.sh --charts      # report.json -&gt; results/charts/ option JSON</pre>
 <p>Requires <code>pgbench</code> plus <code>psql</code> from PostgreSQL 17.
 <code>repro.sh</code> runs the preflight guard first
 (<code>poolduel/harness/check.py</code>: binaries, ratio guards, chunk caps)
@@ -301,6 +332,8 @@ Docs: <a href="docs/test-matrix.md">test-matrix</a> |
 <a href="docs/fairness-audit.md">fairness-audit</a> | - the Builder
 </footer>
 
+<script src="vendor/echarts-5.5.1/dist/echarts.min.js"></script>
+<script src="assets/poolduel-charts.js"></script>
 <script>
 // Poolduel live report: fills pending tables and charts from sweep artifacts.
 // Absence of artifacts keeps every cell honestly pending (never zero-filled).
