@@ -1,14 +1,14 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-d/work-M1-4-pgpool-r2/logs/cell-M1-4-r2-24031.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-d/work-M1-4-pgpool-r2/logs/cell-M1-4-r2-24031.26848"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-d/work-M1-4-pgpool-r2/logs/cell-M1-4-r2-28734.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-d/work-M1-4-pgpool-r2/logs/cell-M1-4-r2-28734.27042"
   },
   "cell_id": "M1-4",
   "churn": false,
   "clients": 200,
   "duration_s": 60,
-  "exit_code": 1,
+  "exit_code": -11,
   "failed": 0,
   "latency_avg_ms": null,
   "latency_stddev_ms": null,

@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgbouncer-r3/logs/cell-M1-3-r3-24674.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgbouncer-r3/logs/cell-M1-3-r3-24674.25941"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgbouncer-r3/logs/cell-M1-3-r3-31756.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgbouncer-r3/logs/cell-M1-3-r3-31756.27050"
   },
   "cell_id": "M1-3",
   "churn": false,

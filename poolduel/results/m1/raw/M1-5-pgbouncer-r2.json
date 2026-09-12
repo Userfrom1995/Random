@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-e/work-M1-5-pgbouncer-r2/logs/cell-M1-5-r2-24157.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-e/work-M1-5-pgbouncer-r2/logs/cell-M1-5-r2-24157.25444"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-e/work-M1-5-pgbouncer-r2/logs/cell-M1-5-r2-28331.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-e/work-M1-5-pgbouncer-r2/logs/cell-M1-5-r2-28331.26010"
   },
   "cell_id": "M1-5",
   "churn": false,
@@ -10,12 +10,12 @@
   "duration_s": 60,
   "exit_code": 0,
   "failed": 0,
-  "latency_avg_ms": 14.608,
-  "latency_stddev_ms": 7.72,
-  "p50_ms": 249960.344,
-  "p90_ms": 249986.133,
-  "p999_ms": 249991.21962000002,
-  "p99_ms": 249990.7572,
+  "latency_avg_ms": 14.177,
+  "latency_stddev_ms": 10.379,
+  "p50_ms": 249944.052,
+  "p90_ms": 252349.761,
+  "p999_ms": 254679.11715,
+  "p99_ms": 254467.35749999998,
   "pg_config": {
     "fsync": "on",
     "max_connections": 300,
@@ -34,7 +34,7 @@
   "skipped": 0,
   "status": "measured",
   "threads": 4,
-  "tps": 6843.995958,
+  "tps": 7051.986587,
   "warmup_s": 30,
   "workload": "simple-update"
 }
