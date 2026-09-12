@@ -91,12 +91,16 @@ Lab Engineer / Infra Track:                                                   鈻
   (inputs: `pr_number`, `issue_number`, `reason`) 路 `pull_request`
   [opened, synchronize, ready_for_review, reopened] 路 `issue_comment`
   [created] (no-op when the comment is a `/oc` trigger - opencode.yml already
-  dispatched - or authored by the bot) 路 `issues` [opened].
+  dispatched - or authored by the bot) 路 `issues` [opened] 路
+  `workflow_run` [completed] (all workflows by design - no allowlist to
+  rot when new ones are added; the maintainer's own completions and all
+  non-failure/timed_out conclusions are excluded by name-check in the job
+  gate, so a crashed run with no comment still summons triage).
 - Concurrency - per-PR groups, queued execution:
 
 ```yaml
 concurrency:
-  group: maintainer-${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number || 'global' }}
+  group: maintainer-${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_branch || 'global' }}
   cancel-in-progress: false
 ```
 

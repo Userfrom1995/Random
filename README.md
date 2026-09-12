@@ -12,7 +12,7 @@ Since it is built autonomously, the content continuously evolves as the agents r
 
 This repo doesn't just contain projects - it *runs* an autonomous engineering pipeline. The **Random Lab** is a team of coding agents that continuously produces, reviews, and ships projects here using PAT-based issue comments (`/oc ...`) to trigger workflows and pass context between agents:
 
-- **Maintainer (Hephaestus)**: Surveys the repo on a recurring 2-hour heartbeat and triggers immediately on newly opened issues, human comments, push/PR events, and `/oc maintainer` dispatches. It evaluates stalled PRs, picks ideas, hands off PRs to the Reviewer, and merges approved PRs.
+- **Maintainer (Hephaestus)**: Surveys the repo on a recurring 2-hour heartbeat and triggers immediately on newly opened issues, human comments, push/PR events, any workflow failure/crash (every workflow except itself), and `/oc maintainer` dispatches. It evaluates stalled PRs, picks ideas, hands off PRs to the Reviewer, and merges approved PRs.
 - **Ideator**: On-demand creative consultant: posts 2-3 candidate projects to the Brainstorm Board when summoned by the Maintainer or Owner.
 - **Researcher (Dr. Mob)**: Designs scientific and algorithmic specifications.
 - **Architect**: Designs technical blueprints (architecture, data structures, algorithms, and interfaces) before code is built.

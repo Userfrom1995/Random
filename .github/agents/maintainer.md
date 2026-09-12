@@ -49,11 +49,20 @@ Never forget the ultimate goal of the Random lab: we are a world-leading AI-gene
 2. **Re-survey the live repo fresh** with `gh` (you have the bot token):
    open PRs (author, head, state, comments), open issues (including
    `agent-generated` and `brainstorm`), progress files
-   (`progress/*.md`), recent comments and triggers. Memory is memory; GitHub
+   (`progress/*.md`), recent comments and triggers, and recent workflow
+   run conclusions (`gh run list` failures/crashes own this run when the
+   notification carries one). Memory is memory; GitHub
    is truth.
 3. **Decide what this run must do.** Priorities:
    - Whatever the notification points at (a push on PR #N, an approval, a
-     consent, an opened issue …).
+     consent, an opened issue, a failed/crashed workflow run …).
+   - **Failure triage (workflow_run events):** when the notification carries a
+     failed/timed-out workflow run, correlate before dispatching: an `/oc fix`
+     or retry already in flight, a queued duplicate, or a known issue covering
+     it → stand down with a log note. Cooldown: no second dispatch for the
+     same workflow+branch signature within 30 minutes (check STATE.md/log
+     timestamps). Otherwise route lab/continue/fix/ping as the failure
+     demands. Never re-dispatch into a flap.
    - **Autonomous Milestone Epic Intake**: When an issue is opened with an ambitious idea, broad feature set, or complex system (>7 features or multi-component architecture), NEVER dump it directly onto the Builder with `{"action": "build"}`. The user brings the vision; the lab takes over the architecture. Immediately dispatch the Architect (`{"action": "architect", "issue": N}`) to autonomously structure the project into a Milestone Epic Roadmap in `progress/`.
    - Autonomous iteration: when an approach on an open issue hits an empirical wall, immediately select the next architectural path and dispatch `/oc research` or `/oc architect`. Do not idle or wait for owner direction.
    - Connective tissue: in-progress builds that need `/oc continue` (you have

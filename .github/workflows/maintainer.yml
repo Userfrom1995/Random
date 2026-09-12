@@ -21,6 +21,14 @@ on:
     types: [created]
   issues:
     types: [opened]
+  workflow_run:
+    # Failure/crash summon: fires on EVERY workflow completion BY DESIGN.
+    # There is no workflows-ignore filter, and an explicit allowlist would
+    # silently miss every future workflow (new projects must not have to
+    # remember this file). Self-exclusion (never triage our own completion)
+    # and conclusion filtering (failure/timed_out only) both live in the
+    # job `if:` below, where a skipped run costs nothing.
+    types: [completed]
 
 permissions:
   contents: write
@@ -29,17 +37,18 @@ permissions:
   actions: write
 
 concurrency:
-  group: maintainer-${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number || 'global' }}
+  group: maintainer-${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_branch || 'global' }}
   cancel-in-progress: false
 
 jobs:
   maintainer:
     if: |
-      github.event_name != 'issue_comment' ||
-      (github.event.comment.user.login != 'github-actions[bot]' &&
+      (github.event_name == 'workflow_run' && github.event.workflow_run.name != 'maintainer' && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'timed_out')) ||
+      (github.event_name != 'issue_comment' && github.event_name != 'workflow_run') ||
+      (github.event_name == 'issue_comment' && github.event.comment.user.login != 'github-actions[bot]' &&
        !startsWith(github.event.comment.body, '/oc') &&
        !startsWith(github.event.comment.body, '/opencode')) ||
-      startsWith(github.event.comment.body, '/oc maintainer')
+      (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/oc maintainer'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -94,6 +103,12 @@ jobs:
               "COMMENT_AUTHOR: \(.comment.user.login // "" // "")",
               "ISSUE_TITLE: \(.issue.title // "" // "")",
               "ISSUE_USER: \(.issue.user.login // "" // "")",
+              "WORKFLOW_RUN_NAME: \(.workflow_run.name // "" // "")",
+              "WORKFLOW_RUN_CONCLUSION: \(.workflow_run.conclusion // "" // "")",
+              "WORKFLOW_RUN_BRANCH: \(.workflow_run.head_branch // "" // "")",
+              "WORKFLOW_RUN_SHA: \(.workflow_run.head_sha // "" // "")",
+              "WORKFLOW_RUN_ID: \(.workflow_run.id // "" // "")",
+              "WORKFLOW_RUN_PR: \(.workflow_run.pull_requests[0].number // "" // "")",
               "INPUTS: \((.inputs // {}) | tostring)"' "$GITHUB_EVENT_PATH"
           } > .maintainer/notification.txt
           echo "--- notification ---"
