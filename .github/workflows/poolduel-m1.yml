@@ -34,7 +34,10 @@ jobs:
   sweep:
     name: M1 sweep chunk
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Measurement per chunk stays under 60 min per poolduel/docs/test-matrix.md
+    # section 5; the extra cap covers one-time pinned source builds below
+    # (pgcat compiles from source, no v1.2.0 release assets exist).
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -73,18 +76,92 @@ jobs:
       - name: Build poolers (pinned versions)
         run: |
           set -eux
-          # PgBouncer 1.25.2 tarball with sha256 verification.
-          # Other poolers pin release tags per poolduel/docs/versions.md;
-          # pgagroal records its master tip SHA into the artifact manifest.
+          # Pinned per poolduel/docs/versions.md; any upgrade means a re-run,
+          # never carried-forward numbers. pgagroal pins its master tip SHA
+          # at build time and discloses it (see pooler-versions step below).
+          # Refs:
+          # https://www.pgbouncer.org/downloads/
+          # https://www.pgpool.net/docs/pgpool-II-4.7.2/en/html/install-getsource.html
+          # https://github.com/yandex/odyssey/releases/tag/v1.5.1
+          # https://github.com/pgagroal/pgagroal
+          # https://github.com/postgresml/pgcat/releases/tag/v1.2.0
           sudo apt-get install -y -qq libevent-dev libssl-dev \
-            libpq-dev pkg-config build-essential git curl
+            libpq-dev pkg-config build-essential git curl cmake \
+            flex bison libev-dev
           mkdir -p /tmp/poolers
           cd /tmp/poolers
+          # --- PgBouncer 1.25.2 (2026-05-08) ---
           curl -fsSL -o pgbouncer-1.25.2.tar.gz \
             https://www.pgbouncer.org/downloads/files/1.25.2/pgbouncer-1.25.2.tar.gz
-          sha256sum pgbouncer-1.25.2.tar.gz
-          echo "pooler build step: verify sha256 against the published value"
-          echo "in poolduel/docs/versions.md before benchmarking"
+          sha256sum pgbouncer-1.25.2.tar.gz | tee pgbouncer-1.25.2.sha256
+          tar xzf pgbouncer-1.25.2.tar.gz
+          cd pgbouncer-1.25.2
+          ./configure --prefix=/usr/local
+          make -j"$(nproc)"
+          sudo make install
+          cd /tmp/poolers
+          # --- pgpool-II 4.7.2 (head of 4.7 series, 2026-06-04) ---
+          curl -fsSL -o pgpool-II-4.7.2.tar.gz \
+            https://www.pgpool.net/source/pgpool-II-4.7.2.tar.gz
+          sha256sum pgpool-II-4.7.2.tar.gz | tee pgpool-II-4.7.2.sha256
+          tar xzf pgpool-II-4.7.2.tar.gz
+          cd pgpool-II-4.7.2
+          ./configure --prefix=/usr/local
+          make -j"$(nproc)"
+          sudo make install
+          cd /tmp/poolers
+          # --- Odyssey v1.5.1 stable (2026-07-12) ---
+          git clone --branch v1.5.1 --depth 1 \
+            https://github.com/yandex/odyssey.git odyssey-1.5.1
+          cd odyssey-1.5.1
+          git rev-parse HEAD | tee /tmp/poolers/odyssey.sha
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make -j"$(nproc)"
+          sudo make install || sudo install -m 0755 odyssey /usr/local/bin/odyssey
+          cd /tmp/poolers
+          # --- pgagroal master tip (SHA pinned at build, disclosed) ---
+          git clone https://github.com/pgagroal/pgagroal.git pgagroal-tip
+          cd pgagroal-tip
+          git rev-parse HEAD | tee /tmp/poolers/pgagroal.sha
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make -j"$(nproc)"
+          sudo make install
+          cd /tmp/poolers
+          # --- pgcat v1.2.0 (2024-08-30; release carries no binary
+          # --- assets, so build the v1.2.0 tag from source with cargo) ---
+          if ! command -v cargo >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+              sh -s -- -y --profile minimal
+          fi
+          export PATH="$HOME/.cargo/bin:$PATH"
+          git clone --branch v1.2.0 --depth 1 \
+            https://github.com/postgresml/pgcat.git pgcat-1.2.0
+          cd pgcat-1.2.0
+          git rev-parse HEAD | tee /tmp/poolers/pgcat.sha
+          cargo build --release
+          sudo install -m 0755 target/release/pgcat /usr/local/bin/pgcat
+          cd /tmp/poolers
+
+      - name: Verify pooler binaries
+        run: |
+          set -eux
+          export PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH"
+          # Fail loudly here (before any pgbench minute is spent) if any
+          # pooler binary the harness adapters exec is missing from PATH.
+          for bin in pgbouncer pgpool odyssey pgagroal pgcat; do
+            command -v "$bin" || { echo "missing pooler binary: $bin" >&2; exit 1; }
+          done
+          pgbouncer --version || true
+          pgpool --version || true
+          odyssey --version || true
+          pgagroal --version || true
+          pgcat --version || true
+          echo "--- pinned SHAs ---"
+          cat /tmp/poolers/pgagroal.sha
+          cat /tmp/poolers/odyssey.sha
+          cat /tmp/poolers/pgcat.sha
 
       - name: Init dataset and checkpoint
         run: |
@@ -106,6 +183,29 @@ jobs:
         run: |
           python3 -m poolduel.harness.cli --chunk "${{ matrix.chunk }}" \
             --threads "$(nproc)" --out "poolduel/results/m1-${{ matrix.chunk }}"
+
+      - name: Record pooler versions
+        if: always()
+        run: |
+          set -eux
+          out="poolduel/results/m1-${{ matrix.chunk }}"
+          mkdir -p "$out"
+          {
+            echo "pgbouncer 1.25.2 tarball sha256:"
+            cat /tmp/poolers/pgbouncer-1.25.2.sha256 2>/dev/null || echo "n/a"
+            echo "pgpool-II 4.7.2 tarball sha256:"
+            cat /tmp/poolers/pgpool-II-4.7.2.sha256 2>/dev/null || echo "n/a"
+            echo "odyssey v1.5.1 git SHA:"
+            cat /tmp/poolers/odyssey.sha 2>/dev/null || echo "n/a"
+            echo "pgagroal master tip SHA:"
+            cat /tmp/poolers/pgagroal.sha 2>/dev/null || echo "n/a"
+            echo "pgcat v1.2.0 git SHA:"
+            cat /tmp/poolers/pgcat.sha 2>/dev/null || echo "n/a"
+            echo "binaries:"
+            command -v pgbouncer; command -v pgpool; command -v odyssey
+            command -v pgagroal; command -v pgcat
+          } > "$out/pooler-versions.txt"
+          cat "$out/pooler-versions.txt"
 
       - name: Upload chunk results
         if: always()
@@ -161,6 +261,10 @@ jobs:
                 esac
                 cp "$f" poolduel/results/m1/raw/
               done
+            done
+            for vf in $(find /tmp/poolduel-m1-artifacts -name pooler-versions.txt 2>/dev/null); do
+              parent="$(basename "$(dirname "$vf")")"
+              cp "$vf" "poolduel/results/m1/pooler-versions-$parent.txt"
             done
           fi
           if ! ls poolduel/results/m1/raw/*.json >/dev/null 2>&1; then
