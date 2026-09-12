@@ -1,0 +1,392 @@
+{
+  "own-m1": {
+    "backgroundColor": "transparent",
+    "dataZoom": [
+      {
+        "type": "slider"
+      },
+      {
+        "type": "inside"
+      }
+    ],
+    "grid": {
+      "bottom": "18%",
+      "containLabel": true,
+      "left": "8%",
+      "right": "6%"
+    },
+    "legend": {
+      "textStyle": {
+        "color": "#E6EDF3"
+      },
+      "top": "bottom"
+    },
+    "series": [
+      {
+        "data": [
+          19579.167029,
+          null,
+          null,
+          9837.579344,
+          7217.102444,
+          null,
+          2990.605785
+        ],
+        "emphasis": {
+          "focus": "series"
+        },
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "name": "pgcat",
+        "type": "bar"
+      },
+      {
+        "data": [
+          19506.320689,
+          null,
+          null,
+          9750.451538,
+          7191.21828,
+          null,
+          2976.055743
+        ],
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "lineStyle": {
+          "color": "#CC79A7",
+          "type": "dashed"
+        },
+        "name": "pgcat min",
+        "showSymbol": true,
+        "symbol": "circle",
+        "symbolSize": 6,
+        "type": "line"
+      },
+      {
+        "data": [
+          19856.403039,
+          null,
+          null,
+          19497.929024,
+          7356.121975,
+          null,
+          3005.002996
+        ],
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "lineStyle": {
+          "color": "#CC79A7",
+          "type": "dashed"
+        },
+        "name": "pgcat max",
+        "showSymbol": true,
+        "symbol": "circle",
+        "symbolSize": 6,
+        "type": "line"
+      },
+      {
+        "data": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "itemStyle": {
+          "color": "#D29922"
+        },
+        "label": {
+          "color": "#D29922",
+          "formatter": "timeout/inconclusive",
+          "show": true
+        },
+        "name": "timeout/inconclusive",
+        "symbol": "triangle",
+        "symbolSize": 14,
+        "type": "scatter"
+      }
+    ],
+    "textStyle": {
+      "color": "#E6EDF3"
+    },
+    "title": {
+      "left": "center",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked",
+      "text": "pgcat M1 own surface",
+      "textStyle": {
+        "color": "#E6EDF3"
+      }
+    },
+    "toolbox": {
+      "feature": {
+        "saveAsImage": {
+          "title": "Save PNG"
+        }
+      }
+    },
+    "tooltip": {
+      "axisPointer": {
+        "type": "shadow"
+      },
+      "trigger": "axis"
+    },
+    "xAxis": {
+      "axisLabel": {
+        "color": "#E6EDF3",
+        "rotate": 30
+      },
+      "data": [
+        "M1-1",
+        "M1-2",
+        "M1-3",
+        "M1-4",
+        "M1-5",
+        "M1-6",
+        "M1-7"
+      ],
+      "name": "cell",
+      "type": "category"
+    },
+    "yAxis": {
+      "axisLabel": {
+        "color": "#E6EDF3"
+      },
+      "min": 0,
+      "name": "tps",
+      "type": "value"
+    }
+  },
+  "own-m2": {
+    "backgroundColor": "transparent",
+    "dataZoom": [
+      {
+        "type": "slider"
+      },
+      {
+        "type": "inside"
+      }
+    ],
+    "grid": {
+      "bottom": "18%",
+      "containLabel": true,
+      "left": "8%",
+      "right": "6%"
+    },
+    "legend": {
+      "textStyle": {
+        "color": "#E6EDF3"
+      },
+      "top": "bottom"
+    },
+    "series": [
+      {
+        "data": [
+          16619.120116,
+          2855.733413,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "emphasis": {
+          "focus": "series"
+        },
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "name": "pgcat",
+        "type": "bar"
+      },
+      {
+        "data": [
+          16395.23658,
+          2820.366933,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "lineStyle": {
+          "color": "#CC79A7",
+          "type": "dashed"
+        },
+        "name": "pgcat min",
+        "showSymbol": true,
+        "symbol": "circle",
+        "symbolSize": 6,
+        "type": "line"
+      },
+      {
+        "data": [
+          16621.216593,
+          2866.961499,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "itemStyle": {
+          "color": "#CC79A7"
+        },
+        "lineStyle": {
+          "color": "#CC79A7",
+          "type": "dashed"
+        },
+        "name": "pgcat max",
+        "showSymbol": true,
+        "symbol": "circle",
+        "symbolSize": 6,
+        "type": "line"
+      },
+      {
+        "data": [
+          [
+            7,
+            0
+          ],
+          [
+            8,
+            0
+          ]
+        ],
+        "itemStyle": {
+          "color": "#484F58"
+        },
+        "label": {
+          "color": "#484F58",
+          "formatter": "N/A (unsupported)",
+          "show": true
+        },
+        "name": "N/A (unsupported)",
+        "symbol": "cross",
+        "symbolSize": 14,
+        "type": "scatter"
+      },
+      {
+        "data": [
+          [
+            2,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            5,
+            0
+          ],
+          [
+            6,
+            0
+          ],
+          [
+            9,
+            0
+          ],
+          [
+            10,
+            0
+          ]
+        ],
+        "itemStyle": {
+          "color": "#D29922"
+        },
+        "label": {
+          "color": "#D29922",
+          "formatter": "timeout/inconclusive",
+          "show": true
+        },
+        "name": "timeout/inconclusive",
+        "symbol": "triangle",
+        "symbolSize": 14,
+        "type": "scatter"
+      }
+    ],
+    "textStyle": {
+      "color": "#E6EDF3"
+    },
+    "title": {
+      "left": "center",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked",
+      "text": "pgcat M2 own surface",
+      "textStyle": {
+        "color": "#E6EDF3"
+      }
+    },
+    "toolbox": {
+      "feature": {
+        "saveAsImage": {
+          "title": "Save PNG"
+        }
+      }
+    },
+    "tooltip": {
+      "axisPointer": {
+        "type": "shadow"
+      },
+      "trigger": "axis"
+    },
+    "xAxis": {
+      "axisLabel": {
+        "color": "#E6EDF3",
+        "rotate": 30
+      },
+      "data": [
+        "M2-I11",
+        "M2-I12",
+        "M2-P5",
+        "M2-S10",
+        "M2-S13",
+        "M2-S14",
+        "M2-S9",
+        "M2-T1",
+        "M2-T2",
+        "M2-W4",
+        "M2-W9"
+      ],
+      "name": "cell",
+      "type": "category"
+    },
+    "yAxis": {
+      "axisLabel": {
+        "color": "#E6EDF3"
+      },
+      "min": 0,
+      "name": "tps",
+      "type": "value"
+    }
+  }
+}

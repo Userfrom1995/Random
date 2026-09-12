@@ -1,0 +1,63 @@
+{
+  "pages": {
+    "comparison": {
+      "charts": [
+        "flatness",
+        "iso-overlay",
+        "m1-best",
+        "m2-io",
+        "m2-prepared",
+        "m2-session",
+        "m2-statement",
+        "m2-workloads"
+      ],
+      "file": "comparison.json",
+      "sha256": "f6eb5e3583855734452a774f6c19f523abee49ec2f4526ac671d194b00d2013c"
+    },
+    "odyssey": {
+      "charts": [
+        "own-m1",
+        "own-m2"
+      ],
+      "file": "odyssey.json",
+      "sha256": "530a1bcf66f15f05175c015a4062e0ec8654df4fc8283193179fbad6d6ce2fc9"
+    },
+    "pgagroal": {
+      "charts": [
+        "own-m1",
+        "own-m2"
+      ],
+      "file": "pgagroal.json",
+      "sha256": "10f3112a62a48e3620afde1782f7e6db66ba7f60a8f281536485a7c9646b6e7b"
+    },
+    "pgbouncer": {
+      "charts": [
+        "own-m1",
+        "own-m2"
+      ],
+      "file": "pgbouncer.json",
+      "sha256": "9f584671f94f20f9a6e176180ed4906436bdeba57238616ee4a55b3ea5fd86a1"
+    },
+    "pgcat": {
+      "charts": [
+        "own-m1",
+        "own-m2"
+      ],
+      "file": "pgcat.json",
+      "sha256": "bff481d755dd7436ad3001ad89517cdc6cbfeb76fb7c126320a08ab29962e7aa"
+    },
+    "pgpool": {
+      "charts": [
+        "own-m1",
+        "own-m2"
+      ],
+      "file": "pgpool.json",
+      "sha256": "6d0e823f12cc1ba949088347d3208e3b4acb2134f1caff5ace4d58f88495fb28"
+    }
+  },
+  "sources": {
+    "m1/medians.json": "e7e01610a47a88c4c12fb052ac44cd3fc0d253cdb0b2b41df5569ec94f8287fa",
+    "m2/medians.json": "7ce90ea550f2febab8252b7620e271228f3ff2b063d321e075d5daf782922f92",
+    "report.json": "bda5afb42fdcea718419a0656b442ad2a67056fa4475bfa2b335ac2daabf2846"
+  }
+}
