@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "poolduel/results/m1-f/work-M1-6-direct-r3/logs/cell-M1-6-r3-2353.stdout.txt",
-    "txnlog": "poolduel/results/m1-f/work-M1-6-direct-r3/logs/cell-M1-6-r3-2353.64468"
+    "stdout": "poolduel/results/m1-f/work-M1-6-direct-r3/logs/cell-M1-6-r3-10612.stdout.txt",
+    "txnlog": "poolduel/results/m1-f/work-M1-6-direct-r3/logs/cell-M1-6-r3-10612.63356"
   },
   "cell_id": "M1-6",
   "churn": true,
