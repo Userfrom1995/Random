@@ -80,13 +80,26 @@ class PgPoolAdapter(BaseAdapter):
             "client_idle_limit = 0\n"
             "reset_query_list = 'ABORT; DISCARD ALL'\n"
             "load_balance_mode = off\n"
+            "# auth (docs ch.6 Client Authentication, CI-only): frontend\n"
+            "# pool_hba stays disabled (default), backend SCRAM uses the\n"
+            "# workdir pool_passwd plaintext benchuser entry (6.2.4.1).\n"
             "# effective backends (children x max_pool) = %d\n"
             % self.effective_backends(cell)
         )
 
+    def pool_passwd_text(self):
+        # Backend auth (pgpool-II 4.7.2 docs, chapter 6 Client
+        # Authentication, section 6.2.4.1): pool_passwd must hold the
+        # user password in plaintext (or AES) for SCRAM backend auth;
+        # md5 entries cannot be used for scram. CI-only credentials.
+        # pgpool resolves pool_passwd in its startup cwd, which the
+        # shared runner sets to this workdir, so the file lands there.
+        return "benchuser:benchpass\n"
+
     def setup(self, workdir, cell):
         super().setup(workdir, cell)
         self.write_file("pgpool.conf", self.config_text(cell))
+        self.write_file("pool_passwd", self.pool_passwd_text())
 
     def start_argv(self, cell):
         return [self.BINARY, "-f", self.workdir + "/pgpool.conf", "-n"]

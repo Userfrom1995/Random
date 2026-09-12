@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 
@@ -58,6 +59,99 @@ class AdapterTest(unittest.TestCase):
                     OdysseyAdapter, PgCatAdapter):
             for attr in ("timeout", "warmup", "retries", "retry"):
                 self.assertNotIn(attr, cls.__dict__)
+
+
+class AdapterStartupFixTest(unittest.TestCase):
+    """Regression tests for the CI startup/auth fixes (issue #302).
+
+    Each case replays a proven sweep failure from run 34697687073 and
+    pins the corrected rendering.
+    """
+
+    def test_setup_abspath_workdir(self):
+        cell = get_cell("M1-2")
+        with tempfile.TemporaryDirectory() as tmp:
+            work = tmp + "/pgbouncer"
+            ad = PgBouncerAdapter()
+            ad.setup(work, cell)
+            self.assertEqual(ad.workdir, os.path.abspath(work))
+            self.assertTrue(ad.workdir.startswith("/"))
+
+    def test_pgagroal_argv_flags(self):
+        cell = get_cell("M1-2")
+        with tempfile.TemporaryDirectory() as tmp:
+            ad = PgAgroalAdapter()
+            ad.setup(tmp + "/w", cell)
+            argv = ad.start_argv(cell)
+            self.assertEqual(argv[0], "pgagroal")
+            self.assertIn("-c", argv)
+            self.assertIn("-a", argv)
+            self.assertIn("-l", argv)
+            self.assertNotIn("-H", argv)
+            self.assertNotIn("-f", argv)
+            # every path argument is absolute (no doubling under cwd)
+            for flag in ("-c", "-a", "-l"):
+                path = argv[argv.index(flag) + 1]
+                self.assertTrue(path.startswith("/"), path)
+
+    def test_pgagroal_server_section_and_hba(self):
+        cell = get_cell("M1-2")
+        text = PgAgroalAdapter().config_text(cell)
+        self.assertIn("[primary]", text)
+        self.assertIn("port = 5432", text)
+        self.assertIn("scram-sha-256", PgAgroalAdapter().hba_text())
+        self.assertNotIn("trust", PgAgroalAdapter().hba_text())
+        with tempfile.TemporaryDirectory() as tmp:
+            ad = PgAgroalAdapter()
+            ad.setup(tmp + "/w", cell)
+            with open(tmp + "/w/pgagroal_hba.conf") as f:
+                self.assertIn("scram-sha-256", f.read())
+
+    def test_odyssey_storage_database_syntax(self):
+        cell = get_cell("M1-2")
+        text = OdysseyAdapter().config_text(cell)
+        self.assertIn('storage "benchdb_store"', text)
+        self.assertIn('type "remote"', text)
+        self.assertIn('database "benchdb"', text)
+        self.assertIn('user "benchuser"', text)
+        self.assertIn('authentication "none"', text)
+        self.assertIn('storage_user "benchuser"', text)
+        self.assertIn('storage_password "benchpass"', text)
+        self.assertIn('pool "transaction"', text)
+        self.assertNotIn("route {", text)
+        self.assertNotIn("service ", text)
+        self.assertNotIn("backend_host", text)
+        self.assertNotIn("server_pstmt_cache_size", text)
+
+    def test_pgcat_admin_and_shards(self):
+        cell = get_cell("M1-2")
+        text = PgCatAdapter().config_text(cell)
+        self.assertIn('admin_username = "pgcat_admin"', text)
+        self.assertIn('admin_password = "pgcat_admin_pass"', text)
+        self.assertIn("[pools.benchdb.shards.0]", text)
+        self.assertIn('"primary"', text)
+        self.assertIn('database = "benchdb"', text)
+
+    def test_pgbouncer_auth_file(self):
+        cell = get_cell("M1-2")
+        with tempfile.TemporaryDirectory() as tmp:
+            ad = PgBouncerAdapter()
+            ad.setup(tmp + "/w", cell)
+            text = ad.config_text(cell)
+            self.assertIn("auth_type = scram-sha-256", text)
+            self.assertIn("auth_file = " + tmp + "/w/users.txt", text)
+            with open(tmp + "/w/users.txt") as f:
+                content = f.read()
+            self.assertIn('"benchuser" "benchpass"', content)
+
+    def test_pgpool_passwd(self):
+        cell = get_cell("M1-2")
+        with tempfile.TemporaryDirectory() as tmp:
+            ad = PgPoolAdapter()
+            ad.setup(tmp + "/w", cell)
+            with open(tmp + "/w/pool_passwd") as f:
+                content = f.read()
+            self.assertIn("benchuser:benchpass", content)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ connect_timeout = 1000
 idle_timeout = 30000
 server_lifetime = 86400000
 worker_threads = 5
+admin_username = "pgcat_admin"
+admin_password = "pgcat_admin_pass"
 
 [pools.benchdb]
 pool_mode = "transaction"
@@ -27,7 +29,17 @@ prepared_statements_cache_size = 0
 username = "benchuser"
 password = "benchpass"
 pool_size = 10
+
+[pools.benchdb.shards.0]
+servers = [ ["127.0.0.1", 5432, "primary"] ]
+database = "benchdb"
 ```
+
+Auth notes (CI-only values): `general.admin_username`/`admin_password`
+are required fields (CONFIG.md; pgcat 1.2.0 refuses to start without
+them). Pool users carry `benchuser`/`benchpass` for the PostgreSQL SCRAM
+leg. The single-shard layout follows the `pgcat.toml` example
+(`pools.<pool>.shards.<idx>` with `[host, port, role]` triples).
 
 Rationale cites: mode defaults from CONFIG.md; transaction mode documented as
 not supporting prepared statements, `SET`, or advisory locks (README), so the

@@ -50,8 +50,10 @@ class PgBouncerAdapter(BaseAdapter):
         max_prepared = 200 if cell.get("protocol") == "prepared" else 0
         reuse = 1 if n == 2 else 0
         label = ("M1 baseline (transaction mode)" if mode == "transaction"
-                 and n == 1
-                 else "M2 variant (pool_mode=%s, instances=%d)" % (mode, n))
+                  and n == 1
+                  else "M2 variant (pool_mode=%s, instances=%d)" % (mode, n))
+        auth_file = (os.path.abspath(self.workdir) if self.workdir
+                     else ".") + "/users.txt"
         return (
             "# PgBouncer %s\n" % label +
             "# refs: config.html, features.html, faq.html\n"
@@ -64,6 +66,13 @@ class PgBouncerAdapter(BaseAdapter):
             "min_pool_size = 0\n"
             "reserve_pool_size = 0\n"
             "reserve_pool_timeout = 5.0\n"
+            "# client auth (config.html Authentication settings):\n"
+            "# scram-sha-256 against users.txt (plaintext benchpass entry,\n"
+            "# CI-only). PgBouncer logs into PostgreSQL with the client's\n"
+            "# password, so the benchuser/benchpass pair that pgbench\n"
+            "# presents (PGPASSWORD in CI) also authenticates the backend.\n"
+            "auth_type = scram-sha-256\n"
+            "auth_file = %s\n" % auth_file +
             "server_reset_query = DISCARD ALL\n"
             "server_lifetime = 3600.0\n"
             "server_idle_timeout = 600.0\n"
@@ -74,9 +83,14 @@ class PgBouncerAdapter(BaseAdapter):
             "benchdb = host=127.0.0.1 port=%d dbname=benchdb\n" % self.pg_port
         )
 
+    def users_text(self):
+        # config.html: auth_file may hold plaintext passwords (CI-only).
+        return '"benchuser" "benchpass"\n'
+
     def setup(self, workdir, cell):
         super().setup(workdir, cell)
         self.write_file("pgbouncer.ini", self.config_text(cell))
+        self.write_file("users.txt", self.users_text())
 
     def start_argv(self, cell):
         return [self.BINARY, self.workdir + "/pgbouncer.ini"]

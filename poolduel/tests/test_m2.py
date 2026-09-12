@@ -67,7 +67,7 @@ class M2VariantConfigTest(unittest.TestCase):
                       PgBouncerAdapter().config_text(cell))
         self.assertIn("so_reuseport = 0",
                       PgBouncerAdapter().config_text(cell))
-        self.assertIn("pool transaction",
+        self.assertIn('pool "transaction"',
                       OdysseyAdapter().config_text(cell))
         self.assertIn("workers 1", OdysseyAdapter().config_text(cell))
         self.assertIn('pool_mode = "transaction"',
@@ -93,7 +93,7 @@ class M2VariantConfigTest(unittest.TestCase):
                       PgBouncerAdapter().config_text(t1))
         t3 = m2_mod.m2_cell("M2-T3")
         text = OdysseyAdapter().config_text(t3)
-        self.assertIn("pool statement", text)
+        self.assertIn('pool "statement"', text)
         self.assertIn("PROVISIONAL", text)
 
     def test_io_axes(self):

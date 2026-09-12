@@ -29,8 +29,25 @@ log_level = info
 ```
 
 Per-database pool (`pgagroal_databases.conf`): `benchdb benchuser 10`.
-HBA (`pgagroal_hba.conf`): `host benchdb benchuser 127.0.0.1/32 trust`
-(CI-only; production would use scram-sha-256).
+Backend server section (mandatory per CONFIGURATION.html - sections other
+than `[pgagroal]` each configure one PostgreSQL backend):
+
+```ini
+[primary]
+host = 127.0.0.1
+port = 5432
+primary = on
+```
+
+HBA (`pgagroal_hba.conf`): `host benchdb benchuser 127.0.0.1/32 scram-sha-256`
+(CI-only; production would use per-user vault entries). The scram method
+makes the pooler collect the client password (CI `PGPASSWORD=benchpass`)
+so `benchuser` authenticates against PostgreSQL itself via the
+`allow_unknown_users` passthrough (CONFIGURATION.html); `trust` cannot be
+used because the pooler would then hold no password for the SCRAM backend.
+Startup: `pgagroal -c pgagroal.conf -a pgagroal_hba.conf -l
+pgagroal_databases.conf` in the foreground (`-d` is a daemon flag taking
+no argument).
 Rationale cites: transaction-mode advice (`blocking_timeout = 0`,
 `idle_timeout = 0`, `max_connection_age = 0`) from PIPELINES; `ev_backend`
 choices from ARCHITECTURE.
