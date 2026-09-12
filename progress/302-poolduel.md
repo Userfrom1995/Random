@@ -266,3 +266,38 @@ Close rule (binding): no Closes on milestone completion or green medians;
 tag @Userfrom1995 with completion summary and await direction.
 
 - the Architect
+
+## M4 build log (Builder, 2026-09-12, branch `opencode/issue302-20260912213237`)
+
+Implemented the M4 blueprint (`ideas/2026-09-12-poolduel-m4.md`) in full:
+
+- Milestone 4 (M4 deep-dives + charts + verification): [x] five pages at
+  `poolduel/<pooler>/` on one fixed identical 7-section template
+  (`s-header/s-charts/s-flatness/s-config/s-verdict/s-na/s-repro`, order
+  fixed, prev/next rotation pgagroal-pgbouncer-pgpool-odyssey-pgcat);
+  [x] main `/poolduel/` upgraded (8 ECharts comparison figures in new
+  section 6b, published banner, deep-dive nav, stale pending headings
+  cleared); [x] ECharts 5.5.1 vendored (`vendor/echarts-5.5.1/`,
+  sha256-recorded VERSION, SVG renderer only, zero CDN refs);
+  [x] `harness/charts.py` generator (bundles in, 6 option JSON + manifest
+  with source SHAs out, no hand values) + shared loader
+  `assets/poolduel-charts.js`; [x] Tier-0 vision probe PASS (headless
+  Chromium screenshot read back, M1-1 direct 25405.035073 visible);
+  [x] Tier-1 gate 17/17 green (`tests/test_charts.py`: sameness, palette,
+  N/A markers, zero hand values, bands equal min-max, yAxis 0, zoom,
+  saveAsImage, node --check, offline-clean); full suite 179/179 green;
+  [x] Tier-2 wiring `ci/vision-shots.sh` (6 PNGs under /tmp, DOM-proven
+  SVG render with real labels/values); [x] fairness-audit section 5
+  post-sweep re-check (469 raw records all carry pooler_config +
+  pooler_version, doc-cited keys present, 42+111 medians, 7 N/A nulls);
+  [x] `repro.sh --charts` one-command chart build; `repro.sh --dry-run`
+  intact.
+- Timeout cells (pgcat M2 7, pgagroal M2 7) render as marked findings on
+  every chart, never gap-filled. (This PR chain, Refs #302; no Closes
+  without explicit @Userfrom1995 approval.)
+
+Current step: M4 implementation complete, awaiting review
+Next steps: Reviewer audit -> Tester (Tier-1 re-run + sample-cell repro
+  + Tier-2 vision read) -> Maintainer tags @Userfrom1995 for direction.
+
+- the Builder
