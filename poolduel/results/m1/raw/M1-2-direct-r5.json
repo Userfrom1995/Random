@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "poolduel/results/m1-b2/work-M1-2-direct-r5/logs/cell-M1-2-r5-92131.stdout.txt",
-    "txnlog": "poolduel/results/m1-b2/work-M1-2-direct-r5/logs/cell-M1-2-r5-92131.5228"
+    "stdout": "poolduel/results/m1-b2/work-M1-2-direct-r5/logs/cell-M1-2-r5-2285.stdout.txt",
+    "txnlog": "poolduel/results/m1-b2/work-M1-2-direct-r5/logs/cell-M1-2-r5-2285.24258"
   },
   "cell_id": "M1-2",
   "churn": false,
@@ -10,12 +10,12 @@
   "duration_s": 120,
   "exit_code": 0,
   "failed": 0,
-  "latency_avg_ms": 14.09,
-  "latency_stddev_ms": 10.921,
-  "p50_ms": 129918.15950000001,
-  "p90_ms": 129965.7324,
-  "p999_ms": 130019.634167,
-  "p99_ms": 130014.40667,
+  "latency_avg_ms": 14.196,
+  "latency_stddev_ms": 26.258,
+  "p50_ms": 129923.121,
+  "p90_ms": 129992.438,
+  "p999_ms": 130011.47075,
+  "p99_ms": 130009.7405,
   "pg_config": {
     "fsync": "on",
     "max_connections": 300,
@@ -34,7 +34,7 @@
   "skipped": 0,
   "status": "measured",
   "threads": 4,
-  "tps": 3544.919306,
+  "tps": 3518.969716,
   "warmup_s": 30,
   "workload": "tpcb-like"
 }

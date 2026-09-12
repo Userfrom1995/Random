@@ -1,14 +1,14 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "poolduel/results/m1-d/work-M1-4-direct-r2/logs/cell-M1-4-r2-91985.stdout.txt",
-    "txnlog": "poolduel/results/m1-d/work-M1-4-direct-r2/logs/cell-M1-4-r2-91985.5195"
+    "stdout": "poolduel/results/m1-d/work-M1-4-direct-r2/logs/cell-M1-4-r2-2163.stdout.txt",
+    "txnlog": "poolduel/results/m1-d/work-M1-4-direct-r2/logs/cell-M1-4-r2-2163.24599"
   },
   "cell_id": "M1-4",
   "churn": false,
   "clients": 200,
   "duration_s": 60,
-  "exit_code": -11,
+  "exit_code": 1,
   "failed": 0,
   "latency_avg_ms": null,
   "latency_stddev_ms": null,
