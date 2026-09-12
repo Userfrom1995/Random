@@ -209,8 +209,13 @@ jobs:
           # pre-create it here instead of touching harness configs.
           sudo mkdir -p /var/run/pgpool
           sudo chown "$(id -un)" /var/run/pgpool
-          sudo -u postgres psql --cluster 17/main -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
-          sudo -u postgres psql --cluster 17/main -c "CREATE DATABASE benchdb OWNER benchuser;" || true
+          # Use the /usr/bin wrapper (postgresql-client-common) for --cluster:
+          # PATH above points at the raw /usr/lib/postgresql/17/bin/psql,
+          # which has no --cluster option (runs 34696425830/34696921552
+          # failed here, so benchuser was never created and pgbench auth
+          # failed). The wrapper resolves the 17/main cluster correctly.
+          sudo -u postgres /usr/bin/psql --cluster 17/main -c "CREATE ROLE benchuser WITH LOGIN SUPERUSER PASSWORD 'benchpass';" || true
+          sudo -u postgres /usr/bin/psql --cluster 17/main -c "CREATE DATABASE benchdb OWNER benchuser;" || true
           PGPASSWORD=benchpass pgbench -h 127.0.0.1 -U benchuser -i -s 10 benchdb
           PGPASSWORD=benchpass psql -h 127.0.0.1 -U benchuser -d benchdb -c "CHECKPOINT;"
 
