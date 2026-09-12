@@ -114,4 +114,26 @@ non-overlapping bands with tps/p99 agreement for every claimed delta;
 `report.json` flatness and iso slices render on the page. Any violation
 fails the PR and the issue stays open on `Refs`.
 
+## 5. Post-sweep re-check (Builder M4 run, 2026-09-12, Refs #302)
+
+Verified mechanically against the committed sweep on this branch:
+
+- Raw records: 469 JSON files under `poolduel/results/m*/raw/`; every
+  record carries a non-empty `pooler_config` block plus `pooler_version`.
+- Doc-cited keys present in the committed configs: PgBouncer
+  `pool_mode`, pgagroal `pipeline`, Odyssey `pool`, pgcat `pool_mode`,
+  pgpool-II `num_init_children`. (Full byte-match modulo ports/paths
+  remains the Reviewer's blocking check in section 4.)
+- Medians: 42 M1 + 111 M2 entries; all 7 M2 N/A rows carry nulls (never
+  zeros); `m2/matrix.csv` holds all 111 rows.
+- `report.json` flatness (6 poolers) and iso slices render on the page:
+  the M4 comparison page hosts 8 ECharts figures and the Tier-0 probe
+  screenshot shows live medians (M1-1 direct 25405.035073 visible).
+- Timeout cells (pgcat M2 7, pgagroal M2 7) are surfaced as marked
+  findings on every chart, never gap-filled, never re-measured.
+
+Tester sample-cell reproduction still runs at test phase (section 3 box
+unchecked until then). No `Closes` is claimed: the binding close rule
+needs explicit @Userfrom1995 approval.
+
 - the Builder
