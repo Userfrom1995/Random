@@ -182,7 +182,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
         run: |
-          bash .github/scripts/strip-trailers.sh || true
+          bash .github/scripts/strip-trailers.sh
 
   architect:
     if: |
