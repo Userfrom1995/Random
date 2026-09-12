@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="poolduel-charts-prefix" content="../results/charts/">
+<title>Poolduel deep-dive: Odyssey</title>
+<style>
+:root {{ color-scheme: dark; }}
+body {{ font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  max-width: 1080px; margin: 0 auto; padding: 24px; line-height: 1.55;
+  background: #0d1117; color: #e6edf3; }}
+.sub {{ color: #9aa7b4; margin-top: 0; }}
+table {{ border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.88rem; }}
+th, td {{ border: 1px solid #30363d; padding: 6px 8px; text-align: left; }}
+th {{ background: #161b22; }}
+code, pre {{ background: #161b22; border-radius: 6px; }}
+pre {{ padding: 12px; overflow-x: auto; font-size: 0.8rem; }}
+code {{ padding: 1px 5px; }}
+a {{ color: #58a6ff; }}
+.section {{ margin-top: 30px; border-top: 1px solid #21262d; padding-top: 18px; }}
+.note {{ color: #9aa7b4; font-size: 0.88rem; }}
+.echart {{ width: 100%; height: 420px; background: #161b22;
+  border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin: 12px 0; }}
+nav.poolnav {{ display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }}
+footer {{ margin-top: 36px; color: #9aa7b4; font-size: 0.85rem; }}
+</style>
+</head>
+<body>
+<div class="section" id="s-header">
+<h1>Poolduel deep-dive: Odyssey</h1>
+<p class="sub">Per-pooler page on one fixed 7-section template (identical across all five poolers). Pinned version: v1.5.1 stable. Tracks issue #302.</p>
+<nav class="poolnav">
+<a href="../">comparison page</a> | <a href="../pgpool/">prev: pgpool</a> | <a href="../pgcat/">next: pgcat</a>
+</nav>
+</div>
+
+<div class="section" id="s-charts">
+<h2>Own-surface charts</h2>
+<p class="note">Median tps with min-max bands, generated from committed bundles by <code>harness/charts.py</code> (no hand values). Rendered with vendored ECharts, SVG renderer.</p>
+<div class="echart" data-page="odyssey" data-chart="own-m1"></div>
+<div class="echart" data-page="odyssey" data-chart="own-m2"></div>
+</div>
+
+<div class="section" id="s-flatness">
+<h2>Flatness verdict</h2>
+<p class="note">Spread is (peak minus trough) over peak across this pooler's own measured configs. At or below 15% reads flat, above reads peaky, one config reads single-point.</p>
+<div id="flat-block"><p class="note">Live data: fills from <code>../results/report.json</code>.</p></div>
+</div>
+
+<div class="section" id="s-config">
+<h2>Config anatomy</h2>
+<table>
+<tr><th>Axis</th><th>Setting (every non-default cites upstream docs)</th></tr>
+<tr><td>M1 mode</td><td><code>pool = transaction</code></td></tr>
+<tr><td>M2 session arms</td><td><code>pool = session</code>, workers = 1</td></tr>
+<tr><td>M2 statement arms</td><td><code>pool = statement</code>, workers = 1, provisional (verified empirically)</td></tr>
+<tr><td>M2 I/O axis</td><td><code>workers</code> 2 and 4</td></tr>
+</table>
+<p>Full verbatim configs: <a href="../docs/configs/odyssey.md">docs/configs/odyssey.md</a>. Audit: <a href="../docs/fairness-audit.md">docs/fairness-audit.md</a>.</p>
+</div>
+
+<div class="section" id="s-verdict">
+<h2>Data-bound strengths and limits</h2>
+<p class="note">Derived strings from <code>report.json</code> ranked verdicts (best count, inconclusive count, timeout count), never free prose.</p>
+<div id="verdict-block"><p class="note">Live data: fills from <code>../results/report.json</code>.</p></div>
+</div>
+
+<div class="section" id="s-na">
+<h2>N/A table</h2>
+<p class="note">Unsupported cells read <code>N/A (unsupported)</code> with nulls, never zeros, never interpolated.</p>
+<div id="na-block"><p class="note">Live data: fills from committed medians.</p></div>
+</div>
+
+<div class="section" id="s-repro">
+<h2>Reproduce it</h2>
+<pre>./poolduel/repro.sh --dry-run   # M1 pilot plan, runs nothing
+./poolduel/repro.sh --report    # raw JSON -&gt; medians, CSVs, report.json
+./poolduel/repro.sh --charts    # report.json -&gt; results/charts/ option JSON</pre>
+<p>Method: <a href="../docs/methodology.md">docs/methodology.md</a> section 8 (reproducibility-by-adversary). Comparison page: <a href="../">../</a>.</p>
+</div>
+
+<footer>
+Poolduel per-pooler deep-dive: Odyssey. Refs #302 (never Closes without explicit owner approval). - the Builder
+</footer>
+
+<script src="../vendor/echarts-5.5.1/dist/echarts.min.js"></script>
+<script src="../assets/poolduel-charts.js"></script>
+<script>
+(function () {
+  "use strict";
+  var SLUG = "odyssey";
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  function fetchJson(url) {
+    return fetch(url, { cache: "no-store" }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).catch(function () { return null; });
+  }
+  fetchJson("../results/report.json").then(function (bundle) {
+    if (!bundle) return;
+    var flat = bundle.flatness ? bundle.flatness[SLUG] : null;
+    var flatHost = document.getElementById("flat-block");
+    if (flat) {
+      flatHost.innerHTML = "<table><tr><th>Configs measured</th><th>Spread</th>" +
+        "<th>Verdict</th><th>Peak cell</th><th>Trough cell</th></tr><tr><td>" +
+        esc(flat.configs_measured) + "</td><td>" +
+        (flat.spread == null ? "-" : (100 * flat.spread).toFixed(1) + "%") +
+        "</td><td>" + esc(flat.verdict) + "</td><td>" +
+        (flat.peak ? esc(flat.peak.cell_id) + " @ " + esc(flat.peak.tps_median) : "-") +
+        "</td><td>" +
+        (flat.trough ? esc(flat.trough.cell_id) + " @ " + esc(flat.trough.tps_median) : "-") +
+        "</td></tr></table>";
+    }
+    var best = bundle.best || {};
+    var cells = Object.keys(best).sort();
+    var nBest = 0, nInc = 0, nLose = 0, nNA = 0, nTimeout = 0;
+    cells.forEach(function (cell) {
+      var info = best[cell];
+      var mine = (info.ranked || []).filter(function (r) { return r.pooler === SLUG; })[0];
+      if (mine) {
+        if (mine.verdict === "best") nBest++;
+        else if (String(mine.verdict).indexOf("inconclusive") >= 0) nInc++;
+        else nLose++;
+      }
+      (info.na || []).forEach(function (n) {
+        if (n.pooler === SLUG) {
+          if (n.status === "N/A (unsupported)") nNA++;
+          else nTimeout++;
+        }
+      });
+    });
+    document.getElementById("verdict-block").innerHTML =
+      "<p>Across " + cells.length + " ranked cells, " + esc(SLUG) +
+      " is best in " + nBest + ", inconclusive in " + nInc +
+      ", loses in " + nLose + "; N/A (unsupported) in " + nNA +
+      " cells, timeout/inconclusive in " + nTimeout +
+      " cells. (Derived from report.json ranked verdicts.)</p>";
+  });
+  fetchJson("../results/m1/medians.json").then(function (m1) {
+    fetchJson("../results/m2/medians.json").then(function (m2) {
+      var all = (m1 || []).concat(m2 || []);
+      var mine = all.filter(function (e) { return e.pooler === SLUG; });
+      var na = mine.filter(function (e) { return e.status === "N/A (unsupported)"; });
+      var host = document.getElementById("na-block");
+      if (!mine.length) return;
+      var html = "<table><tr><th>Cell</th><th>Status</th><th>tps median</th></tr>";
+      mine.sort(function (a, b) {
+        return a.cell_id < b.cell_id ? -1 : 1;
+      }).forEach(function (e) {
+        html += "<tr><td>" + esc(e.cell_id) + "</td><td>" + esc(e.status) +
+          "</td><td>" + (e.tps && e.tps.median != null ? esc(e.tps.median) : "-") +
+          "</td></tr>";
+      });
+      host.innerHTML = html + "</table><p class='note'>" + na.length +
+        " N/A (unsupported) cells with nulls.</p>";
+    });
+  });
+})();
+</script>
+</body>
+</html>
