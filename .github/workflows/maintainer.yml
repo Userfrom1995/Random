@@ -124,19 +124,41 @@ jobs:
         id: pre_agent
         run: echo "sha=$(git ls-remote origin main | awk '{print $1}')" >> $GITHUB_OUTPUT
 
+      - name: Get opencode version
+        id: opencode_version
+        shell: bash
+        run: |
+          VERSION=$(curl -sf https://api.github.com/repos/anomalyco/opencode/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+          echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
+
+      - name: Cache opencode
+        id: opencode_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.opencode/bin
+          key: opencode-${{ runner.os }}-${{ runner.arch }}-${{ steps.opencode_version.outputs.version }}
+
+      - name: Install opencode
+        if: steps.opencode_cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Add opencode to PATH
+        shell: bash
+        run: echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
       - name: Run Maintainer agent
         id: maintainer_run
         continue-on-error: true
         timeout-minutes: 60
-        uses: anomalyco/opencode/github@latest
+        shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
-        with:
-          model: opencode/muse-spark-1.2-contributor-free
-          use_github_token: true
-          prompt: |
+          MODEL: opencode/muse-spark-1.2-contributor-free
+          USE_GITHUB_TOKEN: "true"
+          PROMPT: |
             You are the lab Maintainer (Hephaestus) on the Random repo, in a scheduled/dispatched/event run.
 
             READ FIRST: `.github/agents/maintainer.md` - that file IS your complete system prompt; every rule there is binding and outranks this envelope except the safety net below.
@@ -156,6 +178,16 @@ jobs:
             6. `.maintainer/emergency.json` - ONLY under the emergency revival contract above (a failed/broken lab attempt you can link + production halted): exactly {"reason": "...", "lab_run": "<failing lab run URL>", "production_stopped": true}. Omit the file entirely in every other run - its presence unlocks a direct push to main.
 
             When you finish, print a one-line summary of what you decided (the decision list is the deliverable).
+        run: |
+          # opencode CLI does not natively recognize workflow_run events (it only supports
+          # issue_comment, pull_request_review_comment, issues, pull_request, schedule, workflow_dispatch).
+          # For workflow_run triggers, present the event as workflow_dispatch so opencode handles
+          # repo-level autonomous triage while the notification file (.maintainer/notification.txt)
+          # conveys the failing workflow run details.
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            export GITHUB_EVENT_NAME="workflow_dispatch"
+          fi
+          opencode github run
 
       - name: Remove maintainer stray PRs and branches (the Maintainer never opens PRs)
         if: always()
