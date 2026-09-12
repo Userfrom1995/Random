@@ -15,7 +15,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 2
 fi
 case "$MODE" in
-  --report|--dry-run|--m2-dry-run) ;;
+  --report|--charts|--dry-run|--m2-dry-run) ;;
   *)
     if ! command -v pgbench >/dev/null 2>&1; then
       echo "poolduel repro: pgbench is required (install PostgreSQL 17)" >&2
@@ -97,8 +97,17 @@ case "$MODE" in
     python3 -m poolduel.harness.report $M1ARGS $M2ARGS \
       --out poolduel/results
     ;;
+  --charts)
+    echo "poolduel repro: build report then chart options"
+    "$0" --report
+    python3 -m poolduel.harness.charts \
+      --m1 poolduel/results/m1/medians.json \
+      --m2 poolduel/results/m2/medians.json \
+      --report poolduel/results/report.json \
+      --out poolduel/results/charts
+    ;;
   *)
-    echo "usage: repro.sh [--pilot|--full|--dry-run|--report]" >&2
+    echo "usage: repro.sh [--pilot|--full|--dry-run|--report|--charts]" >&2
     echo "       repro.sh [--m2-smoke|--m2-chunk <name>|--m2-na|" >&2
     echo "                --m2-dry-run|--m2-full]" >&2
     exit 2
