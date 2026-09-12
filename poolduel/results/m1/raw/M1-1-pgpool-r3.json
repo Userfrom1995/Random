@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-a1/work-M1-1-pgpool-r3/logs/cell-M1-1-r3-21922.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-a1/work-M1-1-pgpool-r3/logs/cell-M1-1-r3-21922.stdout.txt"
+  },
+  "cell_id": "M1-1",
+  "churn": false,
+  "clients": 100,
+  "duration_s": 120,
+  "exit_code": 1,
+  "failed": 0,
+  "latency_avg_ms": null,
+  "latency_stddev_ms": null,
+  "p50_ms": null,
+  "p90_ms": null,
+  "p999_ms": null,
+  "p99_ms": null,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "pgpool",
+  "pooler_config": "# pgpool-II M1 baseline (session-class, the only pooling mode)\n# refs: runtime-config-connection-pooling.html, runtime-config-connection.html\nlisten_addresses = '127.0.0.1'\nport = 6434\nbackend_hostname0 = '127.0.0.1'\nbackend_port0 = 5432\nconnection_cache = on\nmax_pool = 1\nnum_init_children = 100\nreserved_connections = 0\nlisten_backlog_multiplier = 2\nserialize_accept = off\nchild_life_time = 300\nchild_max_connections = 0\nconnection_life_time = 0\nclient_idle_limit = 0\nreset_query_list = 'ABORT; DISCARD ALL'\nload_balance_mode = off\n# effective backends (children x max_pool) = 100\n",
+  "pooler_version": "4.7.2",
+  "protocol": "simple",
+  "repeat": 3,
+  "scale": 10,
+  "seed": 45,
+  "skipped": 0,
+  "status": "timeout/inconclusive",
+  "threads": 4,
+  "tps": null,
+  "warmup_s": 30,
+  "workload": "select-only"
+}

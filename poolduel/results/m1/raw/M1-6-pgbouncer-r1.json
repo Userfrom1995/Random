@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "agglog": null,
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-f/work-M1-6-pgbouncer-r1/logs/cell-M1-6-r1-21557.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-f/work-M1-6-pgbouncer-r1/logs/cell-M1-6-r1-21557.stdout.txt"
+  },
+  "cell_id": "M1-6",
+  "churn": true,
+  "clients": 100,
+  "duration_s": 60,
+  "exit_code": 1,
+  "failed": 0,
+  "latency_avg_ms": null,
+  "latency_stddev_ms": null,
+  "p50_ms": null,
+  "p90_ms": null,
+  "p999_ms": null,
+  "p99_ms": null,
+  "pg_config": {
+    "fsync": "on",
+    "max_connections": 300,
+    "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_version": "PG 17",
+  "pool_size": 10,
+  "pooler": "pgbouncer",
+  "pooler_config": "# PgBouncer M1 baseline (transaction mode)\n# refs: config.html, features.html, faq.html\n[pgbouncer]\nlisten_addr = 127.0.0.1\nlisten_port = 6433\npool_mode = transaction\ndefault_pool_size = 10\nmax_client_conn = 500\nmin_pool_size = 0\nreserve_pool_size = 0\nreserve_pool_timeout = 5.0\nserver_reset_query = DISCARD ALL\nserver_lifetime = 3600.0\nserver_idle_timeout = 600.0\nquery_wait_timeout = 120.0\nso_reuseport = 0\nmax_prepared_statements = 0\n\n[databases]\nbenchdb = host=127.0.0.1 port=5432 dbname=benchdb\n",
+  "pooler_version": "1.25.2",
+  "protocol": "simple",
+  "repeat": 1,
+  "scale": 10,
+  "seed": 43,
+  "skipped": 0,
+  "status": "timeout/inconclusive",
+  "threads": 4,
+  "tps": null,
+  "warmup_s": 30,
+  "workload": "select-only"
+}
