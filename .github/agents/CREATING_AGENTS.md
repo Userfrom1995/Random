@@ -112,9 +112,9 @@ When authoring `.github/agents/<agent>.md`:
 2. **Authority Hierarchy**: Explicitly recognize that the Owner is the supreme authority (whose decisions override everything) and Hephaestus (Maintainer / Chief Orchestrator) is the main operational authority directing the squad. All agents must listen to and obey both Hephaestus and the Owner.
 3. **Safety Net**: Provide a concise fallback safety net in the workflow prompt string in case `.github/agents/<agent>.md` cannot be read.
 4. **Sign-off Instruction**: Every agent must end its output comments with its distinctive sign-off:
-   - Example: `- the Auditor`, `- Hephaestus, the Maintainer`, `- Dr. Mob, the Researcher`, `- the Architect`, `- the Builder`, `- the Fixer`, `- the Reviewer`, `- the Tester`, `- the Lab Engineer`, `- the General agent`.
+   - Example: `- the Auditor`, `- Hephaestus, the Maintainer`, `- Dr. Mob, the Researcher`, `- the Architect`, `- the Builder`, `- the Fixer`, `- the Reviewer`, `- the Tester`, `- the Lab Engineer`, `- the Curator`, `- the General agent`.
 5. **Commit Subject Prefix**: Every agent that commits code must prefix commit messages with its role:
-   - Example: `auditor: ...`, `researcher: ...`, `architect: ...`, `builder: ...`, `fixer: ...`, `lab: ...`, `maintainer: ...`.
+   - Example: `auditor: ...`, `researcher: ...`, `architect: ...`, `builder: ...`, `fixer: ...`, `lab: ...`, `curate: ...`, `maintainer: ...`.
 6. **JSON Decision Protocol**: Prefer structured JSON output written to files over free-form chat for workflow handoffs.
 
 ---

@@ -36,6 +36,7 @@ lab that maintains the whole repository).
   with E2E tests, checks performance, and approves with `/oc approve-test`.
 - **The Auditor** - pipeline inspector. Actively monitors the lab health, identifies stalled/looping agents, and creatively devises solutions to infrastructure bugs, escalating to the Maintainer.
  - **The Lab Engineer** - the Chief Technology Officer (CTO) & Lab Architect. Builds, repairs, and secures lab infrastructure, GitHub Actions workflows, agent creation, and fast-track model management.
+ - **The Curator** - public surface, web & README custodian. Regularly audits GitHub Pages websites, assets, styling, and root README synchronization, opening surgical PRs.
  - **The Recover Agent** - PR survival and continuation engineer. Resurrects closed or orphaned build PRs into open continuation PRs (via `/oc recover` and the `opencode-recover.yml` auto-detect job).
 - **General** - plain `/oc` questions and housekeeping.
 
@@ -43,7 +44,8 @@ lab that maintains the whole repository).
 
 ```text
 Product Track: [Researcher/Architect] ──► Builder ──┐
-Lab Engineer Track: [Auditor/Maintainer] ──► Lab Engineer ───┴──► Reviewer ──► (clean) ──► Tester ──► /oc fix: … ──► Fixer/Lab Engineer ──► push
+Lab Engineer Track: [Auditor/Maintainer] ──► Lab Engineer ───┤
+Curator Track: [Curator] ────────────────────────────────────┴──► Reviewer ──► (clean) ──► Tester ──► /oc fix: … ──► Fixer/Lab Engineer ──► push
                                                              ▲                   │                      │                       │
                                                              │                   └─► /oc fix: … ────────┘                       │
                                                              │                                                                  │

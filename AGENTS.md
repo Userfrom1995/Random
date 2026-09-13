@@ -24,8 +24,8 @@ full architecture is documented in `LAB.md`; the agent prompts live in
 - **Modular Commits**: Do not dump hundreds or thousands of lines into a single monolithic commit. Break your work down into small, logical, stepwise commits (e.g., scaffolding, core logic, UI, tests). Keep the codebase modular.
 - Every agent signs its output: comments/PR bodies end with the role's
   sign-off (`- Hephaestus, the Maintainer`, `- Dr. Mob, the Researcher`, `- the Architect`, `- the Builder`, `- the Fixer`,
-  `- the Reviewer`, `- the Tester`, `- the Ideator`, `- the Auditor`, `- the Lab Engineer`, `- the Recover Agent`, `- the General agent`), and commit
-  subjects are prefixed with the role (`researcher:`, `architect:`, `builder:`, `fixer:`, `tester:`, `lab:`, `recover:`, `general:`,
+  `- the Reviewer`, `- the Tester`, `- the Ideator`, `- the Auditor`, `- the Lab Engineer`, `- the Curator`, `- the Recover Agent`, `- the General agent`), and commit
+  subjects are prefixed with the role (`researcher:`, `architect:`, `builder:`, `fixer:`, `tester:`, `lab:`, `curate:`, `recover:`, `general:`,
   `maintainer:` for memory updates).
 - **Identity Lineage & Historical Context**: The lab's Maintainer was originally **Mae** (from repository inception through August 2026). On 2026-08-27, Mae retired from the role and was succeeded by **Hephaestus**. Historical PRs, issues, commits, comments, decision documents, and previous memory logs on the `maintainer/logs` branch referencing "Mae" represent valid historical actions taken by the Maintainer. Agents reading past context must recognize Mae as the predecessor and Hephaestus as the active Maintainer and Chief Orchestrator.
 - Only create issues and pull requests when a real change is warranted.
@@ -36,8 +36,11 @@ full architecture is documented in `LAB.md`; the agent prompts live in
 Product Track:
 [Ideator] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Builder ──┐
                                                                          │
-Lab Engineer / Infra Track:                                                   ▼
-[Auditor] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Lab Engineer ──► Reviewer (/oc review)
+Lab Engineer / Infra Track:                                              │
+[Auditor] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Lab Engineer ──┤
+                                                                         │
+Public Surface / Web Track:                                              │
+[Curator] ───────────────────────────────────────────────────────────────┴──► Reviewer (/oc review)
                                                                          │
                                                                  ┌───────┴───────┐
                                                           (issues found)     (approved)
@@ -56,6 +59,7 @@ Lab Engineer / Infra Track:                                                   �
 ```
 
 - **Flexible Pipeline Routing**: In both tracks, `[Researcher]` (algorithmic/mathematical research) and `[Architect]` (system architecture blueprints) are invoked whenever Hephaestus determines that research or design planning is warranted before implementation by the Builder or Lab Engineer.
+- **The Curator Track**: The Curator operates on a recurring 6-hour schedule, dispatch, or via `/oc curate`. It audits the entire GitHub Pages website and root `README.md`. When defects are found, it opens a tracking issue, creates a dedicated branch (`opencode/issue<issue>-curate-...`), commits surgical fixes with prefix `curate:`, opens a PR referencing `Fixes #<issue>`, and hands off directly to the Reviewer (`/oc review`). If structural maintainer escalation is required, it notifies Hephaestus (`/oc maintainer`).
 - **Peer Handoffs**: Each agent knows its role in the pipeline and hands off work directly to its teammates via the workflow decision forwarder.
 - **Queued Execution**: All workflows operate with `cancel-in-progress: false`. Trigger events queue up sequentially so that in-flight builds, reviews, tests, and maintainer merges finish cleanly without being cancelled mid-run.
 - **Merge is the Maintainer's job**: The Tester approves (`/oc approve-test`) -> the test workflow notifies the Maintainer (`/oc maintainer`) -> the Maintainer merges (`gh pr merge --rebase` as the bot, falling back to `gh pr merge --merge` if rebase is blocked by non-linear branch history or merge commits; never use `--delete-branch`; keep PR branches intact after merging), closes linked issues, updates memory, and advances the pipeline.
@@ -115,6 +119,7 @@ Lab Engineer / Infra Track:                                                   �
   - an exact `/oc research` → RESEARCH mode: produces mathematical/algorithmic specs.
   - an exact `/oc lab` → LAB mode: implements lab infrastructure, fixes workflows, creates agents, and manages models.
   - an exact `/oc recover` → RECOVER mode: the Recover Agent (or the `opencode-recover.yml` auto-detect job) resurrects a closed/orphaned build PR into an open continuation PR, restoring commits from the `recover/<pr>` tag and re-linking orphan branches onto `main` without rewriting `main`. The Maintainer may also self-trigger recovery for in-flight work only.
+  - an exact `/oc curate` → CURATOR mode: handled by `curator.yml` (audits website and root README, opens tracking issue and surgical PRs).
   - any other `/oc` → GENERAL mode: a full-capability assistant (questions,
     closing issues, small changes, even PRs if the request calls for it) -
     nothing is forced: no mandatory push, no verification, no retries.
@@ -200,6 +205,7 @@ Lab Engineer / Infra Track:                                                   �
   posts the preview URL on the PR. Previews are built from open PR branches
   at deploy time - they are never committed to the repo, and the feature must
   not be removed or broken.
+- **The Curator (Custodianship)**: The Curator (`curator.yml`) acts as custodian for the Pages site, assets, styling, and root `README.md`. It audits pages for broken links, missing assets, distorted styling, and out-of-sync documentation.
 
 ## Formatting rules
 

@@ -21,6 +21,7 @@ This repo doesn't just contain projects - it *runs* an autonomous engineering pi
 - **Tester**: Dynamic QA engineer: authors and commits durable test suites, runs rigorous end-to-end and headless browser tests, and approves with `/oc approve-test`.
 - **Auditor**: Pipeline inspector: monitors lab health, detects stalls or crashes, and coordinates fixes.
 - **Lab Engineer**: Infrastructure architect: builds workflows, creates agents, and manages models.
+- **Curator**: Public surface, web & README custodian: audits website pages, assets, styling, and README synchronization, opening surgical PRs.
 - **Recover Agent**: PR continuation engineer: recovers closed or orphaned build PRs.
 - **General**: Answers plain `/oc` questions and housekeeping.
 
@@ -31,7 +32,7 @@ This repo doesn't just contain projects - it *runs* an autonomous engineering pi
 
 Talk to it on any issue/PR with `/oc build ...`, `/oc continue`, `/oc fix`,
 `/oc architect`, `/oc research`, `/oc review`, `/oc test`, `/oc lab`,
-`/oc maintainer`, `/oc recover`, `/oc approve|decline`, `/oc approve-test`, or `/oc help`.
+`/oc curate`, `/oc maintainer`, `/oc recover`, `/oc approve|decline`, `/oc approve-test`, or `/oc help`.
 
 All powered by [opencode](https://opencode.ai).
 

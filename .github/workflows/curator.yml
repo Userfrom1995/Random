@@ -1,0 +1,177 @@
+name: curator
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: curator
+  cancel-in-progress: false
+
+jobs:
+  curate:
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && (startsWith(github.event.comment.body, '/oc curate') || startsWith(github.event.comment.body, '/opencode curate')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: true
+          token: ${{ github.token }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config --global user.name "The Curator"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Clear runtime decision
+        run: rm -f /tmp/random-lab-decision.json
+
+      - name: Run curator agent
+        id: curator
+        continue-on-error: true
+        timeout-minutes: 60
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          model: opencode/muse-spark-1.3-contributor-free
+          use_github_token: true
+          prompt: |
+            You are the Curator of the Random lab.
+
+            READ FIRST: `.github/agents/curator.md` - that file IS your complete system prompt; every rule there is binding. If the file is missing from the tree, rely on this safety net.
+
+            SAFETY NET (always binding):
+            - Role: The Curator - Public Surface, Web & README Custodian.
+            - Identity: "The Curator <github-actions[bot]@users.noreply.github.com>". Sign-off: "- the Curator". Commit prefix: "curate:".
+            - Scope Boundaries:
+              * IN-SCOPE: The entire GitHub Pages website (github.io) across all root and sub-pages (index.html, /poolduel/, assets, CSS, ECharts JSON options); Root README.md (project directory, showcase links, badges, quickstarts); Lab meta-docs (CONTRIBUTING.md, SHOWCASE.md).
+              * OUT-OF-SCOPE: Internal subproject domain research and implementation docs (e.g. poolduel/docs/*). These belong strictly to The Researcher and The Builder. The Curator only checks that public-facing links pointing to them are not 404s.
+            - Operational Capabilities:
+              * Audits website files for broken links, missing assets, distorted styling, and unpopulated 'pending' placeholders.
+              * Checks that root README.md is synchronized with latest merged projects and features.
+              * When defects are found: opens a tracking issue, checks out a dedicated branch (`opencode/issue<issue>-curate-...`), applies surgical fixes, opens a PR referencing `Fixes #<issue>`, and writes machine decision `[{"action": "review", "pr": <pr>}]` to `/tmp/random-lab-decision.json`.
+              * If structural maintainer escalation is needed: writes `[{"action": "maintainer", "issue": <issue>}]` to `/tmp/random-lab-decision.json`.
+            - Mandatory README Freshness Invariant: Continuously inspect and update README.md with in-flight work, shipped/published projects, tested quickstarts, and verified links (zero 404s).
+            - Clean Audit Protocol: If all audits pass and all public surfaces, web pages, and README links are in pristine condition, do not open issues or PRs, write `[]` to `/tmp/random-lab-decision.json`, and conclude cleanly.
+            - Decision Protocol: You never post "/oc" comments directly with PAT. Before ending your run, write your machine decision to `/tmp/random-lab-decision.json`.
+            - Zero PAT in agent env: You run strictly under GITHUB_TOKEN. Never attempt to read or use OPENCODE_PAT.
+            - ZERO EM DASHES ANYWHERE: Never use an em dash (Unicode U+2014) in any issue, PR, comment, commit, or doc. Use standard hyphens (-), colons (:), or parentheses instead.
+
+      - name: Verify curator decided, else auto-retry or fail-closed
+        id: verify-decision
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          outcome="${{ steps.curator.outcome }}"
+          event_name="${{ github.event_name }}"
+          issue_num="${{ github.event.issue.number }}"
+
+          # Crash-parity with review/build/fix: a healthy curator ALWAYS writes
+          # the decision file as its final act ([] for clean audit, or actions for PR/maintainer).
+          if [ -f /tmp/random-lab-decision.json ]; then
+            echo "Curator decision file present; run completed and decided."
+            exit 0
+          fi
+
+          echo "::error::Curator step finished with outcome '$outcome' and no decision file (/tmp/random-lab-decision.json missing; crashed or silent exit)."
+
+          # On issue_comment trigger (e.g. /oc curate), mirror review/build auto-retry parity up to 3 times:
+          if [ "$event_name" = "issue_comment" ] && [ -n "$issue_num" ] && [ "$issue_num" != "null" ]; then
+            retries=$(gh api "repos/${{ github.repository }}/issues/$issue_num/comments" \
+              --jq '[.[] | select(.user.login == "${{ github.repository_owner }}" and (.body | startswith("/oc curate (auto-retry")))] | length' 2>/dev/null || true)
+            if [ -z "$retries" ] || ! [ "$retries" -eq "$retries" ] 2>/dev/null; then
+              echo "::error::Could not enumerate prior auto-retries on #$issue_num. Refusing to retry to avoid a runaway loop."
+              exit 1
+            fi
+            if [ "$retries" -lt 3 ]; then
+              n=$((retries + 1))
+              echo "Posting auto-retry $n to issue #$issue_num"
+              gh api "repos/${{ github.repository }}/issues/$issue_num/comments" -f body="/oc curate (auto-retry $n)"
+              exit 0
+            fi
+            echo "::error::Curator still dead after 4 attempts on #$issue_num. Notifying Maintainer and failing closed."
+            gh issue comment "$issue_num" --repo "${{ github.repository }}" --body "::error::Curator crashed after 3 auto-retries on #$issue_num. /oc maintainer" || true
+            exit 1
+          fi
+
+          # On schedule or workflow_dispatch, fail closed immediately so Maintainer failure triage catches it:
+          echo "::error::Curator scheduled/dispatch run crashed or wrote no decision file; failing closed so Maintainer triage triggers."
+          exit 1
+
+      - name: Forward curator decision
+        if: always() && steps.verify-decision.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          if [ ! -f /tmp/random-lab-decision.json ]; then
+            echo "No decision file found (/tmp/random-lab-decision.json)."
+            exit 0
+          fi
+
+          echo "Decision file found. Contents:"
+          cat /tmp/random-lab-decision.json
+
+          # Process both JSON array or single object
+          jq -c 'if type == "array" then .[] else . end' /tmp/random-lab-decision.json | while read -r item; do
+            action=$(echo "$item" | jq -r '.action // ""')
+            target_pr=$(echo "$item" | jq -r '.pr // ""')
+            target_issue=$(echo "$item" | jq -r '.issue // .target // ""')
+
+            if [ "$action" = "review" ]; then
+              target="${target_pr:-$target_issue}"
+              if [ -n "$target" ] && [ "$target" != "null" ]; then
+                echo "Forwarding to Reviewer on PR #$target (/oc review)"
+                gh issue comment "$target" --repo "${{ github.repository }}" --body "/oc review" || echo "Failed to post comment on #$target"
+              else
+                echo "Warning: review action missing target PR number"
+              fi
+            elif [ "$action" = "maintainer" ]; then
+              target="${target_issue:-$target_pr}"
+              if [ -n "$target" ] && [ "$target" != "null" ]; then
+                echo "Forwarding to Maintainer on issue #$target (/oc maintainer)"
+                gh issue comment "$target" --repo "${{ github.repository }}" --body "/oc maintainer" || echo "Failed to post comment on #$target"
+              else
+                echo "Forwarding to Maintainer on trigger issue (/oc maintainer)"
+                trigger_issue="${{ github.event.issue.number }}"
+                if [ -n "$trigger_issue" ] && [ "$trigger_issue" != "null" ]; then
+                  gh issue comment "$trigger_issue" --repo "${{ github.repository }}" --body "/oc maintainer" || echo "Failed to post comment on #$trigger_issue"
+                fi
+              fi
+            else
+              echo "Ignoring unsupported curator action: $action"
+            fi
+          done
+
+      - name: Approve held CI runs on the PR
+        continue-on-error: true
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_PAT }}
+        run: |
+          set +e
+          target_pr=""
+          if [ -f /tmp/random-lab-decision.json ]; then
+            target_pr=$(jq -r 'if type == "array" then .[] else . end | select(.action == "review") | .pr // empty' /tmp/random-lab-decision.json 2>/dev/null | head -n 1)
+          fi
+          APPROVE_PR="$target_pr" APPROVE_NOTIFY_ISSUE="$target_pr" APPROVE_SERVER="${{ github.server_url }}" APPROVE_BOT_TOKEN="${{ github.token }}" \
+            bash .github/scripts/approve-held-runs.sh
+

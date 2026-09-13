@@ -154,6 +154,10 @@
       <p>The Chief Technology Officer (CTO) &amp; Lab Architect. Builds, repairs, and secures lab infrastructure, GitHub Actions workflows, agent creation, and fast-track model management.</p>
     </div>
     <div class="card">
+      <h4>Curator</h4>
+      <p>The public surface, web, and README custodian. Regularly audits GitHub Pages websites, assets, styling, and root README synchronization, opening surgical PRs.</p>
+    </div>
+    <div class="card">
       <h4>Recover Agent</h4>
       <p>PR survival and continuation engineer. Resurrects closed or orphaned build PRs into open continuation PRs (via <code>/oc recover</code> and the <code>opencode-recover.yml</code> auto-detect job).</p>
     </div>
@@ -161,7 +165,8 @@
 
   <h2>The review loop</h2>
   <div class="term">Product Track: [Researcher/Architect] ──► Builder ──┐
-Lab Engineer Track: [Auditor/Maintainer] ──► Lab Engineer ───┴──► Reviewer ──► (clean) ──► Tester ──► "/oc fix: …" ──► Fixer/Lab Engineer ──► push
+Lab Engineer Track: [Auditor/Maintainer] ──► Lab Engineer ───┤
+Curator Track: [Curator] ────────────────────────────────────┴──► Reviewer ──► (clean) ──► Tester ──► "/oc fix: …" ──► Fixer/Lab Engineer ──► push
                                                              ▲                   │                      │                       │
                                                              │                   └─► "/oc fix: …" ──────┘                       │
                                                              │                                                                  │

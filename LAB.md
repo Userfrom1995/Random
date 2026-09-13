@@ -16,7 +16,7 @@ honestly with evidence, then complies when overruled.
 1. **Owner** - supreme, ultimate authority. Directives override everything. The owner has ultimate power over the repository, workflows, and decisions.
 2. **Hephaestus (Maintainer / Chief Orchestrator)** - the lab's main operational authority (succeeded founding Maintainer Mae on 2026-08-27; past logs/decisions referencing Mae are recognized as valid history). Directs the squad, assigns priorities, coordinates workflows, and decides track routing. Possesses full operational authority to execute major architectural pivots, format changes, and multi-version iterations autonomously without pausing for owner confirmation. All workers report to Hephaestus and execute his instructions.
 3. **Collaborators** - directives are binding.
-4. **Specialists & Workers** (The Lab Engineer, The Architect, The Researcher, The Builder, The Fixer, The Reviewer, The Tester, The Ideator, The Auditor, General Agent) - report to Hephaestus, execute tasks under his direction, and strictly obey both Hephaestus and the Owner.
+4. **Specialists & Workers** (The Lab Engineer, The Architect, The Researcher, The Builder, The Fixer, The Reviewer, The Tester, The Ideator, The Auditor, The Curator, General Agent) - report to Hephaestus, execute tasks under his direction, and strictly obey both Hephaestus and the Owner.
 
 ## 2. Agents & personalities
 
@@ -32,6 +32,7 @@ honestly with evidence, then complies when overruled.
 | Tester | QA & Performance testing of running app | Obsessed with quality, thorough |
 | Auditor | Pipeline inspector & health monitor | Highly skilled, creative problem solver, expert in agent workflows |
 | Lab Engineer | Chief Technology Officer (CTO) & Lab Architect | Master DevOps architect, workflow engineer, and systems designer |
+| Curator | Public surface, web & README custodian | Meticulous web craftsperson, aesthetic guardian, and public surface custodian |
 | General | Chat/assistant/answers | Helpful |
 
 - Every comment is signed with the role so it is always clear who said what.
@@ -47,8 +48,11 @@ Prompt files live in `.github/agents/` (see §17). The roster is `REGISTRY.md`.
 Product Track:
 [Ideator] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Builder ──┐
                                                                          │
-Lab Engineer / Infra Track:                                                   ▼
-[Auditor] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Lab Engineer ──► Reviewer (/oc review)
+Lab Engineer / Infra Track:                                              │
+[Auditor] ──► Maintainer ──► [Researcher] ──► [Architect] ──► Lab Engineer ──┤
+                                                                         │
+Public Surface / Web Track:                                              │
+[Curator] ───────────────────────────────────────────────────────────────┴──► Reviewer (/oc review)
                                                                          │
                                                                  ┌───────┴───────┐
                                                           (issues found)     (approved)
@@ -67,6 +71,7 @@ Lab Engineer / Infra Track:                                                   �
 ```
 
 - **Flexible Pipeline Routing**: In both tracks, `[Researcher]` (algorithmic/mathematical research) and `[Architect]` (system architecture blueprints) are invoked whenever Hephaestus determines that research or design planning is warranted before implementation by the Builder or Lab Engineer.
+- **The Curator Track**: The Curator operates on a recurring 6-hour schedule, dispatch, or via `/oc curate`. It audits the entire GitHub Pages website and root `README.md`. When defects are found, it opens a tracking issue, creates a dedicated branch (`opencode/issue<issue>-curate-...`), commits surgical fixes with prefix `curate:`, opens a PR referencing `Fixes #<issue>`, and hands off directly to the Reviewer (`/oc review`). If structural maintainer escalation is required, it notifies Hephaestus (`/oc maintainer`).
 - **Peer Handoffs**: Each agent knows its role in the pipeline and hands off work directly to its teammates via the workflow decision forwarder.
 - **Queued Execution**: All workflows operate with `cancel-in-progress: false`. Trigger events queue up sequentially so that in-flight builds, reviews, tests, and maintainer merges finish cleanly without being cancelled mid-run.
 - **Merge is the Maintainer's job**: The Tester approves (`/oc approve-test`) -> the test workflow notifies the Maintainer (`/oc maintainer`) -> the Maintainer merges (rebase, bot identity), closes linked issues, updates memory, and advances the pipeline.
@@ -283,6 +288,7 @@ New folder `.github/agents/`:
   reviewer.md        # the Reviewer - the strict quality gate
   tester.md          # the Tester - dynamic verification engineer
   auditor.md         # the Auditor - pipeline inspector
+  curator.md         # the Curator - public surface, web & README custodian
   labengineer.md # the Lab Engineer (CTO) - lab infrastructure & DevOps specialist
   general.md         # the General agent - chat/assistant
   decisions/
@@ -320,6 +326,7 @@ personality, CHANGELOG) is direct-commit.
 | `opencode-review.yml` | Reviewer (prompts from file); human-vs-bot fix behavior; `/oc approve` → dispatch Maintainer (fallback: merge as bot); restore-head; short `/oc fix` trigger |
 | `opencode-recover.yml` | Recovery: `detect` job (schedule + PR-close auto-detect) resurrects closed/orphaned build PRs via `recover.sh`; `recover` job runs the Recover Agent on `/oc recover`. Tags `recover/<pr>` and re-links orphans onto `main` (never rewriting `main`) |
 | `ideate.yml` | On-demand Ideator - posts candidates on the Brainstorm Board and notifies Maintainer; no PAT in agent env |
+| `curator.yml` | Public surface & README custodian: scheduled (6h) / dispatch / /oc curate audits and surgical PRs |
 | `pages.yml` | Unchanged - Pages deploy + PR previews |
 
 `idea.yml` was deleted (superseded by the Maintainer-dispatched Ideator; also
