@@ -94,7 +94,10 @@ invalidate carried-forward numbers and trigger re-runs.
    `authentication "none"` (CI-only frontend; backend leg always SCRAM
    via storage_user/storage_password), pgpool-II `pool_hba` disabled
    (default; backend SCRAM via pool_passwd), PgBouncer/pgagroal/pgcat
-   SCRAM against their user/vault files. Every raw row carries its
+   SCRAM against their user/vault files, Supavisor SCRAM on tenant users
+   (`benchuser.bench` user.tenant rewrite; M7 onboarding, symmetric with
+   the SCRAM arms, covered by the M9-E1 control without special-casing).
+   Every raw row carries its
    `auth_posture` label (`harness/auth.py`). The equalized-auth control
    M9-E1 (SCRAM on every frontend, same G-CHURN100 geometry) runs
    beside these labeled asymmetric arms in the M9 resweep so churn

@@ -75,7 +75,19 @@
   schema (`harness/isolate.py:collect_isolation`: cpu_model, kernel,
   nproc, governor, threads, pgbench_j pinned to threads, pinning,
   topology, per raw row, nullable for old rows).
-- M7: Supavisor provisioning and smoke-gate entry criteria.
+- M7 (closed 2026-09-13): Supavisor provisioning and smoke-gate entry
+  criteria. Pinned v2.9.13 with SHA-at-build procedure
+  (`harness/supavisor.py:pin_sha`, versions.md); verbatim config with
+  upstream citations (`docs/configs/supavisor.md`); identical adapter
+  contract (`harness/adapters/supavisor.py`: transaction/session/native
+  variants, no statement mode, setup writes env + tenant JSON +
+  metadata SQL + run script, runner owns timeouts/warmup); equal cell
+  budget (7 M1 geometries + 52 M2 rows,
+  `harness/supavisor.py:M9_SUPAVISOR_BUDGET`, parity-checked in
+  `harness/check.py`); smoke gate before matrix entry
+  (`smoke_gate`/`gate_passes`, CLI `--smoke-supavisor`, zero fail rows
+  required); deferral doc lifted to a lift note; modes coverage matrix
+  carries the M9 arms column. M1/M2 medians untouched (no backfill).
 - M8: warmup sensitivity curve result; scale-100 pilot parameters;
   resource-field schema; workload breadth additions (Zipf, think-time,
   multi-statement, JSONB/COPY-adjacent, fixed-offer `-R`).

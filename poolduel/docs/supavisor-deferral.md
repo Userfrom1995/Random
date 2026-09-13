@@ -1,9 +1,7 @@
 # Supavisor deferral (Researcher spec, Refs #302)
 
-Status: DEFERRED with reason. Supavisor is not silently dropped and not
-judged on capability. It is excluded from the M1/M2 matrix because a fair
-standalone CI harness for it costs a dedicated milestone the current pipeline
-cannot absorb without delaying all five measured poolers.
+Status: ONBOARDING since M7 (was DEFERRED with reason through M6).
+History retained below; the lift note at the end is normative.
 
 ## Factual basis (each point cites upstream docs)
 
@@ -43,5 +41,33 @@ cannot absorb without delaying all five measured poolers.
 - Supavisor modes for that future work: `transaction` (6543), `session`
   (5432), `native` (passthrough). See
   https://supabase.github.io/supavisor/configuration/pool_modes/
+
+## Lift note (M7 onboarding, Builder)
+
+The dedicated milestone has landed: the harness now exists
+(`poolduel/harness/adapters/supavisor.py` under the identical adapter
+contract, `poolduel/harness/supavisor.py` pin plus provisioning plus
+M9 equal budget plus smoke gate, `poolduel/docs/configs/supavisor.md`
+verbatim config with upstream citations). Supavisor is a first-class
+sixth contender, not deferred.
+
+What this changes and what it does not:
+
+- M1/M2 numbers are untouched: no Supavisor rows exist there and none
+  are backfilled or interpolated. Supavisor is measured in the M9
+  resweep (7 M1 geometries + 52 M2 rows, statement twins N/A with
+  reason), after the smoke gate passes.
+- Matrix entry is gated, not automatic: `python3 -m
+  poolduel.harness.cli --smoke-supavisor` (or `SUPAVISOR_SHA=<sha>`
+  plus the rendered bundle) must report zero fail rows. If Supavisor
+  cannot meet the adapter contract in CI, that is a published finding,
+  never a silent exclusion.
+- Auth choice resolved against point 4 above: `require_user` with
+  per-user rows (no `is_manager` bypass, no `auth_query` against
+  `pg_authid`), so no elevated DB privileges are needed. Posture is
+  SCRAM on tenant users (`harness/auth.py`), symmetric with the
+  PgBouncer/pgagroal/pgcat arms.
+
+- the Builder (M7 onboarding)
 
 - Dr. Mob, the Researcher

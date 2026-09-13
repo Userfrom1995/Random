@@ -142,25 +142,28 @@ I/O backend: Rust Tokio multi-threaded async runtime; thread count via
 `general.worker_threads` (default 5). Fixed runtime with a worker-thread
 sweep axis. No io_uring or epoll selector.
 
-## 6. Supavisor (deferred, see docs/supavisor-deferral.md)
+## 6. Supavisor (onboarding since M7, see docs/supavisor-deferral.md lift note)
 
 Modes via per-user `mode_type`: `transaction` (port 6543), `session`
 (port 5432), `native` (direct passthrough for migrations, no multiplexing).
 Docs: https://supabase.github.io/supavisor/configuration/pool_modes/
-No `statement` mode. Deferred for harness-cost reasons (Elixir/OTP release,
-mandatory metadata Postgres, REST-provisioned tenants), not for capability
-reasons. Full rationale in `docs/supavisor-deferral.md`.
+No `statement` mode. Harness landed in M7 (adapter under the identical
+contract, `harness/supavisor.py` pin plus provisioning plus smoke gate,
+`docs/configs/supavisor.md` verbatim config); measured in the M9 resweep
+(7 M1 geometries + 52 M2 rows, statement twins N/A with reason), after
+the smoke gate passes. History in `docs/supavisor-deferral.md`.
 
 ## 7. Mode coverage matrix (normative for the harness)
 
-| Pooler | transaction | session | statement | pipeline/msg | M1 arms | M2 arms |
-|---|---|---|---|---|---|---|
-| pgagroal | yes (`transaction`) | yes (`session`, plus `performance` variant) | N/A (unsupported) | N/A | transaction | transaction + session + performance |
-| PgBouncer | yes | yes | yes | N/A | transaction | transaction + session + statement |
-| pgpool-II | N/A | yes (only mode) | N/A | N/A | session-class | session-class (sweep `max_pool`, `num_init_children`) |
-| Odyssey | yes | yes | provisional (verify) | N/A | transaction | transaction + session + statement(provisional) |
-| pgcat | yes | yes | N/A (unsupported) | N/A | transaction | transaction + session |
-| direct PG | N/A (control) | N/A (control) | N/A (control) | N/A | control in every chunk | control in every chunk |
+| Pooler | transaction | session | statement | pipeline/msg | M1 arms | M2 arms | M9 arms |
+|---|---|---|---|---|---|---|---|
+| pgagroal | yes (`transaction`) | yes (`session`, plus `performance` variant) | N/A (unsupported) | N/A | transaction | transaction + session + performance | resweep |
+| PgBouncer | yes | yes | yes | N/A | transaction | transaction + session + statement | resweep |
+| pgpool-II | N/A | yes (only mode) | N/A | N/A | session-class | session-class (sweep `max_pool`, `num_init_children`) | resweep |
+| Odyssey | yes | yes | provisional (verify) | N/A | transaction | transaction + session + statement(provisional) | resweep |
+| pgcat | yes | yes | N/A (unsupported) | N/A | transaction | transaction + session | resweep |
+| Supavisor | yes (`transaction`) | yes (`session`) | N/A (unsupported) | N/A (`native` passthrough arm) | not run (M9 entry) | not run (M9 entry) | transaction + session + native |
+| direct PG | N/A (control) | N/A (control) | N/A (control) | N/A | control in every chunk | control in every chunk | control in every chunk |
 
 `N/A (unsupported)` cells are published as N/A, never zero, never interpolated.
 
