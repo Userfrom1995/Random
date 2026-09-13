@@ -27,13 +27,13 @@
     "series": [
       {
         "data": [
-          11331.231417,
-          4537.732931,
+          11445.408012,
+          4795.424215,
           null,
-          5142.454638,
-          7481.456628,
-          null,
-          3179.268295
+          11265.95352,
+          3985.25233,
+          6494.827999,
+          2710.702769
         ],
         "emphasis": {
           "focus": "series"
@@ -46,13 +46,13 @@
       },
       {
         "data": [
-          11260.28364,
-          2048.058918,
+          11392.364155,
+          3114.585889,
           null,
-          4831.660228,
-          7305.99103,
-          null,
-          3139.917779
+          11199.122239,
+          3925.898871,
+          6472.042727,
+          2698.343671
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -72,13 +72,13 @@
       },
       {
         "data": [
-          11489.694242,
-          5222.723414,
+          12754.632533,
+          4861.860483,
           null,
-          11507.314474,
-          7548.616825,
-          null,
-          3182.509741
+          11469.569036,
+          3986.51853,
+          6519.696829,
+          2722.242919
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -100,10 +100,6 @@
         "data": [
           [
             2,
-            0
-          ],
-          [
-            5,
             0
           ]
         ],
@@ -131,7 +127,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 11331.2 tps (M1-1 odyssey); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 11445.4 tps (M1-1 odyssey); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M1 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -204,13 +200,13 @@
     "series": [
       {
         "data": [
-          11331.231417,
-          4537.732931,
+          11445.408012,
+          4795.424215,
           null,
-          5142.454638,
-          7481.456628,
-          null,
-          3179.268295
+          11265.95352,
+          3985.25233,
+          6494.827999,
+          2710.702769
         ],
         "emphasis": {
           "focus": "series"
@@ -223,13 +219,13 @@
       },
       {
         "data": [
-          11260.28364,
-          2048.058918,
+          11392.364155,
+          3114.585889,
           null,
-          4831.660228,
-          7305.99103,
-          null,
-          3139.917779
+          11199.122239,
+          3925.898871,
+          6472.042727,
+          2698.343671
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -249,13 +245,13 @@
       },
       {
         "data": [
-          11489.694242,
-          5222.723414,
+          12754.632533,
+          4861.860483,
           null,
-          11507.314474,
-          7548.616825,
-          null,
-          3182.509741
+          11469.569036,
+          3986.51853,
+          6519.696829,
+          2722.242919
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -279,7 +275,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 11331.2 tps (M1-1 odyssey); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 11445.4 tps (M1-1 odyssey); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -351,18 +347,18 @@
     "series": [
       {
         "data": [
-          13149.89564,
-          3031.664969,
-          13319.171971,
-          3037.59756,
-          1382.626598,
+          11630.886256,
+          2760.190588,
+          11848.525729,
+          2688.983944,
+          1025.506241,
           null,
-          23527.818557,
-          3648.806263,
-          11975.90628,
-          1525.325985,
-          4798.867937,
-          null
+          20476.224423,
+          3079.418409,
+          11421.470337,
+          1466.864004,
+          6857.655457,
+          4834.785903
         ],
         "emphasis": {
           "focus": "series"
@@ -375,18 +371,18 @@
       },
       {
         "data": [
-          12967.69768,
-          2972.764757,
-          13199.727856,
-          3013.071792,
-          1363.079846,
+          11585.833009,
+          2751.929593,
+          11699.1227,
+          2682.86703,
+          1012.574857,
           null,
-          22753.581387,
-          3627.135733,
-          11948.141554,
-          1509.583458,
-          4704.546159,
-          null
+          20329.504512,
+          2994.570866,
+          11396.237622,
+          1458.014378,
+          6706.692509,
+          4805.594706
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -406,18 +402,18 @@
       },
       {
         "data": [
-          13214.598679,
-          3051.093264,
-          13329.846641,
-          3054.331251,
-          1385.222661,
+          11679.944493,
+          2792.744214,
+          11945.116484,
+          2709.941659,
+          1361.118018,
           null,
-          23872.686826,
-          3687.11794,
-          11978.724314,
-          1531.579766,
-          4897.710984,
-          null
+          21560.19037,
+          3093.538573,
+          11464.060171,
+          1492.768588,
+          6926.782833,
+          4867.680753
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -459,31 +455,6 @@
         ],
         "symbolSize": 14,
         "type": "scatter"
-      },
-      {
-        "data": [
-          [
-            11,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -491,7 +462,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 23527.8 tps (M2-S7 odyssey); 10 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 20476.2 tps (M2-S7 odyssey); 11 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M2 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -569,18 +540,18 @@
     "series": [
       {
         "data": [
-          13149.89564,
-          3031.664969,
-          13319.171971,
-          3037.59756,
-          1382.626598,
+          11630.886256,
+          2760.190588,
+          11848.525729,
+          2688.983944,
+          1025.506241,
           null,
-          23527.818557,
-          3648.806263,
-          11975.90628,
-          1525.325985,
-          4798.867937,
-          null
+          20476.224423,
+          3079.418409,
+          11421.470337,
+          1466.864004,
+          6857.655457,
+          4834.785903
         ],
         "emphasis": {
           "focus": "series"
@@ -593,18 +564,18 @@
       },
       {
         "data": [
-          12967.69768,
-          2972.764757,
-          13199.727856,
-          3013.071792,
-          1363.079846,
+          11585.833009,
+          2751.929593,
+          11699.1227,
+          2682.86703,
+          1012.574857,
           null,
-          22753.581387,
-          3627.135733,
-          11948.141554,
-          1509.583458,
-          4704.546159,
-          null
+          20329.504512,
+          2994.570866,
+          11396.237622,
+          1458.014378,
+          6706.692509,
+          4805.594706
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -624,18 +595,18 @@
       },
       {
         "data": [
-          13214.598679,
-          3051.093264,
-          13329.846641,
-          3054.331251,
-          1385.222661,
+          11679.944493,
+          2792.744214,
+          11945.116484,
+          2709.941659,
+          1361.118018,
           null,
-          23872.686826,
-          3687.11794,
-          11978.724314,
-          1531.579766,
-          4897.710984,
-          null
+          21560.19037,
+          3093.538573,
+          11464.060171,
+          1492.768588,
+          6926.782833,
+          4867.680753
         ],
         "itemStyle": {
           "color": "#009E73",
@@ -659,7 +630,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 23527.8 tps (M2-S7 odyssey); 10 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 20476.2 tps (M2-S7 odyssey); 11 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

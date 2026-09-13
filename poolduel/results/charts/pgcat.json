@@ -27,13 +27,13 @@
     "series": [
       {
         "data": [
-          19579.167029,
+          19628.780704,
+          4065.915379,
           null,
-          null,
-          9837.579344,
-          7217.102444,
-          null,
-          2990.605785
+          19322.287475,
+          4453.374647,
+          5708.628882,
+          2578.790279
         ],
         "emphasis": {
           "focus": "series"
@@ -46,13 +46,13 @@
       },
       {
         "data": [
-          19506.320689,
+          19409.694552,
+          2485.196962,
           null,
-          null,
-          9750.451538,
-          7191.21828,
-          null,
-          2976.055743
+          18864.307747,
+          4413.630411,
+          5617.577443,
+          2526.555641
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -72,13 +72,13 @@
       },
       {
         "data": [
-          19856.403039,
+          21993.327418,
+          4113.576969,
           null,
-          null,
-          19497.929024,
-          7356.121975,
-          null,
-          3005.002996
+          19331.305118,
+          4458.664242,
+          5720.719014,
+          2593.340991
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -99,15 +99,7 @@
       {
         "data": [
           [
-            1,
-            0
-          ],
-          [
             2,
-            0
-          ],
-          [
-            5,
             0
           ]
         ],
@@ -135,7 +127,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 19579.2 tps (M1-1 pgcat); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 19628.8 tps (M1-1 pgcat); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgcat M1 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -208,13 +200,13 @@
     "series": [
       {
         "data": [
-          19579.167029,
+          19628.780704,
+          4065.915379,
           null,
-          null,
-          9837.579344,
-          7217.102444,
-          null,
-          2990.605785
+          19322.287475,
+          4453.374647,
+          5708.628882,
+          2578.790279
         ],
         "emphasis": {
           "focus": "series"
@@ -227,13 +219,13 @@
       },
       {
         "data": [
-          19506.320689,
+          19409.694552,
+          2485.196962,
           null,
-          null,
-          9750.451538,
-          7191.21828,
-          null,
-          2976.055743
+          18864.307747,
+          4413.630411,
+          5617.577443,
+          2526.555641
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -253,13 +245,13 @@
       },
       {
         "data": [
-          19856.403039,
+          21993.327418,
+          4113.576969,
           null,
-          null,
-          19497.929024,
-          7356.121975,
-          null,
-          3005.002996
+          19331.305118,
+          4458.664242,
+          5720.719014,
+          2593.340991
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -283,7 +275,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 19579.2 tps (M1-1 pgcat); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 19628.8 tps (M1-1 pgcat); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgcat M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -355,17 +347,17 @@
     "series": [
       {
         "data": [
-          16619.120116,
-          2855.733413,
+          16510.515147,
+          2868.067272,
+          null,
+          17664.37684,
+          2677.032967,
+          16145.952028,
+          2086.701567,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5050.245226,
+          4434.984628
         ],
         "emphasis": {
           "focus": "series"
@@ -378,17 +370,17 @@
       },
       {
         "data": [
-          16395.23658,
-          2820.366933,
+          16415.226332,
+          2833.987021,
+          null,
+          17513.491567,
+          2632.015901,
+          15788.946692,
+          1247.403333,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5023.308588,
+          4432.556789
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -408,17 +400,17 @@
       },
       {
         "data": [
-          16621.216593,
-          2866.961499,
+          16870.12252,
+          2890.136856,
+          null,
+          17772.585775,
+          2758.01346,
+          16335.048673,
+          3249.367898,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5052.533199,
+          4451.217291
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -470,30 +462,6 @@
           [
             2,
             0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            4,
-            0
-          ],
-          [
-            5,
-            0
-          ],
-          [
-            6,
-            0
-          ],
-          [
-            9,
-            0
-          ],
-          [
-            10,
-            0
           ]
         ],
         "itemStyle": {
@@ -520,7 +488,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 16619.1 tps (M2-I11 pgcat); 2 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 17664.4 tps (M2-S9 pgcat); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgcat M2 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -597,17 +565,17 @@
     "series": [
       {
         "data": [
-          16619.120116,
-          2855.733413,
+          16510.515147,
+          2868.067272,
+          null,
+          17664.37684,
+          2677.032967,
+          16145.952028,
+          2086.701567,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5050.245226,
+          4434.984628
         ],
         "emphasis": {
           "focus": "series"
@@ -620,17 +588,17 @@
       },
       {
         "data": [
-          16395.23658,
-          2820.366933,
+          16415.226332,
+          2833.987021,
+          null,
+          17513.491567,
+          2632.015901,
+          15788.946692,
+          1247.403333,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5023.308588,
+          4432.556789
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -650,17 +618,17 @@
       },
       {
         "data": [
-          16621.216593,
-          2866.961499,
+          16870.12252,
+          2890.136856,
+          null,
+          17772.585775,
+          2758.01346,
+          16335.048673,
+          3249.367898,
           null,
           null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null
+          5052.533199,
+          4451.217291
         ],
         "itemStyle": {
           "color": "#CC79A7",
@@ -684,7 +652,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 16619.1 tps (M2-I11 pgcat); 2 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 17664.4 tps (M2-S9 pgcat); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgcat M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

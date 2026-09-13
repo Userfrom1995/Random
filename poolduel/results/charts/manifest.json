@@ -18,7 +18,7 @@
         "m2-workloads-log"
       ],
       "file": "comparison.json",
-      "sha256": "14aa4519578d5f72703167bf9a057be85fca3e1963ced4c092d30f5074c5474e"
+      "sha256": "b88e73b0892dfe0253b43f0372532b8587f6dc74435b706d9de22b74e4b2b6e9"
     },
     "odyssey": {
       "charts": [
@@ -28,7 +28,7 @@
         "own-m2-log"
       ],
       "file": "odyssey.json",
-      "sha256": "773a6d153954767bde148263b19658c7b4e26b11e303d278f415030abc850706"
+      "sha256": "81ae1cee471399de468f2ae229e1ebda506edb614346a289d61bbd313ca5f1fd"
     },
     "pgagroal": {
       "charts": [
@@ -38,7 +38,7 @@
         "own-m2-log"
       ],
       "file": "pgagroal.json",
-      "sha256": "dcf30d69b995f20af02263f67cb9e03e4d94152359a94e10e577867abfb58a11"
+      "sha256": "3931af953c0d8feac366179061d832ae39e3b597944f3887e3e6d9ca6be8f89a"
     },
     "pgbouncer": {
       "charts": [
@@ -48,7 +48,7 @@
         "own-m2-log"
       ],
       "file": "pgbouncer.json",
-      "sha256": "ce3aeabc781061c6ee91c83e80c4c1b1d9b9de3eeb6235e6eb08ae7bb580e190"
+      "sha256": "06e56ed79df0fa2fd4806261e9e65ae860855ec5dd5fde0a08f93aee837e6961"
     },
     "pgcat": {
       "charts": [
@@ -58,7 +58,7 @@
         "own-m2-log"
       ],
       "file": "pgcat.json",
-      "sha256": "6ceab11030945052eb0f94ded782f2093f63a05e727d2223c194a67a88515ebd"
+      "sha256": "af2f715b64b917d1b2d71bcc8ab7f8a8810045a10b3b8d7f86cef549b9e29573"
     },
     "pgpool": {
       "charts": [
@@ -68,12 +68,12 @@
         "own-m2-log"
       ],
       "file": "pgpool.json",
-      "sha256": "258572e7024c5c08cf605b8c39e7664d00e6d633ef82f02f34ed12a4fb6038e0"
+      "sha256": "7e320747fb55014d5db56b8ef41270af96d090860fd130aa8f2ca4544daf4020"
     }
   },
   "sources": {
-    "m1/medians.json": "22a1db917dc8b688d0598dbe00a43f30dd8bb03f1bb4ce3c27b3d507fd7cc804",
-    "m2/medians.json": "87ccb930d39debb73b04dbe4f45ad9b086566a24d8f38be6e3c92f59e715f956",
-    "report.json": "89cd1542fb04f0ec188c96a701192b844211d87cdfa6b3df04fae82b4a356a5c"
+    "m1/medians.json": "69f711bb8963e4bafcb0b22870e1c370d5930b89bc84fc000563ff05ef024a05",
+    "m2/medians.json": "806253b287201f004be126587ee4bb8973358a8b62c4ca7ddee2cacd1f8cc516",
+    "report.json": "035714b333e2c60ed261b4c3f49e1bde8fc2f862ea0800087ef7146e7e38101d"
   }
 }

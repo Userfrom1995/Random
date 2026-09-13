@@ -27,13 +27,13 @@
     "series": [
       {
         "data": [
-          1532.053875,
-          1120.265641,
+          2294.001345,
+          1737.699558,
           null,
+          1557.970181,
+          601.977554,
           null,
-          332.101502,
-          null,
-          306.024942
+          521.935503
         ],
         "emphasis": {
           "focus": "series"
@@ -46,13 +46,13 @@
       },
       {
         "data": [
-          1396.054607,
-          392.711012,
+          1599.756934,
+          1136.59168,
           null,
+          1386.882645,
+          455.100216,
           null,
-          122.024945,
-          null,
-          297.645707
+          463.501728
         ],
         "itemStyle": {
           "color": "#0072B2",
@@ -72,13 +72,13 @@
       },
       {
         "data": [
-          2051.393094,
-          1375.982769,
+          2426.283714,
+          1794.456818,
           null,
+          1711.059137,
+          1021.210237,
           null,
-          482.76923,
-          null,
-          402.588554
+          525.318394
         ],
         "itemStyle": {
           "color": "#0072B2",
@@ -100,10 +100,6 @@
         "data": [
           [
             2,
-            0
-          ],
-          [
-            3,
             0
           ],
           [
@@ -135,7 +131,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 1532.1 tps (M1-1 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 2294.0 tps (M1-1 pgagroal); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M1 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -208,13 +204,13 @@
     "series": [
       {
         "data": [
-          1532.053875,
-          1120.265641,
+          2294.001345,
+          1737.699558,
           null,
+          1557.970181,
+          601.977554,
           null,
-          332.101502,
-          null,
-          306.024942
+          521.935503
         ],
         "emphasis": {
           "focus": "series"
@@ -227,13 +223,13 @@
       },
       {
         "data": [
-          1396.054607,
-          392.711012,
+          1599.756934,
+          1136.59168,
           null,
+          1386.882645,
+          455.100216,
           null,
-          122.024945,
-          null,
-          297.645707
+          463.501728
         ],
         "itemStyle": {
           "color": "#0072B2",
@@ -253,13 +249,13 @@
       },
       {
         "data": [
-          2051.393094,
-          1375.982769,
+          2426.283714,
+          1794.456818,
           null,
+          1711.059137,
+          1021.210237,
           null,
-          482.76923,
-          null,
-          402.588554
+          525.318394
         ],
         "itemStyle": {
           "color": "#0072B2",
@@ -283,7 +279,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 1532.1 tps (M1-1 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 2294.0 tps (M1-1 pgagroal); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -355,10 +351,10 @@
     "series": [
       {
         "data": [
-          2129.805933,
-          1266.090419,
-          2695.642066,
-          1433.122834,
+          342.613607,
+          289.179567,
+          2583.629729,
+          420.605647,
           null,
           null,
           null,
@@ -380,10 +376,10 @@
       },
       {
         "data": [
-          1404.421878,
-          1254.373202,
-          2404.554549,
-          1423.552768,
+          336.834286,
+          266.176813,
+          2251.850987,
+          413.318221,
           null,
           null,
           null,
@@ -412,10 +408,10 @@
       },
       {
         "data": [
-          2412.908373,
-          1309.474443,
-          3148.276147,
-          1461.457075,
+          3897.470468,
+          355.119764,
+          2786.065452,
+          552.063019,
           null,
           null,
           null,
@@ -526,7 +522,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 2695.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 2583.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M2 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -605,10 +601,10 @@
     "series": [
       {
         "data": [
-          2129.805933,
-          1266.090419,
-          2695.642066,
-          1433.122834,
+          342.613607,
+          289.179567,
+          2583.629729,
+          420.605647,
           null,
           null,
           null,
@@ -630,10 +626,10 @@
       },
       {
         "data": [
-          1404.421878,
-          1254.373202,
-          2404.554549,
-          1423.552768,
+          336.834286,
+          266.176813,
+          2251.850987,
+          413.318221,
           null,
           null,
           null,
@@ -662,10 +658,10 @@
       },
       {
         "data": [
-          2412.908373,
-          1309.474443,
-          3148.276147,
-          1461.457075,
+          3897.470468,
+          355.119764,
+          2786.065452,
+          552.063019,
           null,
           null,
           null,
@@ -698,7 +694,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 2695.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 2583.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

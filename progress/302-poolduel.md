@@ -366,13 +366,50 @@ milestones autonomously, notify once when publishable. Blueprint:
 `ideas/2026-09-13-poolduel-redesign.md`. All PRs use `Refs #302`; no
 `Closes #302` until the plan section 11 full gate passes.
 
-Active Milestone: M5 (charter + claims + spec skeleton + drift test)
+Active Milestone: M5 (complete, ready for review)
 
-- Milestone 5 (charter + registry + spec + drift test): [ ] IA lock
-  (relative links, vendored assets, Mermaid-as-text/SVG); [ ] commit
-  `poolduel/docs/claims.md` before any resweep; [ ] `spec-v1.md`
-  skeleton; [ ] generated-count drift test (page metadata from
-  generator, no hand-typed counts). (PR 1 target, Refs #302)
+- Milestone 5 (charter + registry + spec + drift test): [x] IA lock
+  verified (relative links, vendored ECharts 5.5.1, no CDN, no Mermaid
+  renderer, 7-section-ID contract on all five dossiers - enforced by
+  test); [x] `poolduel/docs/claims.md` committed before any resweep
+  (primary tps-without-connect, secondaries incl. M8 resource fields,
+  5 provisional candidates with kill rule, non-goals); [x]
+  `poolduel/docs/spec-v1.md` skeleton (run rules, allowed/prohibited
+  tuning, disclosure minimums, hardware envelope, versioning, M6-M8
+  open items); [x] `harness/pagemeta.py` generator (medians in,
+  counts/peaks/scope/manifest-SHAs out, no hand values) +
+  `results/pagemeta.json` + `repro.sh --pagemeta`; [x] drift test
+  (`tests/test_pagemeta_drift.py`: pagemeta-vs-medians recompute,
+  banner text/attrs byte-match, M2 variant-row sentence vs m2.py
+  tables, IA lock). (This PR, Refs #302)
+
+## M5 build log (Builder, 2026-09-13, branch `opencode/issue302-20260913113359`)
+
+Implemented the M5 slice of `ideas/2026-09-13-poolduel-redesign.md` on
+the open architect PR branch (resume mode, no restart):
+
+- New: `docs/claims.md`, `docs/spec-v1.md`, `harness/pagemeta.py`,
+  `results/pagemeta.json` (banner "M1: 42 cells, M2: 111 records incl.
+  7 N/A with nulls"; peaks M1 direct/M1-1 24038.5 tps, M2 direct/M2-I5
+  31236.6 tps), `tests/test_pagemeta_drift.py` (10 tests).
+- Banner carries a `#pagemeta-counts` generated-include span (static
+  fallback byte-matched by the drift test, JS-enhanced from
+  pagemeta.json); M3 fetch-contract test extended to the new bundle.
+- Drift hunt (step 0 in action): three dossier notes disagreed with the
+  re-swept medians (odyssey/pgbouncer/pgcat M2 measured/timeout splits)
+  and all seven committed chart bundles were stale vs medians (4
+  test_charts failures pre-existing on the branch). Fixed by syncing
+  the notes to medians and re-running the charts generator (no hand
+  values, manifest SHAs refreshed). Full suite green (250 tests, OK),
+  `repro.sh --pagemeta` + `--dry-run` verified, pages parse, loader JS
+  `node --check` clean.
+- `Refs #302`: no `Closes`, no owner notification (mandate rule 6).
+
+Current step: M5 implementation complete, awaiting review
+Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
+  incl. pagemeta.json) -> merge -> Builder M6 per blueprint.
+
+- the Builder
 - Milestone 6 (methods hardening): [ ] PG config enforcement or
   effective-SHOW disclosure (blocking on divergence); [ ]
   equalized-auth churn control beside labeled asymmetric arms; [ ]
