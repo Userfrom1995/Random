@@ -39,15 +39,27 @@ TXN_LOG_SIZE_GUARD_BYTES = 200 * 1024 * 1024
 
 
 def workload_flags(cell):
-    """pgbench workload flags for a cell (workload + protocol + churn)."""
+    """pgbench workload flags for a cell (workload + protocol + churn).
+
+    M8 breadth workloads: ``think-time`` rides the select-only builtin
+    (``-S``) plus the fixed-offer modifier; script workloads
+    (``zipf-select``, ``multi-statement``, ``jsonb-write``,
+    ``copy-adjacent``) carry no builtin selector because the custom
+    script (``-f``, owned by the runner) supplies the statements.
+    """
     flags = []
     workload = cell["workload"]
     if workload == "select-only":
+        flags.append("-S")
+    elif workload == "think-time":
         flags.append("-S")
     elif workload == "simple-update":
         flags.append("-N")
     elif workload == "tpcb-like":
         flags.extend(["-b", "tpcb-like"])
+    elif workload in ("zipf-select", "multi-statement", "jsonb-write",
+                      "copy-adjacent"):
+        pass  # statements come from the -f custom script, not a builtin
     else:
         raise ValueError("unknown workload %r" % (workload,))
     if cell.get("protocol") == "prepared":
@@ -61,19 +73,37 @@ def workload_flags(cell):
 
 def build_argv(cell, host, port, dbname, user, threads, duration_s=None,
                log_prefix="cell", seed=42, agg_interval_s=None,
-               progress_s=10, sampling_rate=None):
+               progress_s=10, sampling_rate=None, script_path=None):
     """Build an identical-flags pgbench invocation for one measured run.
 
     Per-transaction logs (``-l``) are always written; ``--aggregate-interval``
     stays off (None) so the log keeps per-transaction rows for p50/p99/p999
     math. Pass an explicit ``agg_interval_s`` only for aggregate-shape
     experiments (the txn-log parser skips aggregate lines either way).
+
+    M8 additions (all additive, M1/M2 cells render byte-identically):
+    script_path appends -f for script workloads; offer_rate and
+    latency_limit cell keys append -R and -L (fixed-offer modifier;
+    over-limit transactions count as skipped, never hidden).
     """
     duration = duration_s if duration_s is not None else cell["duration_s"]
     argv = ["pgbench", "-h", host, "-p", str(port), "-U", user]
     argv.extend(workload_flags(cell))
     argv.extend(["-c", str(cell["clients"]), "-j", str(threads),
                  "-T", str(duration)])
+    if script_path is not None:
+        argv.extend(["-f", str(script_path)])
+    rate = cell.get("offer_rate")
+    if rate is not None:
+        if int(rate) <= 0:
+            raise ValueError("offer_rate must be positive, got %r" % (rate,))
+        argv.extend(["-R", str(int(rate))])
+    limit = cell.get("latency_limit")
+    if limit is not None:
+        if float(limit) <= 0:
+            raise ValueError("latency_limit must be positive, got %r"
+                             % (limit,))
+        argv.extend(["-L", str(limit)])
     argv.extend(["-P", str(progress_s), "-l",
                  "--log-prefix=%s" % log_prefix,
                  "--random-seed=%d" % int(seed)])

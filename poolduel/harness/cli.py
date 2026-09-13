@@ -38,6 +38,9 @@ def build_parser():
                    help="print the M2 variant table plus N/A rows and exit")
     p.add_argument("--list-budget", action="store_true",
                    help="print per-contender cell budgets (M1+M2) and exit")
+    p.add_argument("--list-calibration", action="store_true",
+                   help="print the M8 calibration specs (warmup curve, "
+                        "scale-100 pilot, workload breadth) and exit")
     p.add_argument("--smoke-supavisor", action="store_true",
                    help="render the Supavisor provisioning bundle into "
                         "--out and evaluate the M7 smoke gate (exit 0 "
@@ -155,6 +158,38 @@ def print_budget():
     print("supavisor (M9 entry, smoke-gated): M1 %d cells + M2 %d rows "
           "= %d"
           % (budget["m1_cells"], budget["m2_rows"], budget["total"]))
+
+
+def print_calibration():
+    """M8 calibration specs (warmup curve, scale-100 pilot, breadth).
+
+    Prints JSON plus human lines; exit 0. Definitions live in
+    harness/calibrate.py and harness/workloads.py (no hand values).
+    """
+    from . import calibrate as calibrate_mod
+    from . import workloads as workloads_mod
+    budget = calibrate_mod.calibration_budget_table()
+    print(json.dumps({
+        "warmup_candidates_s": list(calibrate_mod.WARMUP_CANDIDATES),
+        "warmup_tolerance": calibrate_mod.WARMUP_TOLERANCE,
+        "warmup_curve": calibrate_mod.WARMUP_CURVE_SPEC,
+        "scale100_pilot": [c["cell_id"] for c in
+                           calibrate_mod.scale100_pilot_cells()],
+        "scale100_pilot_budget_min":
+            calibrate_mod.scale100_pilot_budget_minutes(),
+        "script_workloads": list(workloads_mod.SCRIPT_WORKLOADS),
+        "calibration_budget": budget,
+    }, sort_keys=True))
+    print("warmup candidates (s): %s (tolerance %.1f%%)"
+          % (list(calibrate_mod.WARMUP_CANDIDATES),
+             calibrate_mod.WARMUP_TOLERANCE * 100.0))
+    for cell in calibrate_mod.scale100_pilot_cells():
+        print("%s %s c=%d pool=%d scale=%d%s" % (
+            cell["cell_id"], cell["workload"], cell["clients"],
+            cell["pool_size"], cell["scale"],
+            " churn" if cell["churn"] else ""))
+    print("script workloads: %s; pipeline forbidden (see workloads.py)"
+          % ", ".join(workloads_mod.SCRIPT_WORKLOADS))
 
 
 def print_m2_table():
@@ -281,6 +316,9 @@ def main(argv=None):
         return 0
     if args.list_budget:
         print_budget()
+        return 0
+    if args.list_calibration:
+        print_calibration()
         return 0
     if args.smoke_supavisor:
         return smoke_supavisor(args)

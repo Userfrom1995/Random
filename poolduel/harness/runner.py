@@ -16,6 +16,8 @@ from . import pgbench as pgbench_mod
 from . import auth as auth_mod
 from . import pgconf as pgconf_mod
 from . import isolate as isolate_mod
+from . import resources as resources_mod
+from . import workloads as workloads_mod
 from .cells import check_ratio
 from .chunk import mark_completed
 from .schema import POOLER_VERSIONS, validate_cell
@@ -122,16 +124,23 @@ def measure_once(cell, host, port, dbname, user, threads, seed, repeat,
     os.makedirs(log_dir, exist_ok=True)
     prefix = "cell-%s-r%d-%d" % (cell["cell_id"], repeat, int(time.time()) % 100000)
     cap = cell_cap_s(cell)
+    # M8 script workloads: custom SQL file written per run; builtins pass
+    # None so M1/M2 argv renders byte-identically.
+    script_path = None
+    if workloads_mod.needs_script(cell.get("workload", "")):
+        script_path = workloads_mod.write_script(workdir, cell["workload"])
 
     warmup_argv = pgbench_mod.build_argv(
         cell, host, port, dbname, user, threads,
-        duration_s=cell["warmup_s"], log_prefix="warm-" + prefix, seed=seed)
+        duration_s=cell["warmup_s"], log_prefix="warm-" + prefix, seed=seed,
+        script_path=script_path)
     warmup_res = run_subprocess(warmup_argv, timeout_s=cell["warmup_s"] + 120,
                                 cwd=log_dir, env=env)
 
     argv = pgbench_mod.build_argv(
         cell, host, port, dbname, user, threads,
-        duration_s=cell["duration_s"], log_prefix=prefix, seed=seed)
+        duration_s=cell["duration_s"], log_prefix=prefix, seed=seed,
+        script_path=script_path)
     start = time.time()
     res = run_subprocess(argv, timeout_s=cap, cwd=log_dir, env=env)
     elapsed = time.time() - start
@@ -223,7 +232,8 @@ def measure_once(cell, host, port, dbname, user, threads, seed, repeat,
 
 def build_record(cell, pooler, pooler_config, measurement, pg_version,
                  pg_config, threads, repeat, seed, pg_show=None,
-                 isolation=None, auth_posture=None, dataset=None):
+                 isolation=None, auth_posture=None, dataset=None,
+                 resources=None):
     pg_show = dict(pg_show or {})
     verdict = pgconf_mod.enforcement_verdict(
         pg_show, dict(pg_config or PG_CONFIG_BASELINE))
@@ -239,12 +249,16 @@ def build_record(cell, pooler, pooler_config, measurement, pg_version,
         # M6 methods hardening: enforcement verdict (blocking on
         # divergence), iron record, auth-posture label, dataset pointer.
         # All additive and optional; old rows without them stay valid.
+        # M8 adds resources (per-run CPU/RSS/FD/pool-wait/pg_stat, all
+        # nullable; harness-side rusage collected when not supplied).
         "pg_config_status": verdict["status"],
         "pg_config_divergence": list(verdict["divergence"]),
         "isolation": (dict(isolation) if isolation is not None
                       else isolate_mod.collect_isolation(threads)),
         "auth_posture": (auth_posture if auth_posture is not None
                          else auth_mod.posture(pooler)),
+        "resources": (dict(resources) if resources is not None
+                      else resources_mod.collect_self_resources()),
         "dataset": (dict(dataset) if dataset is not None else {
             "policy": ("per-chunk pgbench -i -s 10, CHECKPOINT + "
                        "VACUUM (ANALYZE) before each measured block, "
