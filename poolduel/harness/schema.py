@@ -29,7 +29,11 @@ NULLABLE_METRICS = ("tps", "latency_avg_ms", "latency_stddev_ms",
 
 # Additive provenance fields: allowed when present, never required, so
 # older committed raw records (written before the field existed) stay valid.
-OPTIONAL_FIELDS = ("pg_show",)
+# M6 methods hardening adds pg_config_status/divergence (enforcement
+# verdict), isolation (iron record), auth_posture (churn asymmetry
+# label), and dataset (init policy pointer).
+OPTIONAL_FIELDS = ("pg_show", "pg_config_status", "pg_config_divergence",
+                   "isolation", "auth_posture", "dataset")
 
 
 def validate_cell(record):

@@ -13,6 +13,9 @@ import subprocess
 import time
 
 from . import pgbench as pgbench_mod
+from . import auth as auth_mod
+from . import pgconf as pgconf_mod
+from . import isolate as isolate_mod
 from .cells import check_ratio
 from .chunk import mark_completed
 from .schema import POOLER_VERSIONS, validate_cell
@@ -219,7 +222,11 @@ def measure_once(cell, host, port, dbname, user, threads, seed, repeat,
 
 
 def build_record(cell, pooler, pooler_config, measurement, pg_version,
-                 pg_config, threads, repeat, seed, pg_show=None):
+                 pg_config, threads, repeat, seed, pg_show=None,
+                 isolation=None, auth_posture=None, dataset=None):
+    pg_show = dict(pg_show or {})
+    verdict = pgconf_mod.enforcement_verdict(
+        pg_show, dict(pg_config or PG_CONFIG_BASELINE))
     return {
         "cell_id": cell["cell_id"],
         "workload": cell["workload"],
@@ -228,7 +235,22 @@ def build_record(cell, pooler, pooler_config, measurement, pg_version,
         "pooler_config": pooler_config,
         "pg_version": pg_version,
         "pg_config": dict(pg_config or PG_CONFIG_BASELINE),
-        "pg_show": dict(pg_show or {}),
+        "pg_show": dict(pg_show),
+        # M6 methods hardening: enforcement verdict (blocking on
+        # divergence), iron record, auth-posture label, dataset pointer.
+        # All additive and optional; old rows without them stay valid.
+        "pg_config_status": verdict["status"],
+        "pg_config_divergence": list(verdict["divergence"]),
+        "isolation": (dict(isolation) if isolation is not None
+                      else isolate_mod.collect_isolation(threads)),
+        "auth_posture": (auth_posture if auth_posture is not None
+                         else auth_mod.posture(pooler)),
+        "dataset": (dict(dataset) if dataset is not None else {
+            "policy": ("per-chunk pgbench -i -s 10, CHECKPOINT + "
+                       "VACUUM (ANALYZE) before each measured block, "
+                       "bloat accounting per chunk"),
+            "init": "pgbench -i -s 10 per chunk",
+        }),
         "scale": cell.get("scale", 10),
         "clients": cell["clients"],
         "pool_size": cell["pool_size"],
