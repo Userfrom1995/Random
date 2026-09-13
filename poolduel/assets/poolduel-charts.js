@@ -64,7 +64,9 @@
   }
 
   function esc(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function fetchJson(url) {
@@ -98,10 +100,10 @@
       var cell = params[0].axisValue || params[0].name || "";
       var html = "<b>" + esc(cell) + "</b>";
       params.forEach(function (p) {
-        if (p.value == null) return;
+        if (p.value == null || p.seriesType === "scatter") return;
         var pooler = DISPLAY_TO_POOLER[p.seriesName] || p.seriesName;
         var entry = lookups.byKey[cell + "|" + pooler];
-        html += "<br>" + esc(p.marker + " " + p.seriesName + ": " + p.value);
+        html += "<br>" + p.marker + " " + esc(p.seriesName + ": " + p.value);
         if (entry) {
           var tps = entry.tps || {};
           html += "<br>&nbsp;&nbsp;n=" + esc(tps.n) +
