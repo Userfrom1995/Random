@@ -91,3 +91,20 @@
 - M8: warmup sensitivity curve result; scale-100 pilot parameters;
   resource-field schema; workload breadth additions (Zipf, think-time,
   multi-statement, JSONB/COPY-adjacent, fixed-offer `-R`).
+- M8 (closed 2026-09-13): calibration instruments defined (measured in
+  M9). Warmup curve M8-C1 (`harness/calibrate.py:WARMUP_CANDIDATES`
+  0/10/30/60 s on the M1-1 geometry, direct arm, 60 s measure, 3 paired
+  repeats; `evaluate_warmup_curve` picks the smallest warmup within
+  5 percent of best, else warmup rises and the curve re-runs);
+  scale-100 pilot M8-P1..P3 (`-s 100`, standard timing, per-chunk init
+  plus `CHECKPOINT` + `VACUUM (ANALYZE)`; full scale-100 matrix joins
+  M9 only after the pilot proves the iron); resource-field schema
+  (`harness/resources.py`: cpu_time_s, peak_rss_kb, fd_count,
+  pool_wait, pg_stat deltas, all nullable, old rows stay valid);
+  workload breadth (`harness/workloads.py`: zipf-select,
+  think-time, multi-statement, jsonb-write, copy-adjacent scripts plus
+  the `-R`/`-L` fixed-offer modifier; side-table DDL at dataset init);
+  pipeline mode forbidden with written reason
+  (`PIPELINE_FORBIDDEN_REASON`; multi-statement covers batching inside
+  the standard protocol). Full spec in `docs/calibration.md`; CLI
+  readout via `--list-calibration`.
