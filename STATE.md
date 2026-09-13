@@ -1,7 +1,7 @@
 # STATE - Random factory checkpoint
- - **Updated:** 2026-09-12T23:48Z (maintainer run 34726387407 `schedule` on main, main 493166ab LIVE, Pages SUCCESS, 0 open PRs, standby)
- - **Action this run:** decision [] (quiet standby, M4 complete awaiting Owner approval), no merge, no dispatch
- - **Main:** `493166ab6d6a29c5c2b0b8af4bd5080c7561db5b` LIVE (poolduel M4 deep-dives + ECharts 5.5.1 vendored SVG with VERSION sha256 e84270bd, harness/charts.py + loader + repro --charts, five per-pooler 7-section pages, main 8 comparison figures + published banner, 493166ab is Tester 19 tests commit, parent 93760177 -> ... -> cab2375c, grandparent cab2375c lab Pages trigger, 77ee77d M2 medians 111/79 valid, 8a8e098 M1 42/28 valid, Pages Deploy SUCCESS 34721239893 at 21:53:54Z on 493166ab (verified Deploy static site to GitHub Pages success, https://userfrom1995.github.io/RandomLabs/poolduel/ 200), `opencode.json` two-knob `muse-spark-1.3-contributor-free`/`muse-spark-1.2-contributor-free` both free, trigger-list PASS)
+ - **Updated:** 2026-09-13T03:40Z (maintainer run 34736056808 `schedule` on main, main 493166ab LIVE, Pages 200, 0 open PRs, standby)
+ - **Action this run:** decision [] (quiet standby, M4 complete awaiting Owner approval; transient Get opencode version failure 34735150231 noted as self-resolved, trigger-list PASS, no dispatch)
+ - **Main:** `493166ab6d6a29c5c2b0b8af4bd5080c7561db5b` LIVE (poolduel M4 deep-dives + ECharts 5.5.1 vendored SVG with VERSION sha256 e84270bd, harness/charts.py + loader + repro --charts, five per-pooler 7-section pages, main 8 comparison figures + published banner, 493166ab is Tester 19 tests commit, parent 93760177 -> ... -> cab2375c, grandparent cab2375c lab Pages trigger, 77ee77d M2 medians 111/79 valid, 8a8e098 M1 42/28 valid, Pages Deploy SUCCESS 34721239893 at 21:53:54Z on 493166ab verified 200 at 2026-09-13T03:40Z, `opencode.json` two-knob `muse-spark-1.3-contributor-free`/`muse-spark-1.2-contributor-free` both free, trigger-list PASS)
  - **Branch retention:** `opencode/issue302-20260911141051` at `8eca8f16` MERGED PR #303 + `opencode/issue302-poolduel-m2` at `e9c2ea70` MERGED PR #306 + `opencode/issue302-poolduel-m3` at `e3bdf6a3` MERGED PR #307 + `opencode/lab-302-poolduel-sweep-commit` at `ba7ec6e` MERGED PR #308 + `opencode/lab-302-poolduel-pgdg-fix` at `aa08c52` MERGED PR #309 + `opencode/lab-302-poolduel-pooler-builds` at `2cad43fe` MERGED PR #310 + `opencode/lab-302-poolduel-pandoc-fix` at `f4a37f48` MERGED PR #311 + `opencode/lab-302-poolduel-pgagroal-deps` at `fdedaac9` MERGED PR #312 + `opencode/lab-302-poolduel-ci-env-fix` at `07235c83` MERGED PR #316 + `opencode/314-fix-maintainer-workflow-run-trigger` at `bc399524` MERGED PR #315 + `opencode/302-poolduel-adapter-fixes` at `eb07f10f` MERGED PR #317 + `opencode/302-poolduel-tx-pipeline-fixes` at `55c19cf0` MERGED PR #318 + `opencode/lab-302-poolduel-pages-trigger` at `2b91c0a` MERGED PR #319 at `cab2375c` + `opencode/issue302-20260912213237` at `838c079bc0a8b334c85173abc15611f3d90dcd10` MERGED PR #320 at `493166ab` (8 commits 49d50a11..493166ab, retained) + `f113eda` Fix researcher handoff + `8a8e09` M1 aggregate + `77ee77d` M2 aggregate + `cab2375c` Pages trigger + `493166ab` M4 deep-dives (all retained).
 
 ---
@@ -21,11 +21,11 @@
  - **SEXTANT SHIPPED (2026-09-04T09:52Z):** Live at 493166ab.
 
 ## CRITICAL INFRASTRUCTURE STATE
- - **Main 493166ab LIVE - Poolduel M1+M2 both GREEN + Pages SUCCESS + M4 deep-dives SHIPPED:** `origin/main` = 493166ab verified via API and `git ls-remote`, parent cab2375c linear no orphan (merge-base cab2375c), harness adapters live, `poolduel/index.html` M4 upgraded + `poolduel/docs/` live + five per-pooler dirs `poolduel/<pooler>/`, `poolduel/vendor/echarts-5.5.1/dist/echarts.min.js` 1030855 bytes sha256 e84270bd, `opencode-test.yml`/`opencode-review.yml` 120/90 + guard live, `opencode.json` two-knob free (`muse-spark-1.3-contributor-free`/`muse-spark-1.2-contributor-free`), Pages `Deploy static site` SUCCESS 34721239893 at 21:53:54Z on 493166ab (prior Deploys SUCCESS on cab2375c), `maintainer.yml` workflows allowlist 12 verified PASS, `pages.yml` workflow_run declarative verified.
+ - **Main 493166ab LIVE - Poolduel M1+M2 both GREEN + Pages SUCCESS + M4 deep-dives SHIPPED:** `origin/main` = 493166ab verified via API and `git ls-remote`, parent cab2375c linear no orphan (merge-base cab2375c), harness adapters live, `poolduel/index.html` M4 upgraded + `poolduel/docs/` live + five per-pooler dirs `poolduel/<pooler>/`, `poolduel/vendor/echarts-5.5.1/dist/echarts.min.js` 1030855 bytes sha256 e84270bd, `opencode-test.yml`/`opencode-review.yml` 120/90 + guard live, `opencode.json` two-knob free (`muse-spark-1.3-contributor-free`/`muse-spark-1.2-contributor-free`), Pages `Deploy static site` SUCCESS 34721239893 at 21:53:54Z on 493166ab + 200 verified 03:40Z on 2026-09-13, `maintainer.yml` workflows allowlist 12 verified PASS, `pages.yml` workflow_run declarative verified.
  - **Sweeps 34702737525 SUCCESS on ee8caaa -> 8a8e098 and 34710318693 SUCCESS on 8a8e098 -> 77ee77d (40-89m wall-clock):** `poolduel-m1` 9 chunks avg 39.2m max 88.9m success + aggregate 22s to 8a8e098; `poolduel-m2` 16 chunks avg 32.1m max 40.5m success + aggregate 19s to 77ee77d. No retry needed.
- - **Trigger-list self-audit PASS:** `maintainer.yml` workflows list covers all 12 live workflow names + maintainer self excluded.
- - **Model ecosystem two-knob both free PASS:** `opencode.json` `muse-spark-1.3-contributor-free` + `muse-spark-1.2-contributor-free`, workflow `model:` inputs `muse-spark-1.3-contributor-free` + `muse-spark-1.2-contributor-free`, no CreditsError.
- - **No held runs:** `gh run list` shows Deploy success on 493166ab, no blocking `action_required`, Pages 200 verified.
+ - **Trigger-list self-audit PASS:** `maintainer.yml` workflows list covers all 12 live workflow names + maintainer self excluded; dynamic `pages-build-deployment`/`Dependency Graph` are GitHub-managed not repo workflows, correctly excluded.
+ - **Model ecosystem two-knob both free PASS:** `opencode.json` `muse-spark-1.3-contributor-free` + `muse-spark-1.2-contributor-free`, workflow `model:` inputs `muse-spark-1.3-contributor-free` + `muse-spark-1.2-contributor-free`, no CreditsError; run 34735150231 `Get opencode version` failure is transient (next schedule running, auditor 34735074969 success, no persistent model outage).
+ - **No held runs:** `gh run list` shows Deploy success on 493166ab, no blocking `action_required`, Pages 200 verified; recent `maintainer` failure 34735150231 (Get opencode version) is self-contained pre-agent, not a lab workflow failure needing triage, and is superseded by this schedule run in_progress.
 
 ## IN FLIGHT
  - **Poolduel #302 - M1 GREEN at 8a8e098 + M2 GREEN at 77ee77d (107 measured 46 na, 6 arms, raw 469), report live in git, Pages workflow_run LIVE + M4 MERGED at 493166ab (five per-pooler pages + 8 comparison figures + 5.5.1 vendored SVG + charts.py + loader + Tier-0 PASS + Tier-1 17/17 + full suite 198/198 with Tester 19), Pages SUCCESS:** Issue OPEN. PR #320 MERGED at 493166ab via Refs #302 (8 commits 49d50a11..493166ab rebased, branch retained). Keep `Refs #302` until fairness-audit s4 re-check on main + explicit @Userfrom1995 approval for Closes (binding close rule 19:02Z). No further milestones; milestone chain complete, standby for Owner direction.
@@ -33,20 +33,21 @@
  - **Other open PRs:** `gh pr list --state open` = [] (0 open PRs)
 
 ## PIPELINE POSITION
- Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted, researcher handoff fix SHIPPED at f113eda, M1 sweep GREEN at 8a8e098, M2 sweep GREEN at 77ee77d, Pages workflow_run trigger SHIPPED at cab2375c with deploys SUCCESS, Poolduel #302 M4 MERGED at 493166ab (completeness audit 0 gaps, Tier-0/1/2 wired, 198/198 green) - awaiting Owner approval for final Closes before issue close.
+ Folio/Tabula/Sextant SHIPPED, lab rigor gates shipped, docs sync MERGED, chunked CPU MERGED, timeout fix MERGED, recover.sh MERGED, postformer halted, researcher handoff fix SHIPPED at f113eda, M1 sweep GREEN at 8a8e098, M2 sweep GREEN at 77ee77d, Pages workflow_run trigger SHIPPED at cab2375c with deploys SUCCESS, Poolduel #302 M4 MERGED at 493166ab (completeness audit 0 gaps, Tier-0/1/2 wired, 198/198 green) + transient maintainer Get opencode version failure 34735150231 noted as resolved - awaiting Owner approval for final Closes before issue close.
 
 ## NEXT-RUN PLAYBOOK
- 1. Verify Pages remains 200 on 493166ab (already SUCCESS 34721239893) - no Lab needed.
+ 1. Verify Pages remains 200 on 493166ab - done 03:40Z, no Lab needed.
  2. Await explicit @Userfrom1995 approval to close #302 (no self-close, Refs binding). Do not dispatch Build/Architect/Research until directed.
- 3. Enforce Refs #302 on any future PR until closed.
+ 3. Enforce Refs #302 on any future PR until closed; monitor for repeat Get opencode version failures (if persistent, dispatch lab to bump timeout/retry).
 
 ## ISSUES
  - **#302 Poolduel** - OPEN (M1 GREEN 8a8e098 28 measured, M2 GREEN 77ee77d 79 measured, M4 MERGED 493166ab 8 commits, Refs binding, await Owner Closes approval)
  - **#42** - OPEN brainstorm (FROZEN for new picks per Poolduel)
- - **#70** - OPEN lab-health (nominal, Auditor GREEN pending next schedule)
+ - **#70** - OPEN lab-health (nominal, Auditor GREEN 34735074969 on 2026-09-13, no anomalies)
 
 ## OPEN QUESTIONS
  - Will Owner approve final Closes #302 after reviewing M4 Pages with fairness-audit s4 re-check + Tester repro (currently 72 comments, last 2026-09-12T21:34Z)?
  - Any F1-F10 advisories to batch into cleanup milestone if Owner directs?
+ - Was Get opencode version failure 34735150231 isolated transient (next auditor success suggests yes) or needs lab timeout hardening if it recurs?
 
    - Hephaestus, the Maintainer
