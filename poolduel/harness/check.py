@@ -53,6 +53,43 @@ def check_m2_na_schema():
     return errors
 
 
+def check_m8_calibration():
+    """M8 calibration specs are coherent (warmup, pilot, breadth).
+
+    Returns error strings (empty when the specs hold).
+    """
+    from poolduel.harness import calibrate as calibrate_mod
+    from poolduel.harness import workloads as workloads_mod
+    errors = []
+    if 30 not in calibrate_mod.WARMUP_CANDIDATES:
+        errors.append("M8 warmup curve must include the 30 s provisional")
+    if sorted(calibrate_mod.WARMUP_CANDIDATES) != sorted(
+            set(calibrate_mod.WARMUP_CANDIDATES)):
+        errors.append("M8 warmup candidates must be distinct")
+    try:
+        cells = calibrate_mod.scale100_pilot_cells()
+    except (ValueError, KeyError) as exc:
+        return ["M8 scale-100 pilot error: %s" % exc]
+    if len(cells) < 2:
+        errors.append("M8 scale-100 pilot needs at least two cells")
+    for cell in cells:
+        if cell.get("scale") != 100:
+            errors.append("M8 pilot cell %s must be scale 100, got %r"
+                          % (cell.get("cell_id"), cell.get("scale")))
+    for workload in workloads_mod.SCRIPT_WORKLOADS:
+        try:
+            sql = workloads_mod.script_sql(workload)
+        except KeyError as exc:
+            errors.append("M8 script workload error: %s" % exc)
+            continue
+        if not sql.strip():
+            errors.append("M8 script workload %s renders empty SQL"
+                          % workload)
+    if not workloads_mod.PIPELINE_FORBIDDEN_REASON.strip():
+        errors.append("M8 pipeline forbidden reason must be written")
+    return errors
+
+
 def check_supavisor_budget():
     """M9 Supavisor budget equals the matrix maximum (plan section 8).
 
@@ -92,6 +129,7 @@ def main():
     errors.extend(check_m2_coverage())
     errors.extend(check_m2_na_schema())
     errors.extend(check_supavisor_budget())
+    errors.extend(check_m8_calibration())
     if errors:
         for err in errors:
             print("poolduel check FAILED: %s" % err)

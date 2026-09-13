@@ -35,9 +35,10 @@ NULLABLE_METRICS = ("tps", "latency_avg_ms", "latency_stddev_ms",
 # older committed raw records (written before the field existed) stay valid.
 # M6 methods hardening adds pg_config_status/divergence (enforcement
 # verdict), isolation (iron record), auth_posture (churn asymmetry
-# label), and dataset (init policy pointer).
+# label), and dataset (init policy pointer). M8 calibration adds
+# resources (per-run CPU/RSS/FD/pool-wait/pg_stat, all nullable).
 OPTIONAL_FIELDS = ("pg_show", "pg_config_status", "pg_config_divergence",
-                   "isolation", "auth_posture", "dataset")
+                   "isolation", "auth_posture", "dataset", "resources")
 
 
 def validate_cell(record):
@@ -79,6 +80,9 @@ def validate_cell(record):
     pooler = record.get("pooler")
     if pooler not in POOLER_VERSIONS:
         errors.append("unknown pooler %r" % (pooler,))
+    if "resources" in record:
+        from .resources import validate_resources
+        errors.extend(validate_resources(record.get("resources")))
     return errors
 
 
