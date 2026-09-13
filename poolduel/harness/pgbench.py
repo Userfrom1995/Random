@@ -95,12 +95,21 @@ def build_argv(cell, host, port, dbname, user, threads, duration_s=None,
         argv.extend(["-f", str(script_path)])
     rate = cell.get("offer_rate")
     if rate is not None:
-        if int(rate) <= 0:
+        try:
+            rate_num = float(rate)
+        except (TypeError, ValueError):
             raise ValueError("offer_rate must be positive, got %r" % (rate,))
-        argv.extend(["-R", str(int(rate))])
+        if not math.isfinite(rate_num) or rate_num <= 0:
+            raise ValueError("offer_rate must be positive, got %r" % (rate,))
+        argv.extend(["-R", str(int(rate_num))])
     limit = cell.get("latency_limit")
     if limit is not None:
-        if float(limit) <= 0:
+        try:
+            limit_num = float(limit)
+        except (TypeError, ValueError):
+            raise ValueError("latency_limit must be positive, got %r"
+                             % (limit,))
+        if not math.isfinite(limit_num) or limit_num <= 0:
             raise ValueError("latency_limit must be positive, got %r"
                              % (limit,))
         argv.extend(["-L", str(limit)])
