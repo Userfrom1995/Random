@@ -46,8 +46,9 @@ nav.poolnav { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
 
 <div class="banner" id="status-banner">
 <strong>Status: sweep medians published below.</strong>
-Raw JSON plus medians committed with exact configs (M1: 42 cells, M2: 111
-records incl. 7 N/A with nulls); CSV exports alongside the tables.
+Raw JSON plus medians committed with exact configs
+(<span id="pagemeta-counts" data-m1-total="42" data-m2-total="111" data-m2-na="7">M1: 42 cells, M2: 111 records incl. 7 N/A with nulls</span>,
+generated from <code>results/pagemeta.json</code>); CSV exports alongside the tables.
 Per-pooler deep-dives:
 <a href="pgagroal/">pgagroal</a> |
 <a href="pgbouncer/">PgBouncer</a> |
@@ -490,6 +491,15 @@ Docs: <a href="docs/test-matrix.md">test-matrix</a> |
 
   fetchJson("results/m1/medians.json").then(function (m1) {
     var gotM1 = fillM1(m1);
+    // Generated page facts (M5): banner counts render from
+    // results/pagemeta.json; the static fallback above must byte-match it
+    // (drift test test_pagemeta_drift enforces this).
+    fetchJson("results/pagemeta.json").then(function (meta) {
+      if (meta && meta.banner_sentence) {
+        document.getElementById("pagemeta-counts").textContent =
+          meta.banner_sentence;
+      }
+    });
     return fetchJson("results/report.json").then(function (bundle) {
       var gotM2 = fillM2(bundle);
       var gotIso = fillIsoFlat(bundle);

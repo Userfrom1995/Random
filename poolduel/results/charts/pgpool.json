@@ -27,13 +27,13 @@
     "series": [
       {
         "data": [
-          16712.28225,
-          4248.30764,
-          1896.227943,
+          15834.647514,
+          4342.186776,
+          3126.884985,
           null,
-          6785.796626,
-          null,
-          2512.749189
+          3729.805552,
+          265.792982,
+          2319.037572
         ],
         "emphasis": {
           "focus": "series"
@@ -46,13 +46,13 @@
       },
       {
         "data": [
-          15410.125695,
-          2341.603084,
-          1778.284382,
+          15272.972208,
+          3281.545377,
+          3086.421305,
           null,
-          6766.366958,
-          null,
-          2474.835752
+          3595.381875,
+          263.865923,
+          2312.989445
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -72,13 +72,13 @@
       },
       {
         "data": [
-          16829.291307,
-          4797.934647,
-          1963.365609,
+          17521.898619,
+          4376.036374,
+          3144.601972,
           null,
-          7324.479154,
-          null,
-          2553.146552
+          3963.901852,
+          266.074312,
+          2329.005779
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -100,10 +100,6 @@
         "data": [
           [
             3,
-            0
-          ],
-          [
-            5,
             0
           ]
         ],
@@ -131,7 +127,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 16712.3 tps (M1-1 pgpool); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 15834.6 tps (M1-1 pgpool); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgpool-II M1 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -204,13 +200,13 @@
     "series": [
       {
         "data": [
-          16712.28225,
-          4248.30764,
-          1896.227943,
+          15834.647514,
+          4342.186776,
+          3126.884985,
           null,
-          6785.796626,
-          null,
-          2512.749189
+          3729.805552,
+          265.792982,
+          2319.037572
         ],
         "emphasis": {
           "focus": "series"
@@ -223,13 +219,13 @@
       },
       {
         "data": [
-          15410.125695,
-          2341.603084,
-          1778.284382,
+          15272.972208,
+          3281.545377,
+          3086.421305,
           null,
-          6766.366958,
-          null,
-          2474.835752
+          3595.381875,
+          263.865923,
+          2312.989445
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -249,13 +245,13 @@
       },
       {
         "data": [
-          16829.291307,
-          4797.934647,
-          1963.365609,
+          17521.898619,
+          4376.036374,
+          3144.601972,
           null,
-          7324.479154,
-          null,
-          2553.146552
+          3963.901852,
+          266.074312,
+          2329.005779
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -279,7 +275,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 16712.3 tps (M1-1 pgpool); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 15834.6 tps (M1-1 pgpool); 6 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgpool-II M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -351,17 +347,17 @@
     "series": [
       {
         "data": [
-          37859.480956,
-          1233.037841,
-          36978.494489,
-          1197.830883,
-          2011.656527,
-          17632.137429,
-          2796.074689,
+          16596.544526,
+          2544.533995,
+          null,
+          2550.024659,
+          1841.39553,
+          15154.927182,
+          2533.166721,
           null,
           null,
-          4201.714975,
-          null
+          4477.191204,
+          207.616593
         ],
         "emphasis": {
           "focus": "series"
@@ -374,17 +370,17 @@
       },
       {
         "data": [
-          37395.909408,
-          906.581805,
-          36769.872674,
-          1114.857611,
-          2002.850731,
-          17181.492479,
-          2785.658493,
+          15743.310954,
+          2532.680791,
+          null,
+          2480.331671,
+          1839.980639,
+          14801.798876,
+          2404.401671,
           null,
           null,
-          3956.293171,
-          null
+          4089.053621,
+          207.547746
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -404,17 +400,17 @@
       },
       {
         "data": [
-          41234.275385,
-          1348.718238,
-          37210.392918,
-          1629.00076,
-          2013.192143,
-          17775.638066,
-          2799.928562,
+          16722.057297,
+          2571.945599,
+          null,
+          2560.375809,
+          1879.184108,
+          15199.599244,
+          2581.548648,
           null,
           null,
-          4255.540082,
-          null
+          4507.521924,
+          207.667032
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -464,7 +460,7 @@
       {
         "data": [
           [
-            10,
+            2,
             0
           ]
         ],
@@ -492,7 +488,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 37859.5 tps (M2-I13 pgpool); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 16596.5 tps (M2-I13 pgpool); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgpool-II M2 own surface",
       "textStyle": {
         "color": "#E6EDF3"
@@ -569,17 +565,17 @@
     "series": [
       {
         "data": [
-          37859.480956,
-          1233.037841,
-          36978.494489,
-          1197.830883,
-          2011.656527,
-          17632.137429,
-          2796.074689,
+          16596.544526,
+          2544.533995,
+          null,
+          2550.024659,
+          1841.39553,
+          15154.927182,
+          2533.166721,
           null,
           null,
-          4201.714975,
-          null
+          4477.191204,
+          207.616593
         ],
         "emphasis": {
           "focus": "series"
@@ -592,17 +588,17 @@
       },
       {
         "data": [
-          37395.909408,
-          906.581805,
-          36769.872674,
-          1114.857611,
-          2002.850731,
-          17181.492479,
-          2785.658493,
+          15743.310954,
+          2532.680791,
+          null,
+          2480.331671,
+          1839.980639,
+          14801.798876,
+          2404.401671,
           null,
           null,
-          3956.293171,
-          null
+          4089.053621,
+          207.547746
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -622,17 +618,17 @@
       },
       {
         "data": [
-          41234.275385,
-          1348.718238,
-          37210.392918,
-          1629.00076,
-          2013.192143,
-          17775.638066,
-          2799.928562,
+          16722.057297,
+          2571.945599,
+          null,
+          2560.375809,
+          1879.184108,
+          15199.599244,
+          2581.548648,
           null,
           null,
-          4255.540082,
-          null
+          4507.521924,
+          207.667032
         ],
         "itemStyle": {
           "color": "#E69F00",
@@ -656,7 +652,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 37859.5 tps (M2-I13 pgpool); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 16596.5 tps (M2-I13 pgpool); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgpool-II M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

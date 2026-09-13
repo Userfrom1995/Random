@@ -1,0 +1,110 @@
+{
+  "banner_sentence": "M1: 42 cells, M2: 111 records incl. 7 N/A with nulls",
+  "m1": {
+    "cells": [
+      "M1-1",
+      "M1-2",
+      "M1-3",
+      "M1-4",
+      "M1-5",
+      "M1-6",
+      "M1-7"
+    ],
+    "distinct_cells": 7,
+    "measured": 35,
+    "na": 0,
+    "peak": {
+      "cell_id": "M1-1",
+      "pooler": "direct",
+      "tps": 24038.533387
+    },
+    "statuses": {
+      "measured": 35,
+      "timeout/inconclusive": 7
+    },
+    "timeout": 7,
+    "total": 42
+  },
+  "m2": {
+    "cells": [
+      "M2-I1",
+      "M2-I10",
+      "M2-I11",
+      "M2-I12",
+      "M2-I13",
+      "M2-I14",
+      "M2-I15",
+      "M2-I16",
+      "M2-I2",
+      "M2-I3",
+      "M2-I4",
+      "M2-I5",
+      "M2-I6",
+      "M2-I7",
+      "M2-I8",
+      "M2-I9",
+      "M2-P1",
+      "M2-P2",
+      "M2-P3",
+      "M2-P4",
+      "M2-P5",
+      "M2-P6",
+      "M2-S1",
+      "M2-S10",
+      "M2-S11",
+      "M2-S12",
+      "M2-S13",
+      "M2-S14",
+      "M2-S15",
+      "M2-S16",
+      "M2-S2",
+      "M2-S3",
+      "M2-S4",
+      "M2-S5",
+      "M2-S6",
+      "M2-S7",
+      "M2-S8",
+      "M2-S9",
+      "M2-T1",
+      "M2-T2",
+      "M2-T3",
+      "M2-T4",
+      "M2-W1",
+      "M2-W10",
+      "M2-W2",
+      "M2-W3",
+      "M2-W4",
+      "M2-W5",
+      "M2-W6",
+      "M2-W7",
+      "M2-W8",
+      "M2-W9"
+    ],
+    "distinct_cells": 52,
+    "measured": 92,
+    "na": 7,
+    "peak": {
+      "cell_id": "M2-I5",
+      "pooler": "direct",
+      "tps": 31236.603912
+    },
+    "statuses": {
+      "N/A (unsupported)": 7,
+      "measured": 92,
+      "timeout/inconclusive": 12
+    },
+    "timeout": 12,
+    "total": 111
+  },
+  "scope": {
+    "pg_build": "PostgreSQL 17 (PGDG)",
+    "pg_provenance": "docs/versions.md",
+    "scale": "scale -s 10",
+    "warmup": "30 s warmup discarded",
+    "warmup_provenance": "docs/test-matrix.md section 5 (M8 sensitivity curve pending)"
+  },
+  "sources": {
+    "m1/medians.json": "69f711bb8963e4bafcb0b22870e1c370d5930b89bc84fc000563ff05ef024a05",
+    "m2/medians.json": "806253b287201f004be126587ee4bb8973358a8b62c4ca7ddee2cacd1f8cc516"
+  }
+}

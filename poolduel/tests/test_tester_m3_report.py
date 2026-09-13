@@ -199,7 +199,8 @@ class M3PageContractTest(unittest.TestCase):
         js = self._js()
         urls = set(re.findall(r'"(results/[^"]+)"', js))
         self.assertEqual(urls,
-                         {"results/m1/medians.json", "results/report.json"})
+                         {"results/m1/medians.json", "results/report.json",
+                          "results/pagemeta.json"})
         self.assertIn("pending", js)
         self.assertIn("function esc", js)
 
