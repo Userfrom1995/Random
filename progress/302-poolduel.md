@@ -366,7 +366,7 @@ milestones autonomously, notify once when publishable. Blueprint:
 `ideas/2026-09-13-poolduel-redesign.md`. All PRs use `Refs #302`; no
 `Closes #302` until the plan section 11 full gate passes.
 
-Active Milestone: M7 (complete, ready for review)
+Active Milestone: M8 (complete, ready for review)
 
 - Milestone 5 (charter + registry + spec + drift test): [x] IA lock
   verified (relative links, vendored ECharts 5.5.1, no CDN, no Mermaid
@@ -530,3 +530,47 @@ Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
 - the Builder
 
 - the Architect
+
+## M8 build log (Builder, 2026-09-13, branch `opencode/issue302-poolduel-m8`)
+
+Implements the M8 slice of `ideas/2026-09-13-poolduel-redesign.md`
+(calibration, plan section 7). Harness + docs only; no sweep (M9 owns
+the resweep), no workflow edits (Lab scope), no numbers claimed.
+
+- New: `harness/resources.py` (per-run cpu_time_s, peak_rss_kb,
+  fd_count via stdlib rusage + /proc, pool_wait passthrough never
+  fabricated, pg_stat_database deltas via snapshot SQL + pure delta,
+  all nullable, never raises, `validate_resources` shape check).
+- New: `harness/workloads.py` (breadth as DATA: zipf-select,
+  think-time, multi-statement, jsonb-write, copy-adjacent custom
+  scripts with zipfian/begin-end/jsonb/batch mechanisms, side-table
+  DDL at dataset init, fixed-offer `-R`/`-L` modifier from cell keys,
+  `PIPELINE_FORBIDDEN_REASON` with multi-statement as the
+  in-protocol batching cover).
+- New: `harness/calibrate.py` (M8-C1 warmup curve 0/10/30/60 s on the
+  M1-1 geometry with paired repeats; `evaluate_warmup_curve` picks
+  the smallest warmup within 5 percent of best, plateau check forces
+  a rise when best sits uniquely on the largest candidate; M8-P1..P3
+  scale-100 pilot at standard timing with per-chunk init discipline;
+  published calibration budget).
+- Wiring: `pgbench.workload_flags` + `build_argv` extended (script
+  workloads carry no builtin selector, `-f`/`-R`/`-L`; M1/M2 argv
+  renders byte-identically, proven by test), `runner.measure_once`
+  writes per-run scripts, `runner.build_record` records `resources`
+  (harness rusage by default), `schema.OPTIONAL_FIELDS` + validation
+  extended (old rows stay valid), `cli --list-calibration` readout,
+  `check.py` M8 coherence checks (success line byte-identical).
+- Docs: `docs/calibration.md` (curve, pilot, resources, breadth,
+  pipeline reason), spec-v1.md s6 M8 closed, methodology scale-100 +
+  resource lines, claims.md pool-wait/pg_stat secondaries.
+- Tests: `tests/test_m8_calibration.py` (31 tests: resources,
+  workloads, argv, curve incl. plateau/rise rule, pilot, wiring,
+  CLI, preflight). Full suite green (371), `check.py` ok,
+  `--list-calibration` + `--dry-run` verified.
+- `Refs #302`: no `Closes`, no owner notification (mandate rule 6).
+
+Current step: M8 implementation complete, awaiting review
+Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
+  + calibration readout) -> merge -> Builder M9 per blueprint.
+
+- the Builder

@@ -67,27 +67,44 @@ def evaluate_warmup_curve(points, tolerance=WARMUP_TOLERANCE):
     best = max(tps for (_, tps) in points)
     floor = best * (1.0 - tolerance)
     passing = sorted(w for (w, tps) in points if tps >= floor)
-    if passing:
-        pick = min(passing)
+    if not passing:  # defensive: best always passes, kept for safety
+        pick = max(w for (w, _) in points)
         return {
-            "recommended_warmup_s": pick,
-            "sufficient": True,
+            "recommended_warmup_s": None,
+            "sufficient": False,
             "best_tps": best,
             "tolerance": tolerance,
-            "rationale": ("warmup %ss median within %.1f%% of best "
-                          "(%.1f tps); smallest such warmup wins"
-                          % (pick, tolerance * 100.0, best)),
+            "rationale": ("no tested warmup reaches %.1f%% of best "
+                          "(%.1f tps); warmup must rise and the curve "
+                          "re-runs" % ((1.0 - tolerance) * 100.0, best)),
         }
-    pick = max(w for (w, _) in points)
+    w_max = max(w for (w, _) in points)
+    winners = [w for (w, tps) in points if tps == best]
+    # Plateau check: when the best sits uniquely on the largest tested
+    # warmup while every shorter warmup falls outside tolerance, the
+    # curve is still rising into the boundary, so a longer warmup must
+    # be tested before any value is declared sufficient.
+    if winners == [w_max] and len(points) > 1 and len(passing) == 1:
+        return {
+            "recommended_warmup_s": None,
+            "sufficient": False,
+            "best_tps": best,
+            "tolerance": tolerance,
+            "rationale": ("best tps (%.1f) sits uniquely on the largest "
+                          "tested warmup (%ss) with no shorter warmup "
+                          "within %.1f%%; warmup must rise above %ss "
+                          "and the curve re-runs"
+                          % (best, w_max, tolerance * 100.0, w_max)),
+        }
+    pick = min(passing)
     return {
-        "recommended_warmup_s": None,
-        "sufficient": False,
+        "recommended_warmup_s": pick,
+        "sufficient": True,
         "best_tps": best,
         "tolerance": tolerance,
-        "rationale": ("no tested warmup (max %ss) reaches %.1f%% of "
-                      "best (%.1f tps); warmup must rise above %ss "
-                      "and the curve re-runs"
-                      % (pick, (1.0 - tolerance) * 100.0, best, pick)),
+        "rationale": ("warmup %ss median within %.1f%% of best "
+                      "(%.1f tps); smallest such warmup wins"
+                      % (pick, tolerance * 100.0, best)),
     }
 
 
