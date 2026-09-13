@@ -54,8 +54,14 @@ def delta_snapshots(before, after):
     Returns a dict of after-minus-before per key, or None for keys
     missing on either side (never raises, never guesses).
     """
-    before = dict(before or {})
-    after = dict(after or {})
+    try:
+        before = dict(before or {})
+    except (TypeError, ValueError, AttributeError):
+        before = {}
+    try:
+        after = dict(after or {})
+    except (TypeError, ValueError, AttributeError):
+        after = {}
     delta = {}
     for key in PG_STAT_KEYS:
         try:
@@ -63,7 +69,7 @@ def delta_snapshots(before, after):
                 delta[key] = after[key] - before[key]
             else:
                 delta[key] = None
-        except TypeError:
+        except Exception:
             delta[key] = None
     return delta
 
