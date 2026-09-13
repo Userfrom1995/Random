@@ -95,6 +95,18 @@ def find_logs(log_dir, prefix):
     return sorted(glob.glob(os.path.join(log_dir, prefix + "*")))
 
 
+def pick_txn_path(log_dir, prefix):
+    """Provenance pointer to a per-worker txn log (never the aggregate).
+
+    ``-`` (0x2D) sorts before ``.`` (0x2E), so an aggregate sibling of a
+    worker file would otherwise win an unfiltered glob. Returns None
+    when no per-worker file exists.
+    """
+    cands = [p for p in find_logs(log_dir, prefix)
+             if "aggregate" not in os.path.basename(p)]
+    return cands[0] if cands else None
+
+
 def measure_once(cell, host, port, dbname, user, threads, seed, repeat,
                  workdir, pg_config=None, env=None):
     """Run warmup (discarded) then one measured pgbench run for a cell.
@@ -130,7 +142,7 @@ def measure_once(cell, host, port, dbname, user, threads, seed, repeat,
         f.write("--- stdout ---\n%s\n" % res["stdout"])
         f.write("--- stderr ---\n%s\n" % res["stderr"])
 
-    txn_path = find_log(log_dir, prefix)
+    txn_path = pick_txn_path(log_dir, prefix)
     txn_paths = [p for p in find_logs(log_dir, prefix)
                  if "aggregate" not in os.path.basename(p)]
     agg_path = None
