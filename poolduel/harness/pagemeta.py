@@ -141,6 +141,7 @@ def main(argv=None):
     os.makedirs(outdir, exist_ok=True)
     with open(args.out, "w") as f:
         json.dump(meta, f, indent=2, sort_keys=True)
+        f.write("\n")
     print("poolduel pagemeta: %s" % args.out)
     return 0
 
