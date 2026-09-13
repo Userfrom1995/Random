@@ -34,6 +34,7 @@ extended-protocol semantics rather than pooling behavior, and fewer
 than all contenders implement it. See ``PIPELINE_FORBIDDEN_REASON``.
 """
 
+import math
 import os
 
 # Workloads served by pgbench builtins (flags owned by pgbench.py).
@@ -162,12 +163,21 @@ def fixed_offer_flags(cell):
     flags = []
     rate = cell.get("offer_rate")
     if rate is not None:
-        if int(rate) <= 0:
+        try:
+            rate_num = float(rate)
+        except (TypeError, ValueError):
             raise ValueError("offer_rate must be positive, got %r" % (rate,))
-        flags.extend(["-R", str(int(rate))])
+        if not math.isfinite(rate_num) or rate_num <= 0:
+            raise ValueError("offer_rate must be positive, got %r" % (rate,))
+        flags.extend(["-R", str(int(rate_num))])
     limit = cell.get("latency_limit")
     if limit is not None:
-        if float(limit) <= 0:
+        try:
+            limit_num = float(limit)
+        except (TypeError, ValueError):
+            raise ValueError("latency_limit must be positive, got %r"
+                             % (limit,))
+        if not math.isfinite(limit_num) or limit_num <= 0:
             raise ValueError("latency_limit must be positive, got %r"
                              % (limit,))
         flags.extend(["-L", str(limit)])
