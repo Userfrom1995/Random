@@ -569,6 +569,31 @@ the resweep), no workflow edits (Lab scope), no numbers claimed.
   `--list-calibration` + `--dry-run` verified.
 - `Refs #302`: no `Closes`, no owner notification (mandate rule 6).
 
+## M8 fixer log (Fixer, 2026-09-13, PR #327 Tester findings)
+
+Applied all 3 hostile defects from the Tester's `/oc fix` (shared root
+cause: NaN slips through `<= 0` guards since NaN comparisons are False):
+
+- `harness/calibrate.py`: `evaluate_warmup_curve` now requires finite
+  medians (`math.isfinite`), so NaN/inf raise ValueError instead of
+  emitting a "nan tps ... must rise" verdict that would burn M9 budget.
+- `harness/workloads.py` + `harness/pgbench.py` (same duplicated guard
+  kept consistent): `fixed_offer_flags` and `build_argv` parse
+  offer_rate/latency_limit via `float()` with a finiteness check, so
+  NaN/inf/str render as ValueError instead of `-L nan` on the pgbench
+  command line. Bonus: inf offer_rate now raises ValueError instead of
+  leaking OverflowError from `int()`.
+- `harness/resources.py`: `delta_snapshots` wraps the `dict()` snapshot
+  coercions in try/except and broadens the per-key guard, so hostile
+  shapes ("x", 123, ["x"], arbitrary objects) degrade to None-per-key
+  per the absolute "never raises, never guesses" contract.
+
+Verified: hostile suite 23/23 green, full suite 394/394 green,
+`check.py` ok. No rebuttals; reviewer advisories (dbname quoting,
+rusage-delta, think-time rate key, pg_stat wiring) left for M9/Lab scope.
+
+- the Fixer
+
 Current step: M8 implementation complete, awaiting review
 Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
   + calibration readout) -> merge -> Builder M9 per blueprint.
