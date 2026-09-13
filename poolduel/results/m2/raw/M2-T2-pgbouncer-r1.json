@@ -1,14 +1,14 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2c/work-M2-T2-pgbouncer-r1/logs/cell-M2-T2-r1-36980.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2c/work-M2-T2-pgbouncer-r1/logs/cell-M2-T2-r1-36980.24973"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2c/work-M2-T2-pgbouncer-r1/logs/cell-M2-T2-r1-89453.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2c/work-M2-T2-pgbouncer-r1/logs/cell-M2-T2-r1-89453.25089"
   },
   "cell_id": "M2-T2",
   "churn": false,
   "clients": 50,
   "duration_s": 60,
-  "exit_code": 1,
+  "exit_code": 2,
   "failed": 0,
   "latency_avg_ms": null,
   "latency_stddev_ms": null,
@@ -20,6 +20,14 @@
     "fsync": "on",
     "max_connections": 300,
     "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_show": {
+    "fsync": "on",
+    "max_connections": "100",
+    "password_encryption": "scram-sha-256",
+    "server_version": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "shared_buffers": "128MB",
     "synchronous_commit": "on"
   },
   "pg_version": "PG 17",

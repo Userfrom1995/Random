@@ -22,6 +22,7 @@
     "shared_buffers": "512MB",
     "synchronous_commit": "on"
   },
+  "pg_show": {},
   "pg_version": "PG 17",
   "pool_size": 10,
   "pooler": "pgagroal",

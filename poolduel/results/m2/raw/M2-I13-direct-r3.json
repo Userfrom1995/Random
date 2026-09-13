@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I13-direct-r3/logs/cell-M2-I13-r3-38261.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I13-direct-r3/logs/cell-M2-I13-r3-38261.29517"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I13-direct-r3/logs/cell-M2-I13-r3-90183.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m2-m2f2/work-M2-I13-direct-r3/logs/cell-M2-I13-r3-90183.29514"
   },
   "cell_id": "M2-I13",
   "churn": false,
@@ -10,16 +10,24 @@
   "duration_s": 60,
   "exit_code": 0,
   "failed": 0,
-  "latency_avg_ms": 1.513,
-  "latency_stddev_ms": 1.038,
-  "p50_ms": 249847.0435,
-  "p90_ms": 249899.0895,
-  "p999_ms": 249910.870995,
-  "p99_ms": 249909.79995,
+  "latency_avg_ms": 4.098,
+  "latency_stddev_ms": 3.204,
+  "p50_ms": 3.883,
+  "p90_ms": 5.145,
+  "p999_ms": 26.976,
+  "p99_ms": 19.024,
   "pg_config": {
     "fsync": "on",
     "max_connections": 300,
     "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_show": {
+    "fsync": "on",
+    "max_connections": "100",
+    "password_encryption": "scram-sha-256",
+    "server_version": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "shared_buffers": "128MB",
     "synchronous_commit": "on"
   },
   "pg_version": "PG 17",
@@ -34,7 +42,7 @@
   "skipped": 0,
   "status": "measured",
   "threads": 4,
-  "tps": 65997.068353,
+  "tps": 24353.439914,
   "warmup_s": 30,
   "workload": "select-only"
 }
