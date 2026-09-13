@@ -38,6 +38,10 @@ def build_parser():
                    help="print the M2 variant table plus N/A rows and exit")
     p.add_argument("--list-budget", action="store_true",
                    help="print per-contender cell budgets (M1+M2) and exit")
+    p.add_argument("--smoke-supavisor", action="store_true",
+                   help="render the Supavisor provisioning bundle into "
+                        "--out and evaluate the M7 smoke gate (exit 0 "
+                        "only with zero fail rows)")
     p.add_argument("--write-na", action="store_true",
                    help="with --matrix m2: emit N/A JSON records for "
                         "unsupported rows into --out/raw and exit")
@@ -142,6 +146,15 @@ def print_budget():
               % (arm, row["m1_cells"], row["m2_rows"], row["total"]))
     print("M2 structural N/A rows carry nulls with reason "
           "(see --list-m2); best-vs-best always ships beside iso slices.")
+    # M7 onboarding: Supavisor M9 equal budget (defined in
+    # harness/supavisor.py, measured in M9 after the smoke gate).
+    # Additive line; the JSON above stays the M1+M2 universe so
+    # committed medians keep validating byte-identically.
+    from . import supavisor as supavisor_mod
+    budget = supavisor_mod.M9_SUPAVISOR_BUDGET
+    print("supavisor (M9 entry, smoke-gated): M1 %d cells + M2 %d rows "
+          "= %d"
+          % (budget["m1_cells"], budget["m2_rows"], budget["total"]))
 
 
 def print_m2_table():
@@ -194,6 +207,50 @@ def write_na_records(out_dir, threads=4, seed=42, pg_version="PG 17"):
     return written
 
 
+def smoke_supavisor(args):
+    """Render the Supavisor bundle and evaluate the M7 smoke gate.
+
+    Writes supavisor.env + tenant.json + metadata.sql + SUPAVISOR_RUN.sh
+    into --out via the real adapter setup(), then runs
+    harness/supavisor.py:smoke_gate() over the written files with the
+    env the adapter rendered. Prints one line per gate row; exit 0
+    only with zero fail rows (matrix entry stays blocked otherwise).
+    The release SHA comes from --pg-version only as a carrier is wrong;
+    pass it via SUPAVISOR_SHA env (empty means unrecorded, a fail row).
+    """
+    import os
+
+    from . import supavisor as supavisor_mod
+    from .cells import get_cell
+    cell = get_cell("M1-1")
+    adapter = load_adapters(["supavisor"])["supavisor"]
+    bundle_dir = os.path.join(args.out, "supavisor-smoke")
+    adapter.setup(bundle_dir, cell)
+    bundle = {}
+    for name in ("supavisor.env", "tenant.json", "metadata.sql",
+                 "SUPAVISOR_RUN.sh"):
+        path = os.path.join(bundle_dir, name)
+        try:
+            with open(path) as f:
+                bundle[name] = f.read()
+        except OSError:
+            bundle[name] = ""
+    env = {}
+    for line in bundle.get("supavisor.env", "").splitlines():
+        if "=" in line and not line.startswith("#"):
+            key, _, value = line.partition("=")
+            env[key.strip()] = value.strip()
+    rows = supavisor_mod.smoke_gate(
+        bundle, recorded_sha=os.environ.get("SUPAVISOR_SHA", ""),
+        env=env)
+    for (name, status, detail) in rows:
+        print("[%s] %s: %s" % (status.upper(), name, detail))
+    ok = supavisor_mod.gate_passes(rows)
+    print("supavisor smoke gate: %s (%d rows, bundle at %s)"
+          % ("PASS" if ok else "BLOCKED", len(rows), bundle_dir))
+    return 0 if ok else 1
+
+
 def load_adapters(arms):
     from .adapters import direct as direct_mod
     from .adapters import odyssey as odyssey_mod
@@ -201,6 +258,7 @@ def load_adapters(arms):
     from .adapters import pgbouncer as pgbouncer_mod
     from .adapters import pgcat as pgcat_mod
     from .adapters import pgpool as pgpool_mod
+    from .adapters import supavisor as supavisor_adapter_mod
     makers = {
         "direct": direct_mod.DirectAdapter,
         "pgagroal": pgagroal_mod.PgAgroalAdapter,
@@ -208,6 +266,7 @@ def load_adapters(arms):
         "pgpool": pgpool_mod.PgPoolAdapter,
         "odyssey": odyssey_mod.OdysseyAdapter,
         "pgcat": pgcat_mod.PgCatAdapter,
+        "supavisor": supavisor_adapter_mod.SupavisorAdapter,
     }
     return {arm: makers[arm]() for arm in arms}
 
@@ -223,6 +282,8 @@ def main(argv=None):
     if args.list_budget:
         print_budget()
         return 0
+    if args.smoke_supavisor:
+        return smoke_supavisor(args)
     if args.write_na:
         if args.matrix != "m2":
             parser.error("--write-na needs --matrix m2")

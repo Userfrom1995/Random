@@ -53,6 +53,19 @@ def check_m2_na_schema():
     return errors
 
 
+def check_supavisor_budget():
+    """M9 Supavisor budget equals the matrix maximum (plan section 8).
+
+    Equal cell budget is structural: Supavisor must run every geometry
+    any other arm runs. Returns error strings (empty when parity holds).
+    """
+    from poolduel.harness.supavisor import budget_parity_ok
+    ok, detail = budget_parity_ok()
+    if ok:
+        return []
+    return ["Supavisor M9 budget parity broken: %s" % detail]
+
+
 def main():
     errors = []
     for binary in ("pgbench", "psql"):
@@ -78,6 +91,7 @@ def main():
         errors.append("no M2 chunks defined")
     errors.extend(check_m2_coverage())
     errors.extend(check_m2_na_schema())
+    errors.extend(check_supavisor_budget())
     if errors:
         for err in errors:
             print("poolduel check FAILED: %s" % err)
