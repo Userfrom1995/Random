@@ -258,9 +258,32 @@ class ReadabilityRegressionTest(unittest.TestCase):
             twin = options[chart_id + "-log"]
             self.assertEqual(twin["yAxis"]["type"], "log")
             self.assertEqual(twin["xAxis"]["data"], linear["xAxis"]["data"])
-            for lseries, tseries in zip(linear["series"], twin["series"]):
+            # y=0 N/A/timeout markers are undefined on a log axis, so the
+            # twin is bar/line-only; markers live on the linear chart.
+            for series in twin["series"]:
+                self.assertNotEqual(series.get("type"), "scatter",
+                                    "%s log twin carries a scatter series"
+                                    % chart_id)
+            expected = [s for s in linear["series"]
+                        if s.get("type") != "scatter"]
+            self.assertEqual(len(twin["series"]), len(expected),
+                             "%s log twin dropped a data series" % chart_id)
+            for lseries, tseries in zip(expected, twin["series"]):
                 self.assertEqual(lseries["name"], tseries["name"])
                 self.assertEqual(tseries["data"], lseries["data"])
+            self.assertIn("markers shown on the linear chart",
+                          twin["title"]["subtext"])
+
+    def test_own_page_log_twins_carry_no_scatter(self):
+        for pooler in charts_mod.PAGE_POOLERS:
+            options = _load_json("results/charts/%s.json" % pooler)
+            for chart_id in ("own-m1", "own-m2"):
+                twin = options[chart_id + "-log"]
+                self.assertEqual(twin["yAxis"]["type"], "log")
+                for series in twin["series"]:
+                    self.assertNotEqual(series.get("type"), "scatter",
+                                        "%s/%s log twin carries a scatter "
+                                        "series" % (pooler, chart_id))
 
     def test_markers_lift_off_baseline_with_labels(self):
         options = _load_json("results/charts/comparison.json")

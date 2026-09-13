@@ -18,7 +18,7 @@
         "m2-workloads-log"
       ],
       "file": "comparison.json",
-      "sha256": "393c483fc0741e159a50b3b1ceac7b10a4df48e41c72d50b1cf41fbecce3d246"
+      "sha256": "14aa4519578d5f72703167bf9a057be85fca3e1963ced4c092d30f5074c5474e"
     },
     "odyssey": {
       "charts": [
@@ -28,7 +28,7 @@
         "own-m2-log"
       ],
       "file": "odyssey.json",
-      "sha256": "636f581e488759e7e44960a6d6eb4885fd1a7b6ee5242477150a416ac2f7df52"
+      "sha256": "773a6d153954767bde148263b19658c7b4e26b11e303d278f415030abc850706"
     },
     "pgagroal": {
       "charts": [
@@ -38,7 +38,7 @@
         "own-m2-log"
       ],
       "file": "pgagroal.json",
-      "sha256": "727c9672a452284e07a14575e572b0ba408bf40a91bb43609da1c9be8e306f78"
+      "sha256": "dcf30d69b995f20af02263f67cb9e03e4d94152359a94e10e577867abfb58a11"
     },
     "pgbouncer": {
       "charts": [
@@ -48,7 +48,7 @@
         "own-m2-log"
       ],
       "file": "pgbouncer.json",
-      "sha256": "07523aab869a908a4ca870c4a897b1f9cdbdcb1cb578763d558582eb145d9664"
+      "sha256": "ce3aeabc781061c6ee91c83e80c4c1b1d9b9de3eeb6235e6eb08ae7bb580e190"
     },
     "pgcat": {
       "charts": [
@@ -58,7 +58,7 @@
         "own-m2-log"
       ],
       "file": "pgcat.json",
-      "sha256": "2eed1c7b51aa72d345b143f0ae6886888305979f5e4d19ee270ef9dce4917794"
+      "sha256": "6ceab11030945052eb0f94ded782f2093f63a05e727d2223c194a67a88515ebd"
     },
     "pgpool": {
       "charts": [
@@ -68,7 +68,7 @@
         "own-m2-log"
       ],
       "file": "pgpool.json",
-      "sha256": "97a0d4131cece6d4e557df9e677d31c9ac734e08cbaa13d6aec5b9862f8f63a1"
+      "sha256": "258572e7024c5c08cf605b8c39e7664d00e6d633ef82f02f34ed12a4fb6038e0"
     }
   },
   "sources": {

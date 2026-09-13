@@ -1317,43 +1317,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            1,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -1361,7 +1324,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; N/A and timeout cells marked, never zero-filled. peak 25405.0 tps (M1-1 direct); 28 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked, never zero-filled. peak 25405.0 tps (M1-1 direct); 28 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "M1 best-vs-best per workload (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -2699,7 +2662,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; prefix M2-I. peak 66935.0 tps (M2-I15 direct); 32 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; prefix M2-I. peak 66935.0 tps (M2-I15 direct); 32 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "M2 I/O block heads (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -3323,68 +3286,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#FFFFFF"
-        },
-        "label": {
-          "color": "#FFFFFF",
-          "formatter": "N/A (unsupported)",
-          "position": "top",
-          "show": true
-        },
-        "name": "N/A (unsupported)",
-        "symbol": "diamond",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
-      },
-      {
-        "data": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            4,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -3392,7 +3293,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; prefix M2-P. peak 4749.4 tps (M2-P1 direct); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, PgBouncer, pgcat.",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; prefix M2-P. peak 4749.4 tps (M2-P1 direct); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, PgBouncer, pgcat.",
       "text": "M2 prepared twins (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -4383,59 +4284,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ],
-          [
-            2,
-            0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            8,
-            0
-          ],
-          [
-            9,
-            0
-          ],
-          [
-            12,
-            0
-          ],
-          [
-            13,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -4443,7 +4291,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; prefix M2-S. peak 26008.9 tps (M2-S5 direct); 24 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgcat.",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; prefix M2-S. peak 26008.9 tps (M2-S5 direct); 24 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgcat.",
       "text": "M2 session block heads (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -5021,60 +4869,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            0,
-            0
-          ],
-          [
-            1,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#FFFFFF"
-        },
-        "label": {
-          "color": "#FFFFFF",
-          "formatter": "N/A (unsupported)",
-          "position": "top",
-          "show": true
-        },
-        "name": "N/A (unsupported)",
-        "symbol": "diamond",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
-      },
-      {
-        "data": [
-          [
-            1,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -5082,7 +4876,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; prefix M2-T. peak 25723.8 tps (M2-T1 direct); 7 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgpool-II, pgcat.",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; prefix M2-T. peak 25723.8 tps (M2-T1 direct); 7 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgpool-II, pgcat.",
       "text": "M2 statement block heads (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -5917,55 +5711,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            0,
-            0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            5,
-            0
-          ],
-          [
-            6,
-            0
-          ],
-          [
-            7,
-            0
-          ],
-          [
-            8,
-            0
-          ],
-          [
-            9,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -5973,7 +5718,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "log-scaled twin of the same data; median tps with min-max bands; prefix M2-W. peak 5910.6 tps (M2-W5 direct); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgcat.",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; prefix M2-W. peak 5910.6 tps (M2-W5 direct); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners No measured cells: pgagroal, pgcat.",
       "text": "M2 workload twins (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
