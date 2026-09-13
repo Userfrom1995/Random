@@ -54,7 +54,7 @@ footer { margin-top: 36px; color: #9aa7b4; font-size: 0.85rem; }
 
 <div class="section" id="s-config">
 <h2>Config anatomy</h2>
-<p class="note">Every PgBouncer config with its results in full: M1 7 rows plus 12 M2 measured rows plus 0 N/A rows. Settings columns are static markup from the harness adapters; tps/status columns fill live from committed medians over HTTP (peak tagged).</p>
+<p class="note">Every PgBouncer config with its results in full: M1 7 rows plus 12 M2 rows (8 measured + 4 timeout/inconclusive) plus 0 N/A rows. Settings columns are static markup from the harness adapters; tps/status columns fill live from committed medians over HTTP (peak tagged).</p>
 <table data-config-results data-pooler="pgbouncer">
 <tr><th>Cell</th><th>Load</th><th>Non-default settings</th><th>Docs</th><th>tps median [min-max]</th><th>Status</th></tr>
 <tr data-cell="M1-1" data-pooler="pgbouncer"><td>M1-1</td><td>select-only, 100c/10p, simple</td><td><code>pool_mode=transaction</code>, pool 10, 1 instance, <code>max_client_conn</code> 500</td><td><a href="../docs/configs/pgbouncer.md">pgbouncer.md</a></td><td class="live-tps">loading…</td><td class="live-status">loading…</td></tr>
