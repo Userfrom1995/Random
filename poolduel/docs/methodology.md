@@ -46,6 +46,10 @@ per cell, five for flagship; median headline with min-max band and CV.
 Threads `-j` equal vCPU count and fixed equal to harness `--threads`
 (`isolation.pgbench_j` pinned, never derived from victim CPU count).
 Per-cell caps: 8 min standard, 12 min flagship.
+Scale 100 (`-s 100`, roughly 1.5 GB) enters as a first-class scale via
+the M8-P pilot (two geometries plus a churn twin, same per-chunk
+discipline); the full scale-100 matrix joins M9 only after the pilot
+proves the iron holds it (`docs/calibration.md` section 2).
 Isolation record per arm-run (`harness/isolate.py`): CPU model, kernel,
 nproc, frequency governor, threads, pinning discipline, topology.
 
@@ -59,6 +63,10 @@ skipped counts under `-R`, and exit codes (0 ok, 1 setup failure, 2 mid-run
 SQL errors). Any SQLSTATE 26000 (`prepared statement does not exist`) in a
 prepared twin fails that arm cell. No hidden errors; every number ships with
 its full pgbench header block and exact pooler config.
+Resource mechanism (M8+ rows, nullable before): per-run CPU seconds,
+peak RSS, FD count, pool wait/queue counters where exposed, and
+`pg_stat_database` deltas across the measured run
+(`harness/resources.py`, `docs/calibration.md` section 3).
 
 ## 5. Fairness discipline (structural)
 

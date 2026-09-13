@@ -27,6 +27,9 @@ Reported beside every primary, never collapsed into a single score:
 - `cpu_time` per run (M8+ resource fields; nullable for M1/M2 rows)
 - `peak_rss` per run (M8+; nullable for M1/M2 rows)
 - `fd_count` per run (M8+; nullable for M1/M2 rows)
+- `pool_wait` counters where the pooler exposes them (M8+; None until
+  an adapter reports them, never fabricated)
+- `pg_stat` deltas across the measured run (M8+; nullable for M1/M2)
 
 ## 3. Headline comparisons (registered)
 
