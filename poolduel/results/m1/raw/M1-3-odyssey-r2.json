@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-odyssey-r2/logs/cell-M1-3-r2-30404.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-odyssey-r2/logs/cell-M1-3-r2-30404.26439"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-odyssey-r2/logs/cell-M1-3-r2-90068.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-odyssey-r2/logs/cell-M1-3-r2-90068.26586"
   },
   "cell_id": "M1-3",
   "churn": false,
@@ -20,6 +20,14 @@
     "fsync": "on",
     "max_connections": 300,
     "shared_buffers": "512MB",
+    "synchronous_commit": "on"
+  },
+  "pg_show": {
+    "fsync": "on",
+    "max_connections": "100",
+    "password_encryption": "scram-sha-256",
+    "server_version": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "shared_buffers": "128MB",
     "synchronous_commit": "on"
   },
   "pg_version": "PG 17",

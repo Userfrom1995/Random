@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "agglog": null,
-    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgagroal-r3/logs/cell-M1-3-r3-31126.stdout.txt",
-    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgagroal-r3/logs/cell-M1-3-r3-31126.26848"
+    "stdout": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgagroal-r3/logs/cell-M1-3-r3-90790.stdout.txt",
+    "txnlog": "/home/runner/work/RandomLabs/RandomLabs/poolduel/results/m1-c/work-M1-3-pgagroal-r3/logs/cell-M1-3-r3-90790.stdout.txt"
   },
   "cell_id": "M1-3",
   "churn": false,
@@ -22,6 +22,7 @@
     "shared_buffers": "512MB",
     "synchronous_commit": "on"
   },
+  "pg_show": {},
   "pg_version": "PG 17",
   "pool_size": 10,
   "pooler": "pgagroal",
