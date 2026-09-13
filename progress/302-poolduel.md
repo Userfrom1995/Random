@@ -366,7 +366,7 @@ milestones autonomously, notify once when publishable. Blueprint:
 `ideas/2026-09-13-poolduel-redesign.md`. All PRs use `Refs #302`; no
 `Closes #302` until the plan section 11 full gate passes.
 
-Active Milestone: M5 (complete, ready for review)
+Active Milestone: M7 (complete, ready for review)
 
 - Milestone 5 (charter + registry + spec + drift test): [x] IA lock
   verified (relative links, vendored ECharts 5.5.1, no CDN, no Mermaid
@@ -477,6 +477,55 @@ resweep), no workflow edits (Lab scope).
 Current step: M6 implementation complete, awaiting review
 Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke)
   -> merge -> Builder M7 per blueprint.
+
+- the Builder
+
+## M7 build log (Builder, 2026-09-13, branch `opencode/issue302-poolduel-m7`)
+
+Implements the M7 slice of `ideas/2026-09-13-poolduel-redesign.md`
+(Supavisor onboarding, plan section 8). Harness + docs only; no sweep
+(M9 owns the resweep), no workflow edits (Lab scope), no numbers
+claimed.
+
+- New: `harness/supavisor.py` (PINNED_VERSION v2.9.13, `pin_sha`
+  refusing empty SHA, REQUIRED_ENV incl. 32-byte VAULT_ENC_KEY rule,
+  metadata tenants/users DDL, tenant-payload builder with
+  `require_user` per-user rows and no manager bypass,
+  M9_SUPAVISOR_BUDGET 7+52=59, `smoke_gate` with static pass/fail plus
+  live probes as pending-never-pass, `gate_passes` zero-fail rule).
+- New: `harness/adapters/supavisor.py` (identical contract:
+  transaction/session/native variants, statement rejected as N/A,
+  setup writes env + tenant JSON + metadata SQL + executable run
+  script + conf bundle with absolute paths, runner owns
+  timeouts/warmup; harness listener 6437, upstream 6543/5432 noted
+  with the CI remap documented as carrying no performance claim).
+- Wiring: `adapters/__init__.py` export, `schema.POOLER_VERSIONS`
+  supavisor v2.9.13 (additive; M1/M2 medians untouched),
+  `auth.AUTH_POSTURE` SCRAM tenant-users label (symmetric, M9-E1
+  covers it), `cli.load_adapters` + `--list-budget` M9 line (first
+  JSON line stays the M1+M2 universe) + `--smoke-supavisor` gate
+  entry point (rc 0 only with zero fail rows), `check.py`
+  budget-parity check (success output byte-identical).
+- Docs: `docs/configs/supavisor.md` (verbatim env + fixture + tenant
+  JSON with upstream citations), deferral doc lift note (status
+  ONBOARDING, history retained, auth choice resolved),
+  `versions.md` SHA-at-build procedure, `modes.md` onboarding section
+  + M9 arms column, `spec-v1.md` s6 M7 closed, `methodology.md`
+  s7.3 posture line. M1/M2 `ARMS` frozen (provenance immutable);
+  Supavisor enters via M9 after the gate. Site copy updates ride
+  with the M11 rebuild.
+- Tests: `tests/test_m7_supavisor.py` (36 tests: pin, env, fixture,
+  payload incl. statement rejection, adapter bundle + contract,
+  schema measured/N/A validity, posture symmetry, ARMS freeze,
+  budget parity, gate pass/block matrix, CLI smoke rc 0/1).
+  Full suite green (331), `check.py` ok, `--dry-run` + `--list-budget`
+  + `--smoke-supavisor` (BLOCKED rc=1 unrecorded, PASS rc=0 with
+  SUPAVISOR_SHA) verified, page loader JS `node --check` clean.
+- `Refs #302`: no `Closes`, no owner notification (mandate rule 6).
+
+Current step: M7 implementation complete, awaiting review
+Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
+  + smoke-gate path) -> merge -> Builder M8 per blueprint.
 
 - the Builder
 
