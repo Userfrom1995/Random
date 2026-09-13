@@ -352,3 +352,62 @@ Next steps: Reviewer audit -> Tester sample-cell repro -> Maintainer
   @Userfrom1995 approval.
 
 - the Builder
+
+## Redesign chain (Architect, 2026-09-13, operative `864738b` v2.2)
+
+Operative plan: `poolduel/REDESIGN_PLAN.md` at
+`864738b38f5d458533cfa0faf1bf7e0eef54527f` (branch
+`opencode/302-poolduel-redesign-plan`; later pushes ignored until the
+owner posts a new SHA). Standing mandate (plan section 0) is binding on
+every milestone below: full self-sufficiency, no owner waits or
+mid-flight questions, decide and fix everything with logged rationale,
+burn CI without limit with wide sharding and incremental commits, chain
+milestones autonomously, notify once when publishable. Blueprint:
+`ideas/2026-09-13-poolduel-redesign.md`. All PRs use `Refs #302`; no
+`Closes #302` until the plan section 11 full gate passes.
+
+Active Milestone: M5 (charter + claims + spec skeleton + drift test)
+
+- Milestone 5 (charter + registry + spec + drift test): [ ] IA lock
+  (relative links, vendored assets, Mermaid-as-text/SVG); [ ] commit
+  `poolduel/docs/claims.md` before any resweep; [ ] `spec-v1.md`
+  skeleton; [ ] generated-count drift test (page metadata from
+  generator, no hand-typed counts). (PR 1 target, Refs #302)
+- Milestone 6 (methods hardening): [ ] PG config enforcement or
+  effective-SHOW disclosure (blocking on divergence); [ ]
+  equalized-auth churn control beside labeled asymmetric arms; [ ]
+  dataset policy (per-chunk init + CHECKPOINT + VACUUM ANALYZE +
+  bloat accounting); [ ] isolation records per raw row; [ ] pgpool
+  backend labels; [ ] budget parity via --list. (PR 2, Refs #302)
+- Milestone 7 (Supavisor onboarding): [ ] pinned version + SHA; [ ]
+  verbatim config with citations; [ ] identical adapter contract +
+  equal budget; [ ] smoke gate before matrix; [ ] deferral doc lift
+  note + six-way taxonomy updates. (PR 3, Refs #302)
+- Milestone 8 (calibration): [ ] warmup sensitivity curve; [ ]
+  scale-100 first-class pilot; [ ] resource fields (CPU/RSS/FD/queue/
+  pg_stat deltas); [ ] workload breadth (Zipf, think-time,
+  multi-statement, JSONB/COPY-adjacent, fixed-offer -R). (PR 4,
+  Refs #302)
+- Milestone 9 (main matrix resweep): [ ] full workloads both scales;
+  [ ] flagship n>=10 / standard n>=7, >=3 paired seeds; [ ] wide
+  sharding, incremental commits. (PRs 5+, Refs #302)
+- Milestone 10 (soak + statistics): [ ] 30-60 min soak arms; [ ]
+  paired bootstrap CIs + Holm + outlier rule + quarantine citations;
+  [ ] candidate re-derivation with kill rule. (PR 6, Refs #302)
+- Milestone 11 (website rebuild): [ ] static-first master report; [ ]
+  six dossiers on 7-section-ID contract; [ ] guide / architecture /
+  methodology / reproducibility sections; [ ] design system
+  (permalinks, BibTeX, picker, FAQ, glossary). (PRs 7+, Refs #302)
+- Milestone 12 (reproducibility + red-team): [ ] manifest-hash build +
+  pinned digests + log corpus + DOI snapshot; [ ] challenge flow +
+  errata + verified-by; [ ] Tier-1 + Tier-2 + mobile green +
+  fairness byte-match + Tester repro; [ ] single completion
+  notification tagging the owner. (Final PR, Closes #302 only on
+  section-11 full gate.)
+
+Current step: Redesign blueprint complete (M5-M12 structured), ready
+for Builder M5
+Next steps: Builder implements M5 with real code and zero stubs ->
+  review -> test -> pages chain, then autonomous M6-M12 chaining.
+
+- the Architect
