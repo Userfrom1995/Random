@@ -19,6 +19,10 @@ AUTH_POSTURE = {
     "pgcat": "scram-sha-256 via admin/users file",
     "odyssey": "none (CI-only frontend; backend leg SCRAM)",
     "pgpool": "pool_hba disabled (default; backend SCRAM via pool_passwd)",
+    # M7 onboarding: Supavisor tenant users over SCRAM with the
+    # user.tenant rewrite (setup doc); symmetric with the SCRAM arms,
+    # so the M9-E1 equalized control covers it without special-casing.
+    "supavisor": "scram-sha-256 (tenant users, user.tenant rewrite)",
 }
 
 ASYMMETRIC_ARMS = ("odyssey", "pgpool")

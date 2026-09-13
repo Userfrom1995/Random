@@ -13,6 +13,10 @@ POOLER_VERSIONS = {
     "pgpool": "4.7.2",
     "odyssey": "1.5.1",
     "pgcat": "v1.2.0",
+    # M7 onboarding: Supavisor enters the arm universe so future raw
+    # records validate; M1/M2 medians are untouched (no Supavisor rows
+    # there). Measured in M9 after the smoke gate passes.
+    "supavisor": "v2.9.13",
 }
 
 REQUIRED_FIELDS = (

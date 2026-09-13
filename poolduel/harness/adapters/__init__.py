@@ -7,7 +7,8 @@ from .pgbouncer import PgBouncerAdapter
 from .pgpool import PgPoolAdapter
 from .odyssey import OdysseyAdapter
 from .pgcat import PgCatAdapter
+from .supavisor import SupavisorAdapter
 
 __all__ = ["BaseAdapter", "DirectAdapter", "PgAgroalAdapter",
            "PgBouncerAdapter", "PgPoolAdapter", "OdysseyAdapter",
-           "PgCatAdapter"]
+           "PgCatAdapter", "SupavisorAdapter"]
