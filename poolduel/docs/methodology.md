@@ -38,10 +38,16 @@ instead of drowned in buffer-miss noise. Fresh `pgbench -i -s 10` per chunk
 (one init per chunk, not per cell: per-cell re-init would blow the 60 min
 chunk cap; fairness holds because every arm in the chunk shares the same
 dataset in interleaved round-robin order with its own direct control),
-`CHECKPOINT` before each measured run, default vacuum behavior held constant.
+`CHECKPOINT` plus `VACUUM (ANALYZE)` before each measured block
+(`harness/pgconf.py:dataset_policy_sql`), bloat accounting per chunk
+(`bloat_accounting_sql`: database size into the chunk log).
 Warmup `-T 30` discarded, measured `-T 60` (flagship `-T 120`). Three repeats
 per cell, five for flagship; median headline with min-max band and CV.
-Threads `-j` equal vCPU count. Per-cell caps: 8 min standard, 12 min flagship.
+Threads `-j` equal vCPU count and fixed equal to harness `--threads`
+(`isolation.pgbench_j` pinned, never derived from victim CPU count).
+Per-cell caps: 8 min standard, 12 min flagship.
+Isolation record per arm-run (`harness/isolate.py`): CPU model, kernel,
+nproc, frequency governor, threads, pinning discipline, topology.
 
 ## 4. Metrics
 
@@ -88,12 +94,18 @@ invalidate carried-forward numbers and trigger re-runs.
    `authentication "none"` (CI-only frontend; backend leg always SCRAM
    via storage_user/storage_password), pgpool-II `pool_hba` disabled
    (default; backend SCRAM via pool_passwd), PgBouncer/pgagroal/pgcat
-   SCRAM against their user/vault files. Reset queries
+   SCRAM against their user/vault files. Every raw row carries its
+   `auth_posture` label (`harness/auth.py`). The equalized-auth control
+   M9-E1 (SCRAM on every frontend, same G-CHURN100 geometry) runs
+   beside these labeled asymmetric arms in the M9 resweep so churn
+   deltas measure multiplexing, not auth cost. Reset queries
    (`DISCARD ALL`-style) are part of the fair cost of multiplexing,
    held constant and reported. Effective server settings per arm-run
    are captured in each record's `pg_show` block (`SHOW max_connections,
    shared_buffers, synchronous_commit, fsync, password_encryption`,
-   best-effort, `{}` when unavailable).
+   best-effort, `{}` when unavailable) with the enforcement verdict in
+   `pg_config_status` (`enforced` / `disclosed` with divergence list /
+   `unknown`); requested-vs-effective divergence is a blocking defect.
 4. Session-state leakage: custom scripts must stay transaction-scoped
    (`SET LOCAL`, `pg_advisory_xact_lock`); builtins already do.
 5. Reset-query cost: `DISCARD ALL` style resets are part of the fair cost of

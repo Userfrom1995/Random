@@ -63,8 +63,18 @@
 
 ## 6. Open items (to be closed by M6-M8)
 
-- M6: PG config enforcement wording; equalized-auth churn control arm
-  definition; dataset policy text; isolation record schema.
+- M6 (closed 2026-09-13): PG config enforcement wording (section 3:
+  runner applies `harness/pgconf.py:apply_sql`, per-row
+  `pg_config_status` enforced/disclosed/unknown with divergence list;
+  disclosed divergence is a blocking defect for the fairness re-check);
+  equalized-auth churn control arm defined
+  (`harness/auth.py:EQUALIZED_CHURN_SPEC` M9-E1, SCRAM everywhere,
+  beside labeled asymmetric arms, measured in M9); dataset policy text
+  (per-chunk `pgbench -i -s 10` + `CHECKPOINT` + `VACUUM (ANALYZE)` +
+  bloat accounting via `bloat_accounting_sql`); isolation record
+  schema (`harness/isolate.py:collect_isolation`: cpu_model, kernel,
+  nproc, governor, threads, pgbench_j pinned to threads, pinning,
+  topology, per raw row, nullable for old rows).
 - M7: Supavisor provisioning and smoke-gate entry criteria.
 - M8: warmup sensitivity curve result; scale-100 pilot parameters;
   resource-field schema; workload breadth additions (Zipf, think-time,

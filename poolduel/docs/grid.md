@@ -85,7 +85,11 @@ https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html
 Constraint enforced by harness: `max_pool * num_init_children`
 must fit PG `max_connections` with headroom; the (200 children x 4 pool)
 corner is forbidden and replaced by (200 x 1). The effective backend count
-is recorded per cell for iso-region labeling.
+is recorded per cell for iso-region labeling: every pgpool config carries
+the `children x max_pool` label (`effective backends (children x max_pool)
+= N` in `PgPoolAdapter.config_text`), and iso slices never imply
+multiplexing where none exists (pgpool 1:1-or-more fan-in is stated on
+every pgpool cell).
 
 ## 4. Odyssey grid
 

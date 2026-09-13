@@ -36,6 +36,8 @@ def build_parser():
                         "with --matrix m2: m2a1 rows, one repeat")
     p.add_argument("--list-m2", action="store_true",
                    help="print the M2 variant table plus N/A rows and exit")
+    p.add_argument("--list-budget", action="store_true",
+                   help="print per-contender cell budgets (M1+M2) and exit")
     p.add_argument("--write-na", action="store_true",
                    help="with --matrix m2: emit N/A JSON records for "
                         "unsupported rows into --out/raw and exit")
@@ -113,6 +115,35 @@ def m2_plan(cells, repeats_per_cell=None):
     return plan
 
 
+def print_budget():
+    """Per-contender budgets across M1+M2 (M6 budget-parity surfacing).
+
+    M1: every arm measures all 7 cells (6 arms x 7 = 42 medians).
+    M2: realized measured rows per pooler from the variant table plus
+    the per-chunk direct controls; structural imbalance (session-only
+    modes, unsupported statement paths) stays visible as N/A with
+    reason. Prints JSON plus a human line per arm; exit 0.
+    """
+    from .m2 import M2_ROWS, m2_budget_table
+    m2 = m2_budget_table()
+    combined = {}
+    for arm in ARMS:
+        m1_cells = len(M1_CELLS)
+        # Direct rides every M2 row as the same-geometry control twin
+        # (m2_plan pairs each row with a direct run); other arms run
+        # only their own variant rows.
+        m2_rows = len(M2_ROWS) if arm == "direct" else int(m2.get(arm, 0))
+        combined[arm] = {"m1_cells": m1_cells, "m2_rows": m2_rows,
+                         "total": m1_cells + m2_rows}
+    print(json.dumps(combined, sort_keys=True))
+    for arm in ARMS:
+        row = combined[arm]
+        print("%s: M1 %d cells + M2 %d rows = %d"
+              % (arm, row["m1_cells"], row["m2_rows"], row["total"]))
+    print("M2 structural N/A rows carry nulls with reason "
+          "(see --list-m2); best-vs-best always ships beside iso slices.")
+
+
 def print_m2_table():
     from .m2 import (GEOMETRIES, M2_CHUNK_DESCRIPTIONS, M2_ROWS,
                      m2_budget_table)
@@ -188,6 +219,9 @@ def main(argv=None):
         parser.error("--threads must be positive")
     if args.list_m2:
         print_m2_table()
+        return 0
+    if args.list_budget:
+        print_budget()
         return 0
     if args.write_na:
         if args.matrix != "m2":

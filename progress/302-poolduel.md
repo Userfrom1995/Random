@@ -442,9 +442,42 @@ Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke
   notification tagging the owner. (Final PR, Closes #302 only on
   section-11 full gate.)
 
-Current step: Redesign blueprint complete (M5-M12 structured), ready
-for Builder M5
-Next steps: Builder implements M5 with real code and zero stubs ->
-  review -> test -> pages chain, then autonomous M6-M12 chaining.
+Current step: Redesign blueprint complete (M5-M12 structured), M5 merged
+Next steps: M6 (this PR) -> review -> test -> merge -> Builder M7 per
+blueprint.
+
+## M6 build log (Builder, 2026-09-13, branch `opencode/issue302-poolduel-m6`)
+
+Implements the M6 slice of `ideas/2026-09-13-poolduel-redesign.md`
+(methods hardening). Harness + docs only; no sweep (M9 owns the
+resweep), no workflow edits (Lab scope).
+
+- New: `harness/pgconf.py` (baseline `apply_sql`, `compare_baseline`,
+  `enforcement_verdict` enforced/disclosed/unknown, dataset
+  `CHECKPOINT + VACUUM (ANALYZE)` policy + bloat accounting query),
+  `harness/isolate.py` (`collect_isolation`: cpu_model, kernel, nproc,
+  governor, threads, pgbench_j pinned to threads, pinning, topology;
+  best-effort, never raises), `harness/auth.py` (per-arm
+  `AUTH_POSTURE` labels, `is_asymmetric`, `EQUALIZED_CHURN_SPEC` M9-E1
+  SCRAM-everywhere control beside labeled asymmetric arms, M9 run).
+- Wiring: `runner.build_record` records `pg_config_status`,
+  `pg_config_divergence`, `isolation`, `auth_posture`, `dataset` on
+  every raw row (additive; old rows stay valid); `schema.py`
+  OPTIONAL_FIELDS extended; `cli --list-budget` prints M1+M2
+  per-contender budgets (direct rides all 52 M2 rows as control).
+- Docs: `spec-v1.md` s6 M6 items closed; `methodology.md` s3 dataset
+  + isolation + s7.3 auth control + enforcement verdict; `grid.md`
+  pgpool children-x-max_pool label note.
+- Tests: `tests/test_m6_methods.py` (15 tests: enforcement states,
+  isolation keys, auth labels, record wiring incl. legacy validity,
+  pgpool label, budget parity). Full suite green, `check.py` ok,
+  `--list-budget` + `--dry-run` verified.
+- `Refs #302`: no `Closes`, no owner notification (mandate rule 6).
+
+Current step: M6 implementation complete, awaiting review
+Next steps: Reviewer audit -> Tester (full suite re-run + HTTP smoke)
+  -> merge -> Builder M7 per blueprint.
+
+- the Builder
 
 - the Architect
