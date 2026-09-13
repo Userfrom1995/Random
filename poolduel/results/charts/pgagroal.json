@@ -276,39 +276,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            2,
-            0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -316,7 +283,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 1532.1 tps (M1-1 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 1532.1 tps (M1-1 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -724,84 +691,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            9,
-            0
-          ],
-          [
-            10,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#FFFFFF"
-        },
-        "label": {
-          "color": "#FFFFFF",
-          "formatter": "N/A (unsupported)",
-          "position": "top",
-          "show": true
-        },
-        "name": "N/A (unsupported)",
-        "symbol": "diamond",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
-      },
-      {
-        "data": [
-          [
-            4,
-            0
-          ],
-          [
-            5,
-            0
-          ],
-          [
-            6,
-            0
-          ],
-          [
-            7,
-            0
-          ],
-          [
-            8,
-            0
-          ],
-          [
-            11,
-            0
-          ],
-          [
-            12,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -809,7 +698,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 2695.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 2695.6 tps (M2-I3 pgagroal); 4 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "pgagroal M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

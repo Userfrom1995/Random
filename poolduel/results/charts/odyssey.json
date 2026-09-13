@@ -272,35 +272,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            2,
-            0
-          ],
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -308,7 +279,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 11331.2 tps (M1-1 odyssey); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 11331.2 tps (M1-1 odyssey); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -681,56 +652,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#FFFFFF"
-        },
-        "label": {
-          "color": "#FFFFFF",
-          "formatter": "N/A (unsupported)",
-          "position": "top",
-          "show": true
-        },
-        "name": "N/A (unsupported)",
-        "symbol": "diamond",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
-      },
-      {
-        "data": [
-          [
-            11,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -738,7 +659,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 23527.8 tps (M2-S7 odyssey); 10 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 23527.8 tps (M2-S7 odyssey); 10 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "Odyssey M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

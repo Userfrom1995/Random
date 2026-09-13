@@ -272,35 +272,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            2,
-            0
-          ],
-          [
-            5,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -308,7 +279,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 17117.4 tps (M1-1 pgbouncer); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 17117.4 tps (M1-1 pgbouncer); 5 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "PgBouncer M1 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"
@@ -668,43 +639,6 @@
         "symbol": "emptyCircle",
         "symbolSize": 6,
         "type": "line"
-      },
-      {
-        "data": [
-          [
-            2,
-            0
-          ],
-          [
-            3,
-            0
-          ],
-          [
-            9,
-            0
-          ],
-          [
-            11,
-            0
-          ]
-        ],
-        "itemStyle": {
-          "color": "#F0E442"
-        },
-        "label": {
-          "color": "#F0E442",
-          "formatter": "timeout/inconclusive",
-          "position": "top",
-          "show": true
-        },
-        "name": "timeout/inconclusive",
-        "symbol": "triangle",
-        "symbolOffset": [
-          0,
-          -14
-        ],
-        "symbolSize": 14,
-        "type": "scatter"
       }
     ],
     "textStyle": {
@@ -712,7 +646,7 @@
     },
     "title": {
       "left": "center",
-      "subtext": "median tps with min-max bands; N/A and timeout cells marked. peak 18867.3 tps (M2-S15 pgbouncer); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
+      "subtext": "log-scaled twin of the same data (N/A/timeout markers shown on the linear chart); median tps with min-max bands; N/A and timeout cells marked. peak 18867.3 tps (M2-S15 pgbouncer); 8 measured cells; 30s warmup discarded; scale 10; PG 17 (PGDG); ubuntu-24.04 CI runners",
       "text": "PgBouncer M2 own surface (log scale)",
       "textStyle": {
         "color": "#E6EDF3"

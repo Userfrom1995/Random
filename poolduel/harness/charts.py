@@ -252,10 +252,17 @@ def _with_log_companion(charts, chart_id, opt, cells, by_key):
         return
     twin = copy.deepcopy(opt)
     twin["yAxis"] = _log_y_axis()
+    # Scatter N/A/timeout markers sit at y=0, which is undefined on a
+    # log axis (ECharts drops them silently). Keep the twin bar-only so
+    # the "same data" claim stays honest; markers live on the linear.
+    twin["series"] = [s for s in twin["series"]
+                      if s.get("type") != "scatter"]
     twin["title"] = dict(twin.get("title", {}),
                          text=twin.get("title", {}).get("text", "") +
                          " (log scale)")
-    twin["title"]["subtext"] = ("log-scaled twin of the same data; " +
+    twin["title"]["subtext"] = ("log-scaled twin of the same data "
+                                "(N/A/timeout markers shown on the "
+                                "linear chart); " +
                                 twin.get("title", {}).get("subtext", ""))
     charts[chart_id + "-log"] = twin
 
@@ -395,9 +402,17 @@ def pooler_page_charts(pooler, m1_entries, m2_entries):
         charts[chart_id] = opt
         twin = copy.deepcopy(opt)
         twin["yAxis"] = _log_y_axis()
+        # Same y=0-marker rule as _with_log_companion: bars only on log.
+        twin["series"] = [s for s in twin["series"]
+                          if s.get("type") != "scatter"]
         twin["title"] = dict(twin.get("title", {}),
                              text=twin.get("title", {}).get("text", "") +
                              " (log scale)")
+        twin["title"]["subtext"] = ("log-scaled twin of the same data "
+                                    "(N/A/timeout markers shown on the "
+                                    "linear chart); " +
+                                    twin.get("title", {}).get(
+                                        "subtext", ""))
         charts[chart_id + "-log"] = twin
     return charts
 
