@@ -23,6 +23,8 @@ specs it publishes. No procedure branches live here.
 
 from .cells import check_ratio
 
+import math
+
 # Warmup candidates in seconds. 30 s is the provisional value used by
 # every M1/M2 cell; the curve must prove it or raise it.
 WARMUP_CANDIDATES = (0, 10, 30, 60)
@@ -60,10 +62,11 @@ def evaluate_warmup_curve(points, tolerance=WARMUP_TOLERANCE):
     if not points:
         raise ValueError("warmup curve needs at least one point")
     for warmup_s, tps in points:
-        if tps is None or not isinstance(tps, (int, float)) or tps <= 0:
+        if (tps is None or not isinstance(tps, (int, float))
+                or not math.isfinite(tps) or tps <= 0):
             raise ValueError(
-                "warmup curve point (warmup_s=%r) needs a positive "
-                "median tps, got %r" % (warmup_s, tps))
+                "warmup curve point (warmup_s=%r) needs a finite "
+                "positive median tps, got %r" % (warmup_s, tps))
     best = max(tps for (_, tps) in points)
     floor = best * (1.0 - tolerance)
     passing = sorted(w for (w, tps) in points if tps >= floor)
